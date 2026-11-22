@@ -136,9 +136,18 @@ object HybridScreen {
             })
         }
 
-        fs.dialog.setOnDismissListener { closed = true; io.shutdown() }
+        // The phone can flip between "downloadable" and "unavailable" for a moment, so re-check every 3 s for about 2 minutes.
+        var polls = 0
+        val poll = object : Runnable {
+            override fun run() {
+                if (closed || polls++ >= 40) return
+                refresh()
+                main.postDelayed(this, 3000)
+            }
+        }
+        fs.dialog.setOnDismissListener { closed = true; main.removeCallbacksAndMessages(null); io.shutdown() }
         fs.show()
-        refresh()
+        poll.run()
     }
 
     /** "On this phone (Gemini Nano) · 1.2 s" plus the routing note, if any. */
