@@ -13,6 +13,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import dev.pocketide.app.core.HybridSettings
 import java.util.concurrent.Executors
 
 /**
@@ -85,7 +86,7 @@ object HybridScreen {
         fs.heading("Where requests run")
         val modeCard = fs.card()
         val modeLine = Ui.text(ctx, "", 13f, Ui.TEXT)
-        fun paintMode() { modeLine.text = mode(ctx).label + "\nRequests over ${HybridAi.ON_DEVICE_MAX_CHARS} characters go to the cloud in the on-phone-first mode." }
+        fun paintMode() { modeLine.text = mode(ctx).label + "\nRequests over ${HybridAi.settings(ctx).onDeviceMaxChars} characters go to the cloud in the on-phone-first mode." }
         paintMode()
         modeCard.addView(modeLine)
         fs.buttonRow(modeCard, Ui.button(ctx, "Change") {
@@ -93,6 +94,41 @@ object HybridScreen {
             AlertDialog.Builder(ctx).setTitle("Where requests run")
                 .setSingleChoiceItems(all.map { it.label }.toTypedArray(), all.indexOf(mode(ctx))) { d, i -> setMode(ctx, all[i]); paintMode(); d.dismiss() }
                 .show()
+        })
+
+        // ---- Model settings ----
+        fs.heading("Model settings")
+        val setCard = fs.card()
+        val cur = HybridAi.settings(ctx)
+        fun field(hint: String, value: String, decimal: Boolean = false): EditText = EditText(ctx).apply {
+            this.hint = hint; setText(value); textSize = 14f; setTextColor(Ui.TEXT); setHintTextColor(Ui.MUTED)
+            inputType = if (decimal) InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL else InputType.TYPE_CLASS_NUMBER
+        }
+        val tempBox = field("Temperature (0 to 2)", cur.temperature.toString(), true)
+        val topKBox = field("Top-K (1 to 100)", cur.topK.toString())
+        val outBox = field("Max output tokens (64 to 8192)", cur.maxOutputTokens.toString())
+        val charsBox = field("On-phone limit, characters (1000 to 30000)", cur.onDeviceMaxChars.toString())
+        val warn = Ui.text(ctx, HybridSettings.warning(cur) ?: "", 12f, Ui.BAD)
+        setCard.addView(Ui.text(ctx, "Temperature: lower is more predictable. Top-K: how many likely words the model picks from. " +
+            "Max output tokens: the longest reply. On-phone limit: longer requests go to the cloud in the on-phone-first mode. " +
+            "Changes apply to the next request.", 12f, Ui.MUTED))
+        for (box in listOf(tempBox, topKBox, outBox, charsBox)) setCard.addView(box, LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP))
+        setCard.addView(warn)
+        fun fill(s: HybridSettings) {
+            tempBox.setText(s.temperature.toString()); topKBox.setText(s.topK.toString())
+            outBox.setText(s.maxOutputTokens.toString()); charsBox.setText(s.onDeviceMaxChars.toString())
+            warn.text = HybridSettings.warning(s) ?: ""
+        }
+        fs.buttonRow(setCard, Ui.button(ctx, "Save settings", true) {
+            val s = HybridSettings.parse(HybridAi.settings(ctx), tempBox.text.toString(), topKBox.text.toString(),
+                outBox.text.toString(), charsBox.text.toString())
+            HybridAi.saveSettings(ctx, s)
+            fill(s); paintMode()
+            toast("Saved. The next request uses these settings.")
+        }, Ui.button(ctx, "Reset to defaults") {
+            HybridAi.saveSettings(ctx, HybridSettings.DEFAULT)
+            fill(HybridSettings.DEFAULT); paintMode()
+            toast("Back to the defaults.")
         })
 
         // ---- Try it ----

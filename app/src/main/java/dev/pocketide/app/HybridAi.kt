@@ -12,7 +12,9 @@ import com.google.firebase.ai.InferenceSource
 import com.google.firebase.ai.OnDeviceConfig
 import com.google.firebase.ai.OnDeviceModelOption
 import com.google.firebase.ai.OnDeviceModelStatus
+import com.google.firebase.ai.type.GenerationConfig
 import com.google.firebase.ai.type.GenerativeBackend
+import dev.pocketide.app.core.HybridSettings
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -28,8 +30,7 @@ object HybridAi {
     /** The cloud model (Gemini Developer API through Firebase AI Logic). */
     const val CLOUD_MODEL = "gemini-3.1-flash-lite"
 
-    /** Gemini Nano is made for short single-turn prompts; longer requests are routed to the cloud model. */
-    const val ON_DEVICE_MAX_CHARS = 14000
+    private const val PREFS = "hybrid_ai"
 
     enum class Mode(val label: String, val inference: InferenceMode) {
         PREFER_ON_DEVICE("On this phone first (cloud if Nano is missing)", InferenceMode.PREFER_ON_DEVICE),
@@ -53,18 +54,44 @@ object HybridAi {
     private fun model(ctx: Context, mode: Mode): GenerativeModel {
         check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
+        val s = settings(ctx)
         return models.getOrPut(mode) {
+            val gen = GenerationConfig.builder().apply {
+                temperature = s.temperature; topK = s.topK; maxOutputTokens = s.maxOutputTokens
+            }.build()
             FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
-                .generativeModel(modelName = CLOUD_MODEL,
-                    onDeviceConfig = OnDeviceConfig(mode = mode.inference, modelOption = OnDeviceModelOption.PREVIEW_FAST))
+                .generativeModel(modelName = CLOUD_MODEL, generationConfig = gen,
+                    onDeviceConfig = OnDeviceConfig(mode = mode.inference, maxOutputTokens = s.maxOutputTokens,
+                        temperature = s.temperature, topK = s.topK, modelOption = OnDeviceModelOption.PREVIEW_FAST))
         }
     }
 
+    /** The settings the person saved (Models → Hybrid AI), clamped to safe ranges. */
+    fun settings(ctx: Context): HybridSettings {
+        val p = ctx.getSharedPreferences(PREFS, 0)
+        val d = HybridSettings.DEFAULT
+        return HybridSettings.clamp(HybridSettings(
+            temperature = p.getFloat("temperature", d.temperature),
+            topK = p.getInt("topK", d.topK),
+            maxOutputTokens = p.getInt("maxOutputTokens", d.maxOutputTokens),
+            onDeviceMaxChars = p.getInt("onDeviceMaxChars", d.onDeviceMaxChars)))
+    }
+
+    /** Saves the settings; the models are rebuilt on the next request. */
+    @Synchronized
+    fun saveSettings(ctx: Context, s: HybridSettings) {
+        val c = HybridSettings.clamp(s)
+        ctx.getSharedPreferences(PREFS, 0).edit()
+            .putFloat("temperature", c.temperature).putInt("topK", c.topK)
+            .putInt("maxOutputTokens", c.maxOutputTokens).putInt("onDeviceMaxChars", c.onDeviceMaxChars).apply()
+        models.clear()
+    }
+
     /** Where a request of this size will go in this mode (the routing rule shown to the person). */
-    fun route(mode: Mode, chars: Int): Pair<Mode, String> = when {
-        mode == Mode.PREFER_ON_DEVICE && chars > ON_DEVICE_MAX_CHARS ->
-            Mode.PREFER_IN_CLOUD to "Sent to the cloud: ${chars} characters is more than Gemini Nano handles well ($ON_DEVICE_MAX_CHARS)."
-        mode == Mode.ONLY_ON_DEVICE && chars > ON_DEVICE_MAX_CHARS ->
+    fun route(mode: Mode, chars: Int, limit: Int): Pair<Mode, String> = when {
+        mode == Mode.PREFER_ON_DEVICE && chars > limit ->
+            Mode.PREFER_IN_CLOUD to "Sent to the cloud: ${chars} characters is more than the on-phone limit ($limit)."
+        mode == Mode.ONLY_ON_DEVICE && chars > limit ->
             mode to "Long for Gemini Nano ($chars characters); the start of it may be all it reads."
         else -> mode to ""
     }
@@ -84,7 +111,7 @@ object HybridAi {
 
     /** One single-turn request. Blocking. */
     fun ask(ctx: Context, prompt: String, mode: Mode): Reply {
-        val (use, note) = route(mode, prompt.length)
+        val (use, note) = route(mode, prompt.length, settings(ctx).onDeviceMaxChars)
         val t0 = System.nanoTime()
         val r = runBlocking { model(ctx, use).generateContent(prompt) }
         val secs = (System.nanoTime() - t0) / 1e9
