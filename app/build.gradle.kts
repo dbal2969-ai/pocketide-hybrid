@@ -2,6 +2,9 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+// #BuildHybridAI: Firebase is configured only when app/google-services.json exists (kept out of git; CI writes it from a
+// secret). Without it the app builds and runs as before, with hybrid AI switched off.
+if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
 
 android {
     externalNativeBuild { ndkBuild { path = file("src/main/cpp/Android.mk") } }
@@ -14,8 +17,8 @@ android {
         // The name on the home screen and in Android's installer; the app code is shared, so each edition sets its own (1.5.131).
         resValue("string", "app_name", "PocketIDE")
         targetSdk = 35
-        versionCode = 230
-        versionName = "1.5.182-mit"
+        versionCode = 231
+        versionName = "1.5.183-hybrid"
     }
 
     // A fixed debug key, so every build is signed the same way and a new APK
@@ -80,6 +83,12 @@ kotlin {
 dependencies {
     implementation(project(":terminal-view"))  // Termux terminal libraries (vendored, Apache-2.0 terms; 1.5.128)
     implementation("com.github.mwiede:jsch:0.2.20")  // BSD licence; SSH for the remote machine (RemoteDev, 1.5.112)
+    // #BuildHybridAI: Firebase AI Logic hybrid inference (Gemini Nano on the phone, Gemini in the cloud) and App Check
+    implementation("com.google.firebase:firebase-ai:18.2.0")
+    implementation("com.google.firebase:firebase-ai-ondevice:16.0.0-beta08")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity:20.1.0")
+    debugImplementation("com.google.firebase:firebase-appcheck-debug:20.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")  // MIT licence; runs Android classes on the JVM for the agent harness
 }

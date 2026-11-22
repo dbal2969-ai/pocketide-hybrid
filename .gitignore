@@ -5,3 +5,6 @@ local.properties
 *.iml
 engine/out/
 engine/work/
+
+# #BuildHybridAI: Firebase client config; CI writes it from the GOOGLE_SERVICES_JSON secret
+app/google-services.json

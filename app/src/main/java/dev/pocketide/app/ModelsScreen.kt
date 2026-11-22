@@ -92,6 +92,12 @@ object ModelsScreen {
             eng.addView(Ui.text(ctx, "The fastest way to run a model on this phone: llama.cpp inside PocketIDE, nothing else to install.", 13f, Ui.MUTED))
             fs.buttonRow(eng, Ui.button(ctx, "Open built-in engine", true) { EngineScreen.show(activity, settings, onChanged) })
 
+            // #BuildHybridAI: Gemini Nano on this phone with a cloud fallback (Firebase AI Logic)
+            fs.heading("Hybrid AI")
+            val hyb = fs.card(fs.body, 6)
+            hyb.addView(Ui.text(ctx, "Gemini Nano on this phone for quick help, a cloud Gemini model when Nano is missing or the request is long.", 13f, Ui.MUTED))
+            fs.buttonRow(hyb, Ui.button(ctx, "Open hybrid AI", true) { HybridScreen.show(activity) })
+
             fs.heading(if (remote) "On your computer" else "On this phone")
             fs.body.addView(installedBox, Ui.lp(Ui.MATCH, Ui.WRAP))
 

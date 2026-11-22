@@ -728,6 +728,18 @@ class EditorPane(private val ctx: Context, private val store: ProjectStore, priv
                     onAskLines?.invoke(dev.pocketide.app.core.LineLinks.ask(path, r.first, r.last, code))
                 }
             },
+            // #BuildHybridAI: quick single-turn help on the selected lines, Gemini Nano on this phone first, cloud fallback
+            "Quick assist (Gemini Nano on this phone)…" to {
+                val act = ctx as? android.app.Activity
+                if (path.isEmpty() || act == null) toast("Open a file first") else {
+                    save(); val r = selectedLines(); val lines = editor.text.toString().split("\n")
+                    val code = lines.subList(r.first - 1, minOf(r.last, lines.size)).joinToString("\n")
+                    val lineStart = lines.take(r.first - 1).sumOf { it.length + 1 }
+                    HybridScreen.quickAssist(act, dev.pocketide.app.core.Snippets.langOf(path), code,
+                        onInsert = if (editable) { doc -> editor.text.insert(minOf(lineStart, editor.text.length), doc); save() } else null,
+                        onEscalate = { prompt -> onAskLines?.invoke(prompt) })
+                }
+            },
             "Link these lines in the chat" to { if (path.isEmpty()) toast("Open a file first") else { val r = selectedLines(); onLinkLines?.invoke(dev.pocketide.app.core.LineLinks.link(path, r.first, r.last)) } },
             "Snippets (saved code)…" to {
                 ProjectUi.snippets(ctx, selectedText(), dev.pocketide.app.core.Snippets.langOf(path)) { code ->
