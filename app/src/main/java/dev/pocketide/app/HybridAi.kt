@@ -78,11 +78,13 @@ object HybridAi {
 
     /** Gemini Nano on this phone: "AVAILABLE", "DOWNLOADABLE", "DOWNLOADING", "UNAVAILABLE" or an error. Blocking. */
     fun nanoStatus(ctx: Context): String = try {
-        when (runBlocking { model(ctx, Mode.PREFER_ON_DEVICE).onDeviceExtension?.checkStatus() }) {
+        val st = runBlocking { model(ctx, Mode.PREFER_ON_DEVICE).onDeviceExtension?.checkStatus() }
+        when (st) {
             OnDeviceModelStatus.AVAILABLE -> "AVAILABLE"
             OnDeviceModelStatus.DOWNLOADABLE -> "DOWNLOADABLE"
             OnDeviceModelStatus.DOWNLOADING -> "DOWNLOADING"
-            else -> "UNAVAILABLE"
+            null -> "UNAVAILABLE (this build has no on-device model object)"
+            else -> "UNAVAILABLE (SDK status: $st)"
         }
     } catch (e: Exception) { "ERROR: " + explain(e) }
 

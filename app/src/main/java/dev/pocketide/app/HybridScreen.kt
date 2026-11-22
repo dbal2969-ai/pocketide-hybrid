@@ -73,7 +73,7 @@ object HybridScreen {
                         s == "AVAILABLE" -> "Ready. Quick assist runs on this phone, even in airplane mode."
                         s == "DOWNLOADABLE" -> "This phone supports Gemini Nano. Download it once (through Android AICore) to work offline."
                         s == "DOWNLOADING" -> "Downloading through Android AICore…"
-                        s == "UNAVAILABLE" -> "Gemini Nano is not available on this phone, so requests go to the cloud model."
+                        s.startsWith("UNAVAILABLE") -> "Gemini Nano is not available on this phone, so requests go to the cloud model.\n$s"
                         else -> s
                     }
                     downloadBtn.visibility = if (s == "DOWNLOADABLE") TextView.VISIBLE else TextView.GONE
