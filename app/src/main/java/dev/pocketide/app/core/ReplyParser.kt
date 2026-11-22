@@ -12,6 +12,8 @@ data class PreviewParts(val text: String, val names: List<String>)
 object ReplyParser {
     private val FILE_FENCE = Regex("""```file:([^\n]+)\n([\s\S]*?)\n?```""")
     private val RUN_FENCE = Regex("""```run[^\S\n]*\n([\s\S]*?)\n?```""")
+    /** ```javascript:game.js  (language, then the file name): models often write this instead of ```file:game.js */
+    private val LANG_PATH_FENCE = Regex("""```[A-Za-z0-9+#]*:([^\s`]+)[^\S\n]*\n([\s\S]*?)\n?```""")
     private val OPEN_FENCE = Regex("""```(file:[^\n]*|run[^\S\n]*)(?:\n[\s\S]*?(?:\n?```|\z)|\z)""")
     private val FILE_PATH_OK = Regex("""^[\w.\-/ ]+$""")
 
@@ -29,6 +31,10 @@ object ReplyParser {
                 byPath[path] = m.groupValues[2].replace("\r", "") + "\n"
             }
             ""
+        }
+        text = LANG_PATH_FENCE.replace(text) { m ->
+            val path = LooseFiles.pathLine(m.groupValues[1].trim())   // only names with a known file extension
+            if (path != null && !path.contains("..")) { byPath[path] = m.groupValues[2].replace("\r", "") + "\n"; "" } else m.value
         }
         text = RUN_FENCE.replace(text) { m ->
             m.groupValues[1].split("\n").map { it.trim() }.filter { it.isNotEmpty() && it[0] != '#' }.forEach { cmds.add(it) }
