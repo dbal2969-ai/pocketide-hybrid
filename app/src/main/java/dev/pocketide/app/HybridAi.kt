@@ -10,6 +10,7 @@ import com.google.firebase.ai.GenerativeModel
 import com.google.firebase.ai.InferenceMode
 import com.google.firebase.ai.InferenceSource
 import com.google.firebase.ai.OnDeviceConfig
+import com.google.firebase.ai.OnDeviceModelOption
 import com.google.firebase.ai.OnDeviceModelStatus
 import com.google.firebase.ai.type.GenerativeBackend
 import kotlinx.coroutines.runBlocking
@@ -54,7 +55,8 @@ object HybridAi {
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
         return models.getOrPut(mode) {
             FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
-                .generativeModel(modelName = CLOUD_MODEL, onDeviceConfig = OnDeviceConfig(mode = mode.inference))
+                .generativeModel(modelName = CLOUD_MODEL,
+                    onDeviceConfig = OnDeviceConfig(mode = mode.inference, modelOption = OnDeviceModelOption.PREVIEW_FAST))
         }
     }
 
