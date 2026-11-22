@@ -53,7 +53,7 @@ object HybridAi {
         check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
         return models.getOrPut(mode) {
-            FirebaseAI.getInstance(GenerativeBackend.googleAI())
+            FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
                 .generativeModel(modelName = CLOUD_MODEL, onDeviceConfig = OnDeviceConfig(mode = mode.inference))
         }
     }
