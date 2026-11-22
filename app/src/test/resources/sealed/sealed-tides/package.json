@@ -1,0 +1,7 @@
+{
+  "name": "tide-table",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

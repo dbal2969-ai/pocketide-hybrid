@@ -1,0 +1,4 @@
+ITEM                QTY     AMOUNT
+Flat white            3      10.50
+Croissant             2       5.20
+Tea                   4       9.60

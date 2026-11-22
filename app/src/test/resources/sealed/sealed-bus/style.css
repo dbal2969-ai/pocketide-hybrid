@@ -1,0 +1,4 @@
+body { font: 16px/1.4 system-ui, sans-serif; margin: 0 auto; max-width: 720px; padding: 12px; }
+button { font: inherit; }
+#stops { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; }
+[aria-current] { font-weight: bold; }

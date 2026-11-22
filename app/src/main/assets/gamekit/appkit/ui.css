@@ -1,0 +1,33 @@
+/* PocketIDE app kit: clean defaults for phone-first apps. Light and dark (follows the system, or data-theme on <html>).
+   Change the look with the variables below; --accent is set from app.json by the app. MIT licensed. */
+:root{--accent:#4f6bed;--bg:#f6f7fb;--card:#fff;--text:#1d2130;--muted:#6b7285;--line:#e3e6ef;--ok:#1f9d55;--bad:#d64545;--warn:#d9a21b;--radius:12px;--shadow:0 1px 3px rgba(20,25,40,.08),0 4px 14px rgba(20,25,40,.06);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#11131a;--card:#1b1e28;--text:#e8eaf2;--muted:#9aa1b5;--line:#2c3040;--shadow:0 1px 3px rgba(0,0,0,.4);color-scheme:dark}}
+:root[data-theme=dark]{--bg:#11131a;--card:#1b1e28;--text:#e8eaf2;--muted:#9aa1b5;--line:#2c3040;--shadow:0 1px 3px rgba(0,0,0,.4);color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent)}h1,h2,h3{line-height:1.2;margin:.2em 0 .5em}h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
+header.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+header.bar h1{font-size:1.15rem;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{max-width:980px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:0}.muted{color:var(--muted)}.small{font-size:.85rem}.right{margin-left:auto}
+button,.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:9px 14px;min-height:42px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.primary,.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}button.danger{color:var(--bad)}button.ghost{background:transparent;border-color:transparent}button:disabled{opacity:.5}
+input,select,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:42px;width:100%}
+textarea{min-height:90px;resize:vertical}input[type=checkbox],input[type=radio]{width:20px;min-height:20px;accent-color:var(--accent)}
+input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:1px}
+label.field{display:block;margin:0 0 12px}label.field>span{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:4px}.field .err{color:var(--bad);font-size:.8rem}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:600;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.list>*{border-bottom:1px solid var(--line)}.list>*:last-child{border-bottom:0}.item{display:flex;gap:10px;align-items:center;padding:12px 4px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto}.tabs button{border:0;border-radius:0;background:none;border-bottom:3px solid transparent;color:var(--muted)}.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:600;cursor:pointer;white-space:nowrap}
+.kpi{font-size:clamp(1.15rem,5.2vw,1.6rem);font-weight:700;overflow-wrap:anywhere;min-width:0}.kpi small{display:block;font-size:.8rem;font-weight:600;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:30px 10px}
+.modal-back{position:fixed;inset:0;background:rgba(10,12,20,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.modal{background:var(--card);width:100%;max-width:560px;max-height:90vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px}
+@media (min-width:640px){.modal-back{align-items:center}.modal{border-radius:16px}}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#222634;color:#fff;padding:10px 16px;border-radius:10px;z-index:30;box-shadow:var(--shadow);max-width:90vw}
+.fab{position:fixed;right:18px;bottom:18px;width:56px;height:56px;border-radius:50%;font-size:1.6rem;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:6}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:12px;overflow-x:auto;padding-bottom:8px}.col{background:color-mix(in srgb,var(--line) 45%,transparent);border-radius:var(--radius);padding:8px;min-height:120px}
+.col h3{font-size:.9rem;color:var(--muted);margin:4px 4px 8px}.col .card{margin-bottom:8px;cursor:grab;padding:10px}.col.over{outline:2px dashed var(--accent)}
+.chart svg{width:100%;height:auto;display:block}.chart text{fill:var(--muted);font-size:11px}
+.stars{color:var(--warn);letter-spacing:2px}

@@ -1,0 +1,121 @@
+{
+ "route": "7",
+ "name": "Town circular",
+ "stops": [
+  {
+   "id": "market-square",
+   "name": "Market Square",
+   "offset": 0
+  },
+  {
+   "id": "station-road",
+   "name": "Station Road",
+   "offset": 4
+  },
+  {
+   "id": "library",
+   "name": "Library",
+   "offset": 8
+  },
+  {
+   "id": "hospital",
+   "name": "Hospital",
+   "offset": 12
+  },
+  {
+   "id": "riverside",
+   "name": "Riverside",
+   "offset": 16
+  },
+  {
+   "id": "park-gates",
+   "name": "Park Gates",
+   "offset": 20
+  },
+  {
+   "id": "college",
+   "name": "College",
+   "offset": 24
+  },
+  {
+   "id": "retail-park",
+   "name": "Retail Park",
+   "offset": 28
+  },
+  {
+   "id": "hill-top",
+   "name": "Hill Top",
+   "offset": 32
+  },
+  {
+   "id": "depot",
+   "name": "Depot",
+   "offset": 36
+  }
+ ],
+ "departures": [
+  340,
+  370,
+  400,
+  430,
+  445,
+  460,
+  475,
+  490,
+  505,
+  520,
+  535,
+  550,
+  565,
+  580,
+  595,
+  610,
+  625,
+  640,
+  655,
+  670,
+  685,
+  700,
+  715,
+  730,
+  745,
+  760,
+  775,
+  790,
+  805,
+  820,
+  835,
+  850,
+  865,
+  880,
+  895,
+  910,
+  925,
+  940,
+  955,
+  970,
+  985,
+  1000,
+  1015,
+  1030,
+  1045,
+  1060,
+  1075,
+  1090,
+  1105,
+  1120,
+  1135,
+  1150,
+  1180,
+  1210,
+  1240,
+  1270,
+  1300,
+  1330,
+  1360,
+  1390,
+  1430,
+  1470,
+  1510
+ ]
+}

@@ -1,0 +1,48 @@
+[
+  {
+    "id": 1,
+    "text": "Book dentist",
+    "tags": [
+      "Health"
+    ],
+    "due": "2026-03-10",
+    "done": false
+  },
+  {
+    "id": 2,
+    "text": "Send invoice",
+    "tags": [
+      "Work"
+    ],
+    "due": "2026-03-05",
+    "done": true
+  },
+  {
+    "id": 3,
+    "text": "Buy paint",
+    "tags": [
+      "home",
+      "diy"
+    ],
+    "due": null,
+    "done": false
+  },
+  {
+    "id": 4,
+    "text": "Quarterly report",
+    "tags": [
+      "work"
+    ],
+    "due": "2026-03-20",
+    "done": false
+  },
+  {
+    "id": 5,
+    "text": "Fix gate",
+    "tags": [
+      "DIY"
+    ],
+    "due": null,
+    "done": false
+  }
+]

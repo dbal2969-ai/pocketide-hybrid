@@ -1,0 +1,4 @@
+body { font: 16px/1.4 system-ui, sans-serif; margin: 0 auto; max-width: 720px; padding: 12px; }
+button { font: inherit; }
+.filters { margin: 8px 0; }
+.filters .easy { display: none; }

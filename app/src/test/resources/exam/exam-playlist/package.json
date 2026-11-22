@@ -1,0 +1,7 @@
+{
+  "name": "playlist",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

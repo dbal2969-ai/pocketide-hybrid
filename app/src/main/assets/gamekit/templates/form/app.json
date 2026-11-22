@@ -1,0 +1,14 @@
+{
+  "title": "Space Quiz",
+  "accent": "#7a5af0",
+  "mode": "quiz",
+  "intro": { "title": "How well do you know space?", "text": "Five questions. See your score and learn as you go.", "button": "Start" },
+  "steps": [
+    { "title": "Question 1", "fields": [ { "id": "q1", "label": "Which planet is closest to the Sun?", "type": "choice", "options": ["Venus", "Mercury", "Mars"], "answer": "Mercury", "explain": "Mercury orbits closest, at about 58 million km." } ] },
+    { "title": "Question 2", "fields": [ { "id": "q2", "label": "What is the largest planet?", "type": "choice", "options": ["Saturn", "Neptune", "Jupiter"], "answer": "Jupiter", "explain": "Jupiter is more than twice as massive as all other planets together." } ] },
+    { "title": "Question 3", "fields": [ { "id": "q3", "label": "How many moons does Mars have?", "type": "choice", "options": ["None", "Two", "Four"], "answer": "Two", "explain": "Phobos and Deimos." } ] },
+    { "title": "Question 4", "fields": [ { "id": "q4", "label": "Light from the Sun reaches Earth in about…", "type": "choice", "options": ["8 seconds", "8 minutes", "8 hours"], "answer": "8 minutes", "explain": "About 8 minutes and 20 seconds." } ] },
+    { "title": "Your name", "fields": [ { "id": "name", "label": "Name for the score board", "type": "text", "required": true } ] }
+  ],
+  "result": { "title": "Your score", "bands": [ { "min": 0, "text": "Keep exploring!" }, { "min": 3, "text": "Great job, space cadet!" }, { "min": 4, "text": "Perfect — astronaut material!" } ] }
+}

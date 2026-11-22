@@ -1,0 +1,18 @@
+{
+  "title": "Book a Visit",
+  "accent": "#0f766e",
+  "currency": "USD",
+  "storeName": "bookings",
+  "open": "09:00",
+  "close": "17:00",
+  "step": 30,
+  "days": [1, 2, 3, 4, 5],
+  "services": [
+    { "name": "Haircut", "minutes": 45, "price": 25 },
+    { "name": "Colour", "minutes": 90, "price": 60 },
+    { "name": "Consultation", "minutes": 30, "price": 0 }
+  ],
+  "sample": [
+    { "day": "2026-11-03", "start": "10:00", "minutes": 45, "service": "Haircut", "name": "Sam", "contact": "sam@example.com", "notes": "", "status": "booked" }
+  ]
+}

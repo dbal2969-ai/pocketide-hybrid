@@ -1,0 +1,33 @@
+# the list shows the saved records and stats
+until window.__app
+expect document.querySelectorAll('.item').length === window.__app.items().length
+expect document.querySelector('[data-stat="Total"]').textContent.includes(String(window.__app.items().length))
+
+# adding a record with the form
+until window.__app
+run window.__n0 = window.__app.items().length
+tap #add
+until document.querySelector('.modal [name="title"]')
+fill [name="title"] Water the plants
+tap text:Add
+until window.__app.items().length === window.__n0 + 1
+expect window.__app.items().some(r => r.title === 'Water the plants')
+
+# a required field stops an empty record
+until window.__app
+run window.__n0 = window.__app.items().length
+tap #add
+until document.querySelector('.modal')
+tap text:Add
+expect document.querySelector('#err-title').textContent !== ''
+expect window.__app.items().length === window.__n0
+
+# search narrows the list
+until window.__app
+fill #search groceries
+until document.querySelectorAll('.item').length === 1
+
+# the board shows a column for each status
+until window.__app
+tap text:Board
+until document.querySelectorAll('.col').length === 3

@@ -1,0 +1,5 @@
+{
+  "name": "harbour",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}

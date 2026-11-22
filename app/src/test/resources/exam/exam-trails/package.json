@@ -1,0 +1,7 @@
+{
+  "name": "trails",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

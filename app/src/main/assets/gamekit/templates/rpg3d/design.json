@@ -1,0 +1,60 @@
+{
+  "title": "Realm of the North",
+  "seed": 1234,
+  "world": { "size": 360, "hills": 14, "trees": 900, "rocks": 160, "water": -2.5 },
+  "player": { "name": "Adventurer", "look": "guard", "color": "#7a6a5a", "accent": "#3a5a8a", "hp": 100, "damage": 8, "speed": 5, "start": "Riverwood" },
+  "items": [
+    { "id": 995, "name": "Gold", "stackable": true },
+    { "id": 1, "name": "Health potion", "heal": 40 },
+    { "id": 2, "name": "Troll tusk" },
+    { "id": 3, "name": "Iron sword", "damage": 4 },
+    { "id": 4, "name": "Dragon scale" }
+  ],
+  "villages": [
+    { "name": "Riverwood", "x": 0, "z": 0, "houses": 7, "floors": 3,
+      "people": [ { "id": 101, "name": "Elder Hilde", "look": "villager", "dialogue": "elder" },
+                  { "id": 102, "name": "Alvor the Smith", "look": "guard", "accent": "#5a3a1a", "dialogue": "smith" },
+                  { "id": 103, "name": "Town guard", "look": "guard" }, { "id": 104, "name": "Villager", "look": "villager", "color": "#6a7a4a" } ] },
+    { "name": "Whiterun Hollow", "x": -110, "z": 70, "houses": 9, "floors": 3,
+      "people": [ { "id": 111, "name": "Jarl Balgruuf", "look": "guard", "color": "#8a6a2a", "accent": "#6a1a1a", "dialogue": "jarl" },
+                  { "id": 112, "name": "Merchant", "look": "villager", "color": "#4a3a6a" }, { "id": 113, "name": "Town guard", "look": "guard" } ] },
+    { "name": "Frostfall", "x": 100, "z": 95, "houses": 5, "floors": 2, "wall": "#c8c0b0", "roof": "#4a4a5a",
+      "people": [ { "id": 121, "name": "Hunter", "look": "villager", "color": "#5a4a2a", "weapon": "bow" } ] }
+  ],
+  "dungeons": [
+    { "name": "Bleak Falls Barrow", "x": 70, "z": -90, "rooms": 7, "creatures": ["skeleton", "bandit", "vampire", "bat"], "boss": "vampire_lord", "theme": "crypt", "chests": 2 },
+    { "name": "Troll Cave", "x": -100, "z": -80, "rooms": 6, "creatures": ["troll", "imp", "slime"], "boss": "dragon", "chests": 2 }
+  ],
+  "creatures": {
+    "wolf":    { "look": "wolf", "hp": 25, "damage": 4, "speed": 4.2, "xp": 15, "aggro": 10, "gold": [0, 0] },
+    "bear":    { "look": "bear", "hp": 70, "damage": 10, "speed": 3.6, "xp": 45, "aggro": 7 },
+    "deer":    { "look": "deer", "hp": 15, "damage": 0, "speed": 5.5, "xp": 5, "flee": true },
+    "bandit":  { "look": "bandit", "hp": 40, "damage": 6, "speed": 3.8, "xp": 25, "aggro": 12, "gold": [3, 12] },
+    "troll":   { "look": "troll", "hp": 90, "damage": 12, "speed": 2.6, "xp": 60, "aggro": 10, "drops": [[2, 1, 1.0]] },
+    "imp":     { "look": "imp", "hp": 20, "damage": 5, "speed": 4.5, "xp": 18, "aggro": 12, "gold": [1, 5] },
+    "slime":   { "look": "slime", "hp": 18, "damage": 3, "speed": 2, "xp": 10, "aggro": 6 },
+    "bat":     { "look": "bat", "hp": 8, "damage": 2, "speed": 5, "xp": 6, "aggro": 9 },
+    "skeleton":{ "look": "skeleton", "hp": 30, "damage": 6, "speed": 3, "xp": 20, "aggro": 12, "gold": [1, 6] },
+    "vampire": { "look": "vampire", "hp": 55, "damage": 9, "speed": 3.6, "xp": 45, "aggro": 12, "gold": [5, 15] },
+    "vampire_lord": { "look": "vampire", "name": "Vampire Lord", "size": 2.3, "hp": 160, "damage": 14, "speed": 3.4, "xp": 200, "aggro": 14, "boss": true, "gold": [50, 80], "drops": [[1, 2, 1.0]] },
+    "dragon":  { "look": "dragon", "name": "Dragon", "hp": 300, "damage": 20, "speed": 3, "xp": 500, "aggro": 16, "boss": true, "gold": [100, 150], "drops": [[4, 1, 1.0]] }
+  },
+  "wildlife": [ { "creature": "wolf", "count": 10 }, { "creature": "deer", "count": 10 }, { "creature": "bear", "count": 4 },
+                { "creature": "bandit", "count": 8 }, { "creature": "troll", "count": 3 }, { "creature": "imp", "count": 4 } ],
+  "skillTree": { "branches": [
+    { "id": "warrior", "name": "Warrior", "color": "#e05a4a", "nodes": [
+      { "id": "power_strike", "name": "Power Strike", "desc": "+4 damage", "effect": { "damage": 4 } },
+      { "id": "toughness", "name": "Toughness", "desc": "+30 health", "requires": ["power_strike"], "effect": { "maxHp": 30 } },
+      { "id": "heavy_armor", "name": "Heavy Armor", "desc": "Take 20% less damage", "requires": ["toughness"], "effect": { "armor": 0.2 } },
+      { "id": "berserker", "name": "Berserker", "desc": "+10 damage", "requires": ["heavy_armor"], "cost": 2, "effect": { "damage": 10 } } ] },
+    { "id": "ranger", "name": "Ranger", "color": "#5ac85a", "nodes": [
+      { "id": "swift", "name": "Swiftness", "desc": "Move 20% faster", "effect": { "speed": 1 } },
+      { "id": "evasion", "name": "Evasion", "desc": "Take 15% less damage", "requires": ["swift"], "effect": { "armor": 0.15 } },
+      { "id": "second_wind", "name": "Second Wind", "desc": "Heal 2 health a second", "requires": ["evasion"], "effect": { "regen": 2 } } ] },
+    { "id": "mage", "name": "Mage", "color": "#5a8ae0", "nodes": [
+      { "id": "fireball", "name": "Fireball", "desc": "Cast fireballs (F)", "effect": { "ability": "fireball" } },
+      { "id": "spell_power", "name": "Spell Power", "desc": "+15 fireball damage", "requires": ["fireball"], "effect": { "spellPower": 15 } },
+      { "id": "meditation", "name": "Meditation", "desc": "Heal 1 health a second, +20 health", "requires": ["fireball"], "effect": { "regen": 1, "maxHp": 20 } },
+      { "id": "inferno", "name": "Inferno", "desc": "+30 fireball damage", "requires": ["spell_power", "meditation"], "cost": 2, "effect": { "spellPower": 30 } } ] }
+  ] }
+}

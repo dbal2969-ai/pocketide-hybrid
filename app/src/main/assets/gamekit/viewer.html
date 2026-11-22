@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Model viewer</title>
+<style>html,body{margin:0;height:100%;background:#202830;overflow:hidden;touch-action:none}canvas{display:block}
+#hud{position:fixed;left:8px;top:8px;right:8px;color:#fff;font:14px sans-serif;text-shadow:0 0 3px #000;pointer-events:none}</style></head>
+<body><div id="hud"></div>
+<script type="module">
+import * as THREE from './engine/three.module.min.js';
+import { loadModel } from './model.js';
+
+const NAMES = [];   // exported models in data/models, e.g. ["item_4151", "npc_3"]; ?m=name shows one directly
+const hud = document.getElementById('hud');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x202830);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 1, 20000);
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(1, 2, 1.5); scene.add(sun);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+
+const wanted = new URLSearchParams(location.search).get('m');
+const list = wanted ? [wanted] : NAMES;
+let index = 0, mesh = null, spin = 0;
+async function show(i) {
+  if (!list.length) { hud.textContent = 'No models listed. Export some with game_cache (kind=models) and put their names in NAMES.'; return; }
+  const name = list[i % list.length];
+  hud.textContent = 'Loading ' + name + '...';
+  try {
+    const m = await loadModel('data/models/' + name + '.json');
+    if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
+    mesh = m; scene.add(mesh);
+    const s = mesh.geometry.boundingSphere;
+    mesh.position.set(-s.center.x, -s.center.y, -s.center.z);
+    camera.position.set(0, s.radius * 0.3, s.radius * 2.6); camera.lookAt(0, 0, 0);
+    hud.textContent = name + (list.length > 1 ? '  (tap for next: ' + (i % list.length + 1) + '/' + list.length + ')' : '');
+  } catch (e) { hud.textContent = String(e.message || e); }
+}
+addEventListener('pointerdown', () => { if (list.length > 1) show(++index); });
+show(0);
+renderer.setAnimationLoop(() => { if (mesh) { spin += 0.01; mesh.rotation.y = spin; } renderer.render(scene, camera); });
+</script></body></html>

@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Mill loop",
+    "grade": "easy",
+    "km": 4
+  },
+  {
+    "name": "Ridge path",
+    "grade": "hard",
+    "km": 12
+  },
+  {
+    "name": "River walk",
+    "grade": "easy",
+    "km": 6
+  },
+  {
+    "name": "Beacon climb",
+    "grade": "medium",
+    "km": 8
+  }
+]

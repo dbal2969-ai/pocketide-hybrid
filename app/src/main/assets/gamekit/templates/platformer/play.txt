@@ -1,0 +1,14 @@
+# the game starts in play
+until 8000 typeof window.render_game_to_text === 'function' && JSON.parse(window.render_game_to_text()).state === 'play'
+expect JSON.parse(window.render_game_to_text()).lives > 0
+
+# running right moves the player
+until 8000 typeof window.render_game_to_text === 'function'
+run window.__x0 = JSON.parse(window.render_game_to_text()).player.x
+key ArrowRight 900
+expect JSON.parse(window.render_game_to_text()).player.x > window.__x0 + 20
+
+# jumping leaves the ground
+until 8000 typeof window.render_game_to_text === 'function' && JSON.parse(window.render_game_to_text()).player.onGround
+key Space 150
+until 1500 !JSON.parse(window.render_game_to_text()).player.onGround

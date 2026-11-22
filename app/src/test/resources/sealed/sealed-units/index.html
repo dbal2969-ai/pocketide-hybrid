@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Converter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Converter</h1>
+  <input id="v" type="number" value="1">
+  <select id="pair">
+    <option value="length:mile:km">miles to km</option><option value="weight:lb:kg">lb to kg</option>
+    <option value="volume:pint:l">pints to litres</option><option value="temperature:F:C">°F to °C</option>
+  </select>
+  <p id="out"></p>
+  <script src="lib/show.js"></script>
+  <script src="lib/convert.js"></script>
+  <script src="lib/settings.js"></script>
+  <script src="ui/lengthView.js"></script>
+  <script src="ui/weightView.js"></script>
+  <script src="ui/volumeView.js"></script>
+  <script src="ui/temperatureView.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+[
+  {
+    "word": "cafe",
+    "category": "Eating out"
+  },
+  {
+    "word": "cinema",
+    "category": "Fun"
+  },
+  {
+    "word": "tesco",
+    "category": "Food"
+  },
+  {
+    "word": "rent",
+    "category": "Home"
+  },
+  {
+    "word": "electricity",
+    "category": "Home"
+  },
+  {
+    "word": "bus",
+    "category": "Travel"
+  },
+  {
+    "word": "salary",
+    "category": "Income"
+  },
+  {
+    "word": "refund",
+    "category": "Income"
+  }
+]

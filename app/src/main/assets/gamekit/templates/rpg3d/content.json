@@ -1,0 +1,59 @@
+{
+  "skills": [ { "id": "level", "label": "Level", "short": "Level" } ],
+  "quests": [
+    { "id": "troll_trouble", "name": "Troll Trouble", "points": 1, "done": 100,
+      "journal": [
+        { "if": { "stage": "troll_trouble", "op": "==", "value": 0 }, "then": ["Elder Hilde in Riverwood looks worried. I should talk to her."] },
+        { "if": { "stage": "troll_trouble", "in": [1, 99] }, "then": [
+          "Elder Hilde asked me to kill three trolls that raid Riverwood's farms. They roam the hills and the Troll Cave to the south-west.",
+          { "if": { "var": "kill:troll", "op": ">=", "value": 3 }, "then": ["I have killed three trolls. I should tell Elder Hilde."] } ] },
+        { "if": { "done": "troll_trouble" }, "then": [ { "line": "I killed three trolls for Elder Hilde.", "done": true }, "QUEST COMPLETE!" ] } ],
+      "rewards": { "text": ["1 Quest Point", "200 experience", "50 gold"], "do": [ { "xp": "level", "amount": 200 }, { "give": 995, "n": 50 } ] } },
+    { "id": "dragon_slayer", "name": "Dragon Slayer", "points": 2, "done": 100, "requirements": [ { "done": "troll_trouble" } ],
+      "journal": [
+        { "if": { "stage": "dragon_slayer", "op": "==", "value": 0 }, "then": ["The Jarl of Whiterun Hollow wants a word with a proven warrior. (Finish Troll Trouble first.)"] },
+        { "if": { "stage": "dragon_slayer", "in": [1, 99] }, "then": [ "The Jarl asked me to slay the dragon at the bottom of the Troll Cave.",
+          { "if": { "var": "kill:dragon", "op": ">=", "value": 1 }, "then": ["The dragon is dead. I should tell the Jarl."] } ] },
+        { "if": { "done": "dragon_slayer" }, "then": [ { "line": "I slew the dragon of the Troll Cave.", "done": true }, "QUEST COMPLETE!" ] } ],
+      "rewards": { "text": ["2 Quest Points", "1000 experience", "300 gold"], "do": [ { "xp": "level", "amount": 1000 }, { "give": 995, "n": 300 } ] } }
+  ],
+  "dialogues": {
+    "elder": {
+      "open": [
+        { "if": { "stage": "troll_trouble", "op": "==", "value": 0 }, "then": [ { "npc": ["Trolls from the hills keep raiding our farms.", "Nobody here can stand up to them."] }, { "next": 1 } ] },
+        { "if": { "all": [ { "stage": "troll_trouble", "in": [1, 99] }, { "var": "kill:troll", "op": ">=", "value": 3 } ] }, "then": [ { "npc": ["You killed them! Riverwood owes you everything.", "Take this, with my thanks."] }, { "finish": "troll_trouble" } ] },
+        { "if": { "stage": "troll_trouble", "in": [1, 99] }, "then": [ { "npc": ["Have you dealt with the trolls? Three of them should be enough", "to keep the rest away."] } ] },
+        { "if": { "done": "troll_trouble" }, "then": [ { "npc": ["Riverwood is safe, thanks to you.", "The Jarl in Whiterun Hollow has heard of you."] } ] } ],
+      "nodes": {
+        "1": [ { "options": ["I'll deal with the trolls.", "Not now."] }, { "next": 2 } ],
+        "2": [ { "button": {
+          "1": [ { "player": ["I'll deal with the trolls."] }, { "start": "troll_trouble" }, { "var": "kill:troll", "set": 0 }, { "next": 3 } ],
+          "2": [ { "player": ["Not now."] }, { "end": true } ] } } ],
+        "3": [ { "npc": ["Bless you! Kill three of them and come back to me.", "They roam the hills, and the Troll Cave to the south-west is full of them."] } ]
+      }
+    },
+    "jarl": {
+      "open": [
+        { "if": { "not": { "done": "troll_trouble" } }, "then": [ { "npc": ["I have no time for strangers. Prove yourself first:", "Riverwood's elder needs help."] } ] },
+        { "if": { "all": [ { "done": "troll_trouble" }, { "stage": "dragon_slayer", "op": "==", "value": 0 } ] }, "then": [ { "npc": ["So you are the troll killer. A dragon has made its lair", "at the bottom of the Troll Cave. Will you slay it?"] }, { "next": 1 } ] },
+        { "if": { "all": [ { "stage": "dragon_slayer", "in": [1, 99] }, { "var": "kill:dragon", "op": ">=", "value": 1 } ] }, "then": [ { "npc": ["The dragon is dead? Then you are a hero of this realm."] }, { "finish": "dragon_slayer" } ] },
+        { "if": { "stage": "dragon_slayer", "in": [1, 99] }, "then": [ { "npc": ["The dragon still lives. Go, and may the gods guard you."] } ] },
+        { "if": { "done": "dragon_slayer" }, "then": [ { "npc": ["Welcome, Dragonslayer."] } ] } ],
+      "nodes": {
+        "1": [ { "options": ["I will slay the dragon.", "I need to prepare first."] }, { "next": 2 } ],
+        "2": [ { "button": { "1": [ { "player": ["I will slay the dragon."] }, { "start": "dragon_slayer" }, { "next": 3 } ], "2": [ { "player": ["I need to prepare first."] }, { "end": true } ] } } ],
+        "3": [ { "npc": ["Take potions, and learn what you can from your skills.", "The cave lies south-west of Riverwood."] } ]
+      }
+    },
+    "smith": {
+      "open": [ { "npc": ["Need a blade? An iron sword is 30 gold."] }, { "next": 1 } ],
+      "nodes": {
+        "1": [ { "options": ["Buy an iron sword (30 gold)", "Buy a health potion (10 gold)", "No thanks."] }, { "next": 2 } ],
+        "2": [ { "button": {
+          "1": [ { "if": { "has": 995, "n": 30 }, "then": [ { "take": 995, "n": 30 }, { "give": 3 }, { "npc": ["A fine choice. Keep it sharp."] } ], "else": [ { "npc": ["Come back when you have 30 gold."] } ] } ],
+          "2": [ { "if": { "has": 995, "n": 10 }, "then": [ { "take": 995, "n": 10 }, { "give": 1 }, { "npc": ["Drink it when things look bad."] } ], "else": [ { "npc": ["That's 10 gold, friend."] } ] } ],
+          "3": [ { "player": ["No thanks."] } ] } } ]
+      }
+    }
+  }
+}

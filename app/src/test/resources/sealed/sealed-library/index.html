@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shelf</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Shelf</h1>
+  <input id="q" placeholder="Search">
+  <select id="by"><option value="title">Title</option><option value="author">Author</option><option value="year">Year</option></select>
+  <label>Import <input id="file" type="file" accept=".csv"></label>
+  <p id="status"></p>
+  <p id="count"></p>
+  <ul id="books"></ul>
+  <script src="lib/catalogue.js"></script>
+  <script src="lib/importBooks.js"></script>
+  <script src="ui/list.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "sloop": { "name": "Sloop", "capacity": 40, "crew": 8, "wage": 1.5, "speed": 9 },
+  "brig": { "name": "Brig", "capacity": 90, "crew": 16, "wage": 1.5, "speed": 7 },
+  "galleon": { "name": "Galleon", "capacity": 200, "crew": 40, "wage": 1.25, "speed": 5 }
+}

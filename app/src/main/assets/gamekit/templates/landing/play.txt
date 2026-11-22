@@ -1,0 +1,21 @@
+# every section in app.json is on the page
+until window.__app
+expect window.__app.sections.every(s => document.getElementById(s))
+expect document.querySelector('.hero h1').textContent.length > 0
+
+# the menu opens on a phone
+until window.__app
+tap #menu
+expect document.querySelector('nav .links').classList.contains('open')
+
+# the contact form checks its fields and keeps the message
+until window.__app
+run window.__app.testing = true
+run window.__m0 = window.__app.messages().length
+tap text:Send
+expect document.querySelector('#err-name').textContent !== ''
+fill [name="name"] Sam
+fill [name="email"] sam@example.com
+fill [name="message"] Do you deliver on Sundays?
+tap text:Send
+until window.__app.messages().length === window.__m0 + 1

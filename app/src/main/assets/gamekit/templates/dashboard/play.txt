@@ -1,0 +1,15 @@
+# the data loads and the KPI tiles add it up
+until window.__app && window.__app.rows().length > 0
+expect document.querySelectorAll('[data-kpi]').length === window.__app.cfg.kpis.length
+expect document.querySelector('[data-kpi="Orders"]').textContent.includes(window.__app.rows().length.toLocaleString())
+
+# every chart is drawn
+until window.__app && window.__app.rows().length > 0
+expect document.querySelectorAll('[data-chart] svg').length === window.__app.cfg.charts.length
+expect document.querySelector('[data-chart] svg circle, [data-chart] svg rect, [data-chart] svg path') !== null
+
+# a filter narrows the data
+until window.__app && window.__app.rows().length > 0
+fill [data-filter="region"] North
+until window.__app.filtered().length > 0 && window.__app.filtered().every(r => r.region === 'North')
+expect document.querySelectorAll('tbody tr').length > 0

@@ -1,0 +1,11 @@
+[
+  { "id": "rope", "name": "Rope", "price": "0.75", "category": "Gear", "weight": "1" },
+  { "id": "tar", "name": "Tar", "price": "2.40", "category": "Gear", "weight": "2" },
+  { "id": "timber", "name": "Timber", "price": "6", "category": "Gear", "weight": "5" },
+  { "id": "salt", "name": "Salt", "price": "12", "category": "Food", "weight": "2" },
+  { "id": "fish", "name": "Dried fish", "price": "3.10", "category": "Food", "weight": "1" },
+  { "id": "biscuit", "name": "Ship's biscuit", "price": "1.20", "category": "Food", "weight": "1" },
+  { "id": "rum", "name": "Rum", "price": "9.90", "category": "Luxury", "weight": "3" },
+  { "id": "spice", "name": "Spice", "price": "31.25", "category": "Luxury", "weight": "1" },
+  { "id": "silk", "name": "Silk", "price": "48.50", "category": "Luxury", "weight": "1" }
+]

@@ -1,0 +1,9 @@
+# the world has gems to collect
+until 8000 typeof window.render_game_to_text === 'function'
+expect JSON.parse(window.render_game_to_text()).total > 0
+
+# walking with the keys moves the player
+until 8000 typeof window.render_game_to_text === 'function'
+run window.__z0 = JSON.parse(window.render_game_to_text()).player.z
+key ArrowUp 800
+expect Math.abs(JSON.parse(window.render_game_to_text()).player.z - window.__z0) > 1

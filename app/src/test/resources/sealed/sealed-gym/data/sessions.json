@@ -1,0 +1,1626 @@
+[
+ {
+  "date": "2026-01-05",
+  "exercises": [
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 5,
+      "kg": 60
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 70
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-07",
+  "exercises": [
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 30
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-11",
+  "exercises": [
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 50
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-12",
+  "exercises": [
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 70
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 5,
+      "kg": 70
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-14",
+  "exercises": [
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 50
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-16",
+  "exercises": [
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     },
+     {
+      "reps": 5,
+      "kg": 40
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-18",
+  "exercises": [
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 50
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-19",
+  "exercises": [
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-21",
+  "exercises": [
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 8,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-23",
+  "exercises": [
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 60
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-25",
+  "exercises": [
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 70
+     },
+     {
+      "reps": 8,
+      "kg": 70
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 70
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-26",
+  "exercises": [
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     },
+     {
+      "reps": 8,
+      "kg": 40
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-01-28",
+  "exercises": [
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 70
+     },
+     {
+      "reps": 8,
+      "kg": 40
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-02",
+  "exercises": [
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 5,
+      "kg": 50
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-04",
+  "exercises": [
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 30
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-06",
+  "exercises": [
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 30
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 20
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-08",
+  "exercises": [
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-09",
+  "exercises": [
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 8,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 40
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 60
+     },
+     {
+      "reps": 5,
+      "kg": 70
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-11",
+  "exercises": [
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 60
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 70
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-13",
+  "exercises": [
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 30
+     },
+     {
+      "reps": 5,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     }
+    ]
+   },
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 20
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-15",
+  "exercises": [
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     }
+    ]
+   },
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 50
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 30
+     },
+     {
+      "reps": 8,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-16",
+  "exercises": [
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 40
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-18",
+  "exercises": [
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 40
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     },
+     {
+      "reps": 5,
+      "kg": 30
+     }
+    ]
+   },
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 40
+     },
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 40
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-20",
+  "exercises": [
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 30
+     },
+     {
+      "reps": 8,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 30
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     },
+     {
+      "reps": 5,
+      "kg": 30
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-22",
+  "exercises": [
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 30
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 30
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     }
+    ]
+   },
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 70
+     },
+     {
+      "reps": 10,
+      "kg": 80
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-23",
+  "exercises": [
+   {
+    "exercise": "row",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 30
+     },
+     {
+      "reps": 5,
+      "kg": 60
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 50
+     },
+     {
+      "reps": 5,
+      "kg": 50
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-25",
+  "exercises": [
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 8,
+      "kg": 80
+     }
+    ]
+   },
+   {
+    "exercise": "overhead press",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 8,
+      "kg": 30
+     },
+     {
+      "reps": 5,
+      "kg": 70
+     }
+    ]
+   },
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 10,
+      "kg": 80
+     },
+     {
+      "reps": 10,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 80
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-02-27",
+  "exercises": [
+   {
+    "exercise": "bench press",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 40
+     }
+    ]
+   },
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 80
+     },
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 5,
+      "kg": 50
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 70
+     },
+     {
+      "reps": 5,
+      "kg": 20
+     },
+     {
+      "reps": 5,
+      "kg": 40
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-03-01",
+  "exercises": [
+   {
+    "exercise": "deadlift",
+    "sets": [
+     {
+      "reps": 8,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 70
+     },
+     {
+      "reps": 8,
+      "kg": 20
+     }
+    ]
+   },
+   {
+    "exercise": "squat",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 40
+     },
+     {
+      "reps": 8,
+      "kg": 50
+     },
+     {
+      "reps": 8,
+      "kg": 50
+     }
+    ]
+   },
+   {
+    "exercise": "lunge",
+    "sets": [
+     {
+      "reps": 5,
+      "kg": 30
+     },
+     {
+      "reps": 10,
+      "kg": 60
+     },
+     {
+      "reps": 10,
+      "kg": 50
+     }
+    ]
+   }
+  ]
+ }
+]

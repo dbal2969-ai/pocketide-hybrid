@@ -1,0 +1,4 @@
+[
+  { "id": "rope-day", "good": "rope", "minQty": 5, "percent": 20, "label": "Rope day" },
+  { "id": "bulk-salt", "good": "salt", "minQty": 10, "percent": 10, "label": "Bulk salt" }
+]

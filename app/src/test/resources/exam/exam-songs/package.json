@@ -1,0 +1,7 @@
+{
+  "name": "songs",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

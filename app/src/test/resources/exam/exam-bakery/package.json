@@ -1,0 +1,7 @@
+{
+  "name": "bakery",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

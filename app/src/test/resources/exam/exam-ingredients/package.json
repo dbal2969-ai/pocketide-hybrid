@@ -1,0 +1,7 @@
+{
+  "name": "ingredients",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

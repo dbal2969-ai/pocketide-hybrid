@@ -1,0 +1,88 @@
+# Test the app on an Android emulator, step by step, like a person with the phone (1.5.126).
+#
+# Start it from Actions → Emulator test → Run workflow. It boots an Android 36 emulator (its x86_64 image runs the app's
+# arm64 code through Android's built-in translation), installs the debug APK from the latest successful build of main (or the
+# build run you give), then waits for batches of steps on the branch `emu/cmd` and pushes screenshots, the screen's text and
+# crash logs to the branch `emu/out`. The steps and what comes back are described in `.github/emulator/driver.py`.
+#
+# Push a file named `stop` to `emu/cmd` to end early. Both branches can be deleted after a session.
+name: Emulator test
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "How long the session waits for steps (minutes, at most 300)"
+        default: "120"
+        required: true
+      apk_run:
+        description: "Build Android APK run ID to test (blank: the latest successful build of main)"
+        default: ""
+        required: false
+
+permissions:
+  contents: write   # pushes the results to emu/out
+  actions: read     # downloads the APK from the build run
+
+concurrency:
+  group: emulator
+  cancel-in-progress: false
+
+jobs:
+  emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Let the emulator use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ inputs.apk_run }}
+        run: |
+          if [ -z "$RUN" ]; then
+            RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build-apk.yml --branch main --status success -L 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          echo "APK from build run $RUN"
+          gh run download "$RUN" -R "$GITHUB_REPOSITORY" -p 'PocketIDE-*debug-apk' -D apk
+          APK=$(find apk -name '*.apk' | head -1)
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt | tail -1)
+          PKG=$("$AAPT" dump badging "$APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
+          echo "EMU_APK=$PWD/$APK" >> "$GITHUB_ENV"
+          echo "EMU_PKG=$PKG" >> "$GITHUB_ENV"
+          echo "APK $APK, package $PKG"
+
+      - name: Python imaging for screenshots
+        run: pip install --quiet pillow
+
+      - name: Git identity for the results branch
+        run: |
+          git config user.name "emulator"
+          git config user.email "emulator@localhost"
+
+      - name: Run the session
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          EMU_MINUTES: ${{ inputs.minutes }}
+          # Keys for the AI features; the driver writes them into the app's settings and hides them in everything it pushes.
+          KEY_CLOUDFLARE: ${{ secrets.POCKETIDE_BENCH_KEY_CLOUDFLARE }}
+          BASE_CLOUDFLARE: ${{ secrets.POCKETIDE_BENCH_BASE_CLOUDFLARE }}
+          KEY_GROQ: ${{ secrets.POCKETIDE_BENCH_KEY_GROQ }}
+          KEY_OPENROUTER: ${{ secrets.POCKETIDE_BENCH_KEY_OPENROUTER }}
+          KEY_GEMINI: ${{ secrets.POCKETIDE_BENCH_KEY_GEMINI }}
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 4096M
+          disk-size: 6G
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
+          disable-animations: true
+          script: python3 .github/emulator/driver.py

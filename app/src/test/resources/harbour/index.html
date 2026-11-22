@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harbour</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="hud"></header>
+  <main class="board">
+    <img id="ship" class="ship" alt="ship" src="ship.svg">
+    <canvas id="chart" height="180"></canvas>
+    <section>
+      <h2>Harbours</h2>
+      <ul id="harbours"></ul>
+    </section>
+    <section>
+      <h2>Routes</h2>
+      <ul id="routes"></ul>
+    </section>
+    <section>
+      <h2>Market</h2>
+      <ul id="market"></ul>
+      <div id="receipt" class="receipt"></div>
+      <div class="buttons"><button id="buy">Buy</button><button id="clear">Clear</button></div>
+    </section>
+    <section>
+      <h2>Sell</h2>
+      <ul id="sell"></ul>
+    </section>
+    <section>
+      <h2>Hold</h2>
+      <p id="hold"></p>
+    </section>
+    <section>
+      <h2>Ledger</h2>
+      <div id="ledger"></div>
+    </section>
+    <section>
+      <h2>Log</h2>
+      <div id="log"></div>
+    </section>
+  </main>
+  <script src="util/money.js"></script>
+  <script src="util/random.js"></script>
+  <script src="util/sortBy.js"></script>
+  <script src="util/geometry.js"></script>
+  <script src="util/layout.js"></script>
+  <script src="util/format.js"></script>
+  <script src="util/convert.js"></script>
+  <script src="loader/schema.js"></script>
+  <script src="loader/normalise.js"></script>
+  <script src="loader/load.js"></script>
+  <script src="state/crew.js"></script>
+  <script src="state/cart.js"></script>
+  <script src="state/market.js"></script>
+  <script src="state/prices.js"></script>
+  <script src="state/voyage.js"></script>
+  <script src="state/ledger.js"></script>
+  <script src="state/trade.js"></script>
+  <script src="state/routes.js"></script>
+  <script src="state/events.js"></script>
+  <script src="state/travel.js"></script>
+  <script src="state/ship.js"></script>
+  <script src="state/save.js"></script>
+  <script src="state/world.js"></script>
+  <script src="ui/dom.js"></script>
+  <script src="ui/harbourList.js"></script>
+  <script src="ui/marketView.js"></script>
+  <script src="ui/sellView.js"></script>
+  <script src="ui/cargo.js"></script>
+  <script src="ui/routesView.js"></script>
+  <script src="ui/ledgerView.js"></script>
+  <script src="ui/hud.js"></script>
+  <script src="ui/shipIcon.js"></script>
+  <script src="ui/receipt.js"></script>
+  <script src="ui/chart.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

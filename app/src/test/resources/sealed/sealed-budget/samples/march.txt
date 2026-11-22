@@ -1,0 +1,11 @@
+Date        Description                 Amount
+2026-03-01  Corner Cafe                 -3.20
+2026-03-01  Salary ACME LTD             2140.00
+2026-03-02  Tesco Store                 -42.17
+2026-03-04  Rent Hartley Lettings       -850.00
+2026-03-05  Bus pass                    -60.00
+2026-03-09  Tesco Store                 -18.95
+2026-03-12  Refund Amazon               12.99
+2026-03-15  Electricity                 -71.40
+2026-03-21  Corner Cafe                 -4.10
+2026-03-28  Cinema                      -11.50

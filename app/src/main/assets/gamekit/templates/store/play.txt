@@ -1,0 +1,31 @@
+# products show with prices
+until window.__app
+expect document.querySelectorAll('[data-product]').length === window.__app.cfg.products.length
+
+# adding to the cart updates the count and total
+until window.__app
+run window.__app.cart.lines = {}; window.__app.render()
+tap [data-add="monstera"]
+tap [data-add="clay"]
+until window.__app.count() === 2
+expect window.__app.subtotal() === 41
+expect document.querySelector('#cartbtn').textContent.includes('2')
+
+# a category tab filters the products
+until window.__app
+tap [data-cat="Pots"]
+until document.querySelectorAll('[data-product]').length === 1
+
+# checking out saves the order and empties the cart
+until window.__app
+run window.__app.cart.lines = { snake: 1 }; window.__app.render()
+run window.__o0 = window.__app.orders.all().length
+tap #cartbtn
+tap text:Checkout
+until document.querySelector('#checkout')
+fill [name="name"] Robin
+fill [name="email"] robin@example.com
+fill [name="address"] 1 Garden Lane
+tap text:Place order
+until window.__app.orders.all().length === window.__o0 + 1
+expect window.__app.count() === 0

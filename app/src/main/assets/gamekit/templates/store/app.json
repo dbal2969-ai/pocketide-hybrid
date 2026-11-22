@@ -1,0 +1,17 @@
+{
+  "title": "Green Leaf Plants",
+  "accent": "#2f9e5b",
+  "currency": "USD",
+  "shipping": { "price": 5, "freeOver": 50 },
+  "categories": ["Indoor", "Outdoor", "Pots"],
+  "products": [
+    { "id": "monstera", "name": "Monstera", "price": 32, "category": "Indoor", "emoji": "🌿", "text": "Big split leaves, easy care.", "stock": 8 },
+    { "id": "snake", "name": "Snake plant", "price": 24, "category": "Indoor", "emoji": "🪴", "text": "Thrives on neglect.", "stock": 12 },
+    { "id": "fern", "name": "Boston fern", "price": 18, "category": "Indoor", "emoji": "☘️", "text": "Loves humidity.", "stock": 5 },
+    { "id": "lavender", "name": "Lavender", "price": 12, "category": "Outdoor", "emoji": "💜", "text": "Smells like summer.", "stock": 20 },
+    { "id": "olive", "name": "Olive tree", "price": 65, "category": "Outdoor", "emoji": "🌳", "text": "Mediterranean classic.", "stock": 3 },
+    { "id": "clay", "name": "Clay pot", "price": 9, "category": "Pots", "emoji": "🏺", "text": "Breathable terracotta, 20 cm.", "stock": 30 }
+  ],
+  "checkout": { "fields": [ { "id": "name", "label": "Name", "required": true }, { "id": "email", "label": "Email", "type": "email", "required": true }, { "id": "address", "label": "Address", "type": "textarea", "required": true } ],
+    "note": "This shop has no payment yet: orders are saved on this device." }
+}

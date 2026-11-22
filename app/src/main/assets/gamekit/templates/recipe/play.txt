@@ -1,0 +1,38 @@
+# the box lists the saved recipes
+until window.__app
+expect document.querySelectorAll('[data-recipe]').length === window.__app.items().length
+
+# a new recipe is saved with its ingredients
+until window.__app
+run window.__n0 = window.__app.items().length
+tap #add
+until document.querySelector('.modal [name="name"]')
+fill [name="name"] Flatbread
+fill [name="ingredients"] 2 cups flour
+tap text:Save
+until window.__app.items().length === window.__n0 + 1
+expect window.__app.items().some(r => r.name === 'Flatbread' && r.ingredients.length === 1)
+
+# a recipe needs a name
+until window.__app
+tap #add
+until document.querySelector('.modal [name="name"]')
+tap text:Save
+expect document.querySelector('#err-name').textContent !== ''
+
+# changing the servings scales the amounts
+until window.__app
+tap [data-recipe]
+until document.querySelector('#servings')
+fill #servings 4
+until document.querySelector('[data-ing]')
+expect document.body.textContent.includes('2 cup flour')
+expect window.__app.scaleLine('1/2 cup milk', 2) === '1 cup milk'
+expect window.__app.scale('1 1/2 tsp salt').qty === 1.5
+
+# ticking an ingredient strikes it through
+until window.__app
+tap [data-recipe]
+until document.querySelector('[data-ing] input')
+tap [data-ing] input
+expect document.querySelector('[data-ing]').style.textDecoration === 'line-through'

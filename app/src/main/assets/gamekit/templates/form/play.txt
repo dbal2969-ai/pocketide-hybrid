@@ -1,0 +1,22 @@
+# the intro leads to the first step
+until window.__app
+tap #start
+until document.querySelector('[data-field]')
+expect document.querySelector('#next') !== null
+
+# an answer is needed before moving on
+until window.__app
+tap #start
+until document.querySelector('#next')
+tap #next
+expect document.querySelector('.err').textContent !== ''
+expect window.__app.st.step === 0
+
+# answering everything gives a result and saves it
+until window.__app
+run window.__r0 = window.__app.db.all().length
+tap #start
+run for (const s of window.__app.cfg.steps) for (const f of s.fields) window.__app.st.answers[f.id] = f.answer ?? (f.options ? f.options[0] : 'Sam')
+run for (let i = 0; i < 20 && window.__app.st.step < window.__app.cfg.steps.length; i++) window.__app.next()
+until document.querySelector('#result')
+expect window.__app.db.all().length === window.__r0 + 1

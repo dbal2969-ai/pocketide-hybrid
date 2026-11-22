@@ -1,0 +1,24 @@
+# notes are listed, pinned first
+until window.__app
+expect document.querySelectorAll('[data-note]').length === window.__app.db.all().length
+expect window.__app.db.get(document.querySelector('[data-note]').dataset.note).pinned === true
+
+# writing a new note saves it
+until window.__app
+run window.__n0 = window.__app.db.all().length
+tap #add
+until document.querySelector('#note-body')
+fill #note-title Shopping
+fill #note-body - [ ] eggs
+tap #save
+until window.__app.db.all().length === window.__n0 + 1
+expect document.querySelector('#note-view input[type=checkbox]') !== null
+
+# notes show formatting safely
+until window.__app
+expect window.__app.md('**hi** <script>').includes('<b>hi</b>') && !window.__app.md('<script>').includes('<script>')
+
+# search finds notes
+until window.__app
+fill #search ideas
+until document.querySelectorAll('[data-note]').length === 1

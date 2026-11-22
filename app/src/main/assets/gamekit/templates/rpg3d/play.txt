@@ -1,0 +1,50 @@
+# the world loads with villages, houses and dungeons
+until 15000 window.__game && window.__game.ready
+expect window.__game.world.villages.length >= 3
+expect window.__game.world.houses.some(h => h.floors >= 2)
+expect window.__game.world.dungeons.length >= 2
+expect window.__game.creatures.length >= 20
+
+# walking with the keys moves the hero
+until 15000 window.__game && window.__game.ready
+key ArrowUp 900
+expect window.__game.moved() > 1.5
+
+# houses have floors you can climb between
+until 15000 window.__game && window.__game.ready
+expect !!window.__game.goTo('stairsUp')
+run window.__game.use()
+expect window.__game.player.level === 1
+expect window.__game.goTo('stairsDown') !== false
+run window.__game.use()
+expect window.__game.player.level === 0
+
+# dungeons can be entered and have creatures inside
+until 15000 window.__game && window.__game.ready
+expect !!window.__game.goTo('enterDungeon')
+run window.__game.use()
+expect window.__game.player.dungeon !== null
+expect window.__game.creatures.some(c => c.dungeon === window.__game.player.dungeon && !c.dead)
+
+# fighting a creature gives experience
+until 15000 window.__game && window.__game.ready
+run window.__game.player.hp = 500; window.__game.player.maxHp = 500
+expect !!window.__game.fightNearest('wolf') || !!window.__game.fightNearest()
+until 20000 window.__game.xp > 0
+
+# levels give skill points for the branching skill tree
+until 15000 window.__game && window.__game.ready
+run window.__game.skills.addXp('level', 400)
+expect window.__game.tree.points > 0
+run window.__game.tree.unlock('power_strike')
+expect window.__game.tree.owned.has('power_strike')
+expect !window.__game.tree.unlock('berserker')
+
+# talking to the elder starts a quest
+until 15000 window.__game && window.__game.ready
+run window.__game.talkTo('Elder Hilde')
+until window.__game.content.talking
+run window.__game.content.next()
+until document.querySelectorAll('#dialog .dopt').length === 2
+tap text:I'll deal with the trolls.
+until window.__game.content.status('troll_trouble') === 'started'

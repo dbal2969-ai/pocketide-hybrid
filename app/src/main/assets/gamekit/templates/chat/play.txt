@@ -1,0 +1,21 @@
+# a message appears in the room it was sent to
+until window.__app
+fill [name="text"] Hello there
+tap #send
+until window.__app.items().some(m => m.text === 'Hello there')
+expect document.querySelector('[data-msg] [data-text]') !== null
+expect document.body.textContent.includes('Hello there')
+
+# another room starts empty and keeps its own messages
+until window.__app
+tap text:random
+expect document.querySelectorAll('[data-msg]').length === window.__app.items().filter(m => m.room === 'random').length
+expect window.__app.room() === 'random'
+
+# your messages can be deleted
+until window.__app
+fill [name="text"] Delete me
+tap #send
+until window.__app.items().some(m => m.text === 'Delete me')
+tap text:Delete
+until !window.__app.items().some(m => m.text === 'Delete me')

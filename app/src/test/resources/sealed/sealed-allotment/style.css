@@ -1,0 +1,4 @@
+body { font: 16px/1.4 system-ui, sans-serif; margin: 0 auto; max-width: 720px; padding: 12px; }
+button { font: inherit; }
+#map { position: relative; height: 320px; overflow: hidden; background: #e8f2e0; }
+#map div { position: absolute; font: 12px monospace; white-space: nowrap; overflow: hidden; }

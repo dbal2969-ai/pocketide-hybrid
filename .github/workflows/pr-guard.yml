@@ -1,0 +1,68 @@
+name: Pull request guard
+
+# Phase 2 of ROADMAP-HANDOFF.md (1.5.124). Runs from main (pull_request_target), so a pull request cannot edit this file to pass.
+# It never runs the pull request's code: it only lists the changed files and counts @Test lines in both trees.
+#  1. No pull request may touch the files that hold the agents' own limits or the workflows (1.5.135: any pull request, not
+#     only those that look like an agent's).
+#  2. No pull request may lower the number of unit tests.
+# The owner reads every pull request and merges it; these checks only make the dangerous cases loud.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Protected files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # 1.5.126: a renamed file is listed under its new name, so the old name is checked too (REVIEW-1.5.125.md, finding 3)
+          gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)' > changed.txt
+          echo "Changed files:"; cat changed.txt
+          # 1.5.135 (Copilot, ANALYSIS-1.5.134): every pull request is checked, whatever its author or branch name. An agent
+          # working with the owner's token on a branch with a new name was not counted as an agent. The owner's own changes to
+          # these files go straight to main through release.sh, so a red check here always means "read this first".
+          echo "Author $AUTHOR, branch $BRANCH: every pull request is checked"
+          # 1.5.132: also the add-on trust check, read-only and no-Linux rules, the build files and the signing key;
+          # 1.5.134: the key vault, secret masking, self-fix, the Linux swap and the preview crash handling
+          hits=$(grep -E '^(\.github/|release\.sh$|app/build\.gradle\.kts$|app/debug\.keystore$|linux-addon/|settings\.gradle\.kts$|app/src/main/java/dev/pocketide/app/(LinuxAddon|KeystoreCipher)\.kt$|app/src/main/java/dev/pocketide/app/core/(AgentGuard|CommandRules|DeleteRules|ProjectGuard|Sandbox|CloudAgent|CloudAgentScript|Habits|ReadOnlyRun|NoLinuxCommand|Vault|SecretMask|SelfFix|RootfsSwap|RendererCrash)\.kt$)' changed.txt || true)
+          if [ -n "$hits" ]; then
+            echo "::error::This pull request changes protected files. These hold the agents' own limits or the workflows, so only the owner changes them, on main:"
+            echo "$hits"; exit 1
+          fi
+          echo "No protected file changed."
+
+      - name: Test count does not drop
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 1.5.125: the repositories are private, so the fetch needs the job's token (sent as a header, never printed)
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"   # 1.5.126: hidden in the log even if a later edit starts tracing commands
+          git -c http.extraheader="AUTHORIZATION: basic $auth" fetch -q --no-tags --depth 1 "https://github.com/${{ github.repository }}" "pull/$PR/head:pr"
+          base=$(git grep -h -o '@Test' HEAD -- app/src/test | wc -l)
+          head=$(git grep -h -o '@Test' pr -- app/src/test | wc -l)
+          echo "Unit tests (@Test lines): main $base, this pull request $head"
+          if [ "$head" -lt "$base" ]; then
+            echo "::error::This pull request has fewer unit tests than main ($head < $base). A test is never deleted or weakened to make a change pass; if one is wrong, say why in the pull request and the owner decides."
+            exit 1
+          fi

@@ -1,0 +1,9 @@
+{
+  "title": "Notes",
+  "accent": "#e0a21b",
+  "tags": ["Ideas", "Work", "Personal"],
+  "sample": [
+    { "title": "Welcome", "body": "# Notes\nWrite with **bold**, *italic*, lists and links.\n- [x] Try a checklist\n- [ ] Pin a note\n\nTap a note to edit it.", "tags": ["Personal"], "pinned": true },
+    { "title": "Project ideas", "body": "- Plant watering reminder\n- Recipe box\n- Running log", "tags": ["Ideas"] }
+  ]
+}

@@ -1,0 +1,10 @@
+[
+  { "id": "port-royal", "name": "Port Royal", "region": "Caribbean", "tax": "5", "x": "120", "y": "410", "makes": ["rum", "salt"] },
+  { "id": "nassau", "name": "Nassau", "region": "Caribbean", "tax": "0", "x": "150", "y": "330", "makes": ["fish"] },
+  { "id": "havana", "name": "Havana", "region": "Caribbean", "tax": "8", "x": "90", "y": "350", "makes": ["rum", "tar"] },
+  { "id": "cadiz", "name": "Cadiz", "region": "Iberia", "tax": "6", "x": "760", "y": "300", "makes": ["salt", "spice"] },
+  { "id": "lisbon", "name": "Lisbon", "region": "Iberia", "tax": "6", "x": "740", "y": "260", "makes": ["spice", "silk"] },
+  { "id": "bristol", "name": "Bristol", "region": "Atlantic", "tax": "4", "x": "700", "y": "120", "makes": ["rope", "biscuit"] },
+  { "id": "azores", "name": "Ponta Delgada", "region": "Atlantic", "tax": "2", "x": "560", "y": "280", "makes": ["fish", "biscuit"] },
+  { "id": "boston", "name": "Boston", "region": "Atlantic", "tax": "3", "x": "230", "y": "160", "makes": ["timber", "rope"] }
+]

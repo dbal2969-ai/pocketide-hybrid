@@ -1,0 +1,7 @@
+{
+  "name": "shelf",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

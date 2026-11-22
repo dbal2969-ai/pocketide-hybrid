@@ -1,0 +1,8 @@
+README.md
+imports/diary-sample.txt
+index.html
+lib/readEntries.js
+main.js
+package.json
+style.css
+test/smoke.test.js

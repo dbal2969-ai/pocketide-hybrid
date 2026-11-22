@@ -1,0 +1,8 @@
+{
+  "title": "Assistant",
+  "accent": "#2563eb",
+  "greeting": "Ask me anything to start.",
+  "system": "You are a helpful, concise assistant.",
+  "model": "",
+  "endpoint": ""
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Sales Dashboard",
+  "accent": "#2b7de9",
+  "data": "data.csv",
+  "currency": "USD",
+  "filters": [ { "field": "region", "label": "Region" }, { "field": "product", "label": "Product" } ],
+  "kpis": [
+    { "label": "Revenue", "field": "revenue", "agg": "sum", "format": "money" },
+    { "label": "Units sold", "field": "units", "agg": "sum" },
+    { "label": "Average order", "field": "revenue", "agg": "avg", "format": "money" },
+    { "label": "Orders", "agg": "count" }
+  ],
+  "charts": [
+    { "type": "line", "title": "Revenue by month", "x": "month(date)", "y": "revenue", "agg": "sum", "split": "product" },
+    { "type": "bar", "title": "Revenue by region", "x": "region", "y": "revenue", "agg": "sum" },
+    { "type": "donut", "title": "Units by product", "x": "product", "y": "units", "agg": "sum" }
+  ],
+  "table": { "title": "Orders", "fields": ["date", "region", "product", "units", "revenue"], "money": ["revenue"], "rows": 50 }
+}

@@ -1,0 +1,10 @@
+# the game starts with coins to find
+until 8000 typeof window.render_game_to_text === 'function'
+expect JSON.parse(window.render_game_to_text()).totalCoins > 0
+
+# walking with the keys moves the player
+until 8000 typeof window.render_game_to_text === 'function'
+run window.__p0 = JSON.stringify(JSON.parse(window.render_game_to_text()).player)
+key ArrowRight 700
+key ArrowDown 700
+expect JSON.stringify(JSON.parse(window.render_game_to_text()).player) !== window.__p0

@@ -1,0 +1,7 @@
+{
+  "name": "quiz-maker",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

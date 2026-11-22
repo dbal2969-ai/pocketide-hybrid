@@ -1,0 +1,156 @@
+{
+ "plots": [
+  {
+   "id": "P0",
+   "name": "Plot 0",
+   "x": 20,
+   "y": 30,
+   "w": 80,
+   "holder": "Ames"
+  },
+  {
+   "id": "P1",
+   "name": "Plot 1",
+   "x": 115,
+   "y": 30,
+   "w": 80,
+   "holder": "Bose"
+  },
+  {
+   "id": "P2",
+   "name": "Plot 2",
+   "x": 210,
+   "y": 30,
+   "w": 80,
+   "holder": "Carr"
+  },
+  {
+   "id": "P3",
+   "name": "Plot 3",
+   "x": 305,
+   "y": 30,
+   "w": 80,
+   "holder": "Dunn"
+  },
+  {
+   "id": "P4",
+   "name": "Plot 4",
+   "x": 400,
+   "y": 30,
+   "w": 80,
+   "holder": "Eze"
+  },
+  {
+   "id": "P5",
+   "name": "Plot 5",
+   "x": 495,
+   "y": 30,
+   "w": 80,
+   "holder": "Fox"
+  },
+  {
+   "id": "P6",
+   "name": "Plot 6",
+   "x": 590,
+   "y": 30,
+   "w": 80,
+   "holder": "Gale"
+  },
+  {
+   "id": "P7",
+   "name": "Plot 7",
+   "x": 685,
+   "y": 30,
+   "w": 80,
+   "holder": "Hill"
+  },
+  {
+   "id": "P8",
+   "name": "Plot 8",
+   "x": 20,
+   "y": 100,
+   "w": 80,
+   "holder": "Ito"
+  },
+  {
+   "id": "P9",
+   "name": "Plot 9",
+   "x": 115,
+   "y": 100,
+   "w": 80,
+   "holder": "Jay"
+  },
+  {
+   "id": "P10",
+   "name": "Plot 10",
+   "x": 210,
+   "y": 100,
+   "w": 80,
+   "holder": "Kerr"
+  },
+  {
+   "id": "P11",
+   "name": "Plot 11",
+   "x": 305,
+   "y": 100,
+   "w": 80,
+   "holder": "Lowe"
+  },
+  {
+   "id": "P12",
+   "name": "Plot 12",
+   "x": 400,
+   "y": 100,
+   "w": 80,
+   "holder": "Mann"
+  },
+  {
+   "id": "P13",
+   "name": "Plot 13",
+   "x": 495,
+   "y": 100,
+   "w": 80,
+   "holder": "Nash"
+  },
+  {
+   "id": "P14",
+   "name": "Plot 14",
+   "x": 590,
+   "y": 100,
+   "w": 80,
+   "holder": "Oak"
+  },
+  {
+   "id": "P15",
+   "name": "Plot 15",
+   "x": 685,
+   "y": 100,
+   "w": 80,
+   "holder": "Pugh"
+  }
+ ],
+ "paths": [
+  {
+   "name": "Main path",
+   "x": 10,
+   "y": 15
+  },
+  {
+   "name": "Orchard walk",
+   "x": 700,
+   "y": 160
+  }
+ ],
+ "taps": [
+  {
+   "id": "T1",
+   "x": 300,
+   "y": 100
+  },
+  {
+   "id": "T2",
+   "x": 760,
+   "y": 230
+  }
+ ]
+}

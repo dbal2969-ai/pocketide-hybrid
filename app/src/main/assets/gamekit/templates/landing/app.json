@@ -1,0 +1,24 @@
+{
+  "title": "Brightside Bakery",
+  "description": "Fresh bread and pastries, baked every morning in the heart of town.",
+  "accent": "#d9822b",
+  "brand": "🥐 Brightside",
+  "sections": ["hero", "features", "steps", "pricing", "faq", "contact"],
+  "hero": { "title": "Bread worth waking up for", "text": "Sourdough, croissants and seasonal pastries, baked fresh every morning. Order ahead and skip the line.", "cta": { "label": "Order ahead", "href": "#contact" }, "secondary": { "label": "See the menu", "href": "#pricing" } },
+  "features": { "title": "Why people love us", "items": [
+    { "icon": "🌾", "title": "Local flour", "text": "Stone-milled grain from farms within 50 miles." },
+    { "icon": "⏰", "title": "Baked at 4am", "text": "Everything on the shelf was made this morning." },
+    { "icon": "🚲", "title": "Bike delivery", "text": "Free delivery in town on orders over $20." } ] },
+  "steps": { "title": "How ordering works", "items": [
+    { "title": "Pick your bakes", "text": "Choose from the daily menu." }, { "title": "Choose a time", "text": "Collect from 7am, or get it delivered." }, { "title": "Enjoy", "text": "Warm, fresh and ready." } ] },
+  "pricing": { "title": "Popular boxes", "items": [
+    { "name": "Morning box", "price": "$12", "features": ["2 croissants", "1 sourdough roll", "Jam of the week"] },
+    { "name": "Family box", "price": "$28", "best": true, "features": ["Large sourdough", "6 pastries", "Granola jar", "Free delivery"] },
+    { "name": "Office box", "price": "$55", "features": ["12 pastries", "2 loaves", "Coffee beans 250g"] } ] },
+  "faq": { "title": "Questions", "items": [
+    { "q": "Do you have gluten-free options?", "a": "Yes, we bake a gluten-free loaf on Tuesdays and Fridays." },
+    { "q": "When do you open?", "a": "Every day from 7am to 3pm, or until we sell out." } ] },
+  "contact": { "title": "Order or say hello", "text": "We reply within a day.", "email": "hello@example.com", "fields": [
+    { "id": "name", "label": "Name", "required": true }, { "id": "email", "label": "Email", "type": "email", "required": true }, { "id": "message", "label": "Message", "type": "textarea", "required": true } ] },
+  "footer": "© 2026 Brightside Bakery · 12 Market Street"
+}

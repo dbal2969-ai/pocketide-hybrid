@@ -1,0 +1,41 @@
+# the calendar offers free times for a service
+until window.__app
+fill [name="day"] 2026-11-02
+until document.querySelectorAll('[data-slot]').length > 0
+expect document.querySelectorAll('[data-slot]:not([disabled])').length > 0
+
+# booking a free time saves the appointment
+until window.__app
+fill [name="day"] 2026-11-02
+until document.querySelectorAll('[data-slot]').length > 0
+run window.__n0 = window.__app.items().length
+tap [data-slot]:not([disabled])
+until document.querySelector('.modal [name="name"]')
+fill [name="name"] Ann
+fill [name="contact"] ann@example.com
+tap text:Book
+until window.__app.items().length === window.__n0 + 1
+expect window.__app.items().some(r => r.name === 'Ann' && r.status === 'booked')
+
+# a booked time is not offered again
+until window.__app
+fill [name="day"] 2026-11-02
+until window.__app.items().length >= 0
+run window.__n0 = window.__app.items().length
+tap [data-slot]:not([disabled])
+until document.querySelector('.modal [name="name"]')
+fill [name="name"] Cy
+fill [name="contact"] cy@example.com
+tap text:Book
+until window.__app.items().some(r => r.name === 'Cy')
+expect document.querySelectorAll('[data-slot][disabled]').length >= 1
+
+# a missing contact stops the booking
+until window.__app
+fill [name="day"] 2026-11-02
+until document.querySelectorAll('[data-slot]').length > 0
+tap [data-slot]:not([disabled])
+until document.querySelector('.modal [name="name"]')
+fill [name="name"] Bo
+tap text:Book
+expect document.querySelector('#err-contact').textContent !== ''

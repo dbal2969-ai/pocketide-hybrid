@@ -1,0 +1,25 @@
+{
+  "title": "My Tasks",
+  "item": "task",
+  "accent": "#4f6bed",
+  "fields": [
+    { "id": "title", "label": "Title", "type": "text", "required": true },
+    { "id": "status", "label": "Status", "type": "select", "options": ["To do", "Doing", "Done"], "default": "To do", "board": true, "done": "Done" },
+    { "id": "priority", "label": "Priority", "type": "select", "options": ["Low", "Medium", "High"], "default": "Medium" },
+    { "id": "due", "label": "Due", "type": "date" },
+    { "id": "tags", "label": "Tags", "type": "tags" },
+    { "id": "notes", "label": "Notes", "type": "textarea" }
+  ],
+  "list": { "title": "title", "subtitle": ["due", "priority"], "badge": "status" },
+  "sort": [{ "field": "due", "label": "Due date" }, { "field": "priority", "label": "Priority" }, { "field": "created", "label": "Newest", "desc": true }],
+  "stats": [
+    { "label": "Open", "count": { "status": ["To do", "Doing"] } },
+    { "label": "Done", "count": { "status": "Done" } },
+    { "label": "Total", "count": {} }
+  ],
+  "sample": [
+    { "title": "Plan the week", "status": "Doing", "priority": "High", "due": "2026-11-02", "tags": ["home"] },
+    { "title": "Buy groceries", "status": "To do", "priority": "Medium", "due": "2026-11-01", "tags": ["errands"] },
+    { "title": "Call the dentist", "status": "Done", "priority": "Low", "tags": ["health"] }
+  ]
+}

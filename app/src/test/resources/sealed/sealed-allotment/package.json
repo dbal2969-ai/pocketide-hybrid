@@ -1,0 +1,7 @@
+{
+  "name": "allotment-map",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

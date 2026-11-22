@@ -1,0 +1,390 @@
+name: Benchmark (live models)
+# 1.5.150 (Copilot, ANALYSIS-1.5.148 M3): the settings in the title, so runs that differ in one can be told apart in the list
+run-name: "Benchmark ${{ inputs.suite }}${{ inputs.tasks && format(' ({0})', inputs.tasks) || '' }} x${{ inputs.repeat }} · ${{ inputs.models }} · ask=${{ inputs.ask_check }} cause=${{ inputs.cause_first }} scope=${{ inputs.scope_check }} variety=${{ inputs.variety }} look=${{ inputs.look }}${{ inputs.verify == '1' && ' verify=1' || '' }}${{ inputs.premise == '1' && ' premise=1' || '' }}${{ inputs.explore == '1' && ' explore=1' || '' }}${{ inputs.embed && format(' embed={0}', inputs.embed) || '' }}${{ inputs.helper && format(' helper={0}', inputs.helper) || '' }}"
+
+# Runs the live benchmark (app/src/test/java/dev/pocketide/app/bench/LiveBench.kt) against real model providers.
+# Started by hand only (Actions → Benchmark → Run workflow), so provider usage and Actions minutes are spent on purpose.
+# Keys come from repository secrets (Settings → Secrets and variables → Actions):
+#   POCKETIDE_BENCH_KEY_CLOUDFLARE and POCKETIDE_BENCH_BASE_CLOUDFLARE (https://api.cloudflare.com/client/v4/accounts/<id>/ai/v1),
+#   and optionally POCKETIDE_BENCH_KEY_GROQ, POCKETIDE_BENCH_KEY_OPENROUTER, POCKETIDE_BENCH_KEY_GEMINI, POCKETIDE_BENCH_KEY_CEREBRAS,
+#   POCKETIDE_BENCH_KEY_LLM7, POCKETIDE_BENCH_KEY_HAIMAKER. Providers that work without a key (kilo, llm7, ovh) run with none when no secret is set.
+# They are given only to the benchmark step. Task commands run in a bubblewrap sandbox with a clean environment (AgentHarness.shell).
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "Models, provider:model, separated by ';' (each gets its own job)"
+        default: "openrouter:recursive/flint-v1.0:free"
+        required: true
+      suite:
+        description: "Task set"
+        type: choice
+        # polyglot: Aider's 34 Python exercises, as before; polyglot-js: its 49 JavaScript exercises; polyglot-all: both (1.5.125);
+        # chat: plain questions asked in the Chat home (1.5.125)
+        options: [all, standard, hard, heldout, realproject, polyglot, polyglot-js, polyglot-all, chat, asks, cause, harbour, sealed, premise, variety, trust]
+        default: all
+      repeat:
+        description: "Runs of each task"
+        type: choice
+        options: ["1", "2", "3", "4", "5"]
+        default: "3"
+      tasks:
+        description: "Only these tasks (comma-separated names; overrides the suite)"
+        default: ""
+      effort:
+        description: "Thinking effort"
+        type: choice
+        options: [default, low, medium, high]
+        default: default
+      whole_reads:
+        description: "Whole-file reads (1.5.99): 1 = on, 0 = file pieces as asked"
+        type: choice
+        options: ["1", "0"]
+        default: "1"
+      refs:
+        description: "Branches or commits to compare, separated by ',' (e.g. main,candidate); empty = the one this runs on"
+        default: ""
+      advisor:
+        description: "A second model that plans and reviews, provider:model (e.g. cloudflare:@cf/moonshotai/kimi-k2.6); empty = none"
+        default: ""
+      app_tools:
+        description: "The app's default extra tools (explore, apply_patch for GPT models): 1 = on as on the phone, 0 = off as before 1.5.106"
+        type: choice
+        options: ["1", "0"]
+        default: "1"
+      escalate:
+        description: "When a task ends unfinished, carry on with this stronger model on the files as left (Escalate, 1.5.125), provider:model; empty = off"
+        default: ""
+      second_try:
+        description: "Retry a task once from the start when the first attempt ends unfinished (Settings → Second try): 1 = on, 0 = off"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      helper:
+        description: "A cheaper model for the explorer and the history summary, provider:model (e.g. groq:llama-3.1-8b-instant); empty = the main model (1.5.138)"
+        default: ""
+      look:
+        description: "look_at_preview in headless Chrome, as the app offers it for web pages (HarnessLook, 1.5.147): 0 = off as before, 1 = on"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      cause_first:
+        description: "Problem reports: name the cause before the first change, and question changed data files (CauseGate, 1.5.147): 0 = off as in the app, 1 = on"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      scope_check:
+        description: "Keep to what was asked: report what the project lacks instead of adding it, and question files neither asked for nor named as the cause (ScopeGate, 1.5.156): 0 = off as in the app, 1 = on"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      explore:
+        description: "The explore helper, a second model call that reads the project (off by default in the app since 1.5.162): 0 = off as in the app, 1 = on (needs app_tools=1)"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      premise:
+        description: "When a request says something disappeared, the app searches for it first and the assistant may report instead (PremiseCheck, 1.5.164): 0 = off as in the app, 1 = on"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      verify:
+        description: "A fresh reviewer compares the request with the diff before finishing, and its findings go back once (FreshVerify, 1.5.161): 0 = off as in the app, 1 = on"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      variety:
+        description: "Code that reads outside input (CSV, web pages): try it on other shapes before finishing (InputVariety, 1.5.154): 0 = off as in the app, 1 = on"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      embed:
+        description: "Search by meaning for find_code and empty searches: an embeddings model, provider:model (e.g. cloudflare:@cf/baai/bge-base-en-v1.5); empty = keyword only (1.5.141)"
+        default: ""
+      route:
+        description: "Reading rounds use the helper model too (phase routing): 1 = on, 0 = off"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      ask_check:
+        description: "Check a request with several asks ask by ask before finishing (AskLedger, 1.5.138): 0 = off as on the phone (since 1.5.145), 1 = on to compare"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      ollama:
+        description: "A local model run on the runner's own CPU with Ollama (1.5.170), e.g. qwen2.5-coder:1.5b; use it as ollama:<model> in models. Empty = none"
+        default: ""
+      task_seconds:
+        description: "Time limit per task in seconds (900 as before; raise it for a local model on the CPU)"
+        default: "900"
+      max_tokens:
+        description: "Token cap per job: no new task starts once the job's runs used this many tokens; empty = no cap (set a limit in the provider's console too)"
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      # One job per model and, for "all", per task set: no job comes near the 6-hour limit, and they run side by side.
+      - id: plan
+        env:
+          MODELS: ${{ inputs.models }}
+          SUITE: ${{ inputs.suite }}
+          TASKS: ${{ inputs.tasks }}
+          REFS: ${{ inputs.refs }}
+          THIS_REF: ${{ github.ref_name }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os, re
+          models = [m.strip() for m in os.environ["MODELS"].split(";") if m.strip()]
+          suites = ["standard", "hard", "heldout", "realproject"] if os.environ["SUITE"] == "all" and not os.environ["TASKS"].strip() else [os.environ["SUITE"]]
+          refs = [r.strip() for r in os.environ["REFS"].split(",") if r.strip()] or [os.environ["THIS_REF"]]
+          for r in refs:
+              if not re.fullmatch(r"[A-Za-z0-9._/-]{1,100}", r): raise SystemExit("not a branch or commit name: " + r)
+          # each ref's artifacts carry its name (slashes made safe) so the summary can tell them apart
+          include = [{"model": m, "suite": s, "ref": r, "label": r.replace("/", "_")} for r in refs for m in models for s in suites]
+          if not include: raise SystemExit("no models given")
+          print("matrix=" + json.dumps({"include": include}))
+          EOF
+
+  bench:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.ref }} · ${{ matrix.model }} · ${{ matrix.suite }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.ref }}
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      # The task sandbox needs user namespaces, which Ubuntu 24.04 restricts through AppArmor by default.
+      # The run stops here if the sandbox cannot start: tasks are never run without it.
+      - name: Set up and check the task sandbox
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap > /dev/null
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --unshare-all --die-with-parent --ro-bind /usr /usr --ro-bind /lib /lib --ro-bind /lib64 /lib64 \
+            --symlink usr/bin /bin --proc /proc --dev /dev --tmpfs /tmp -- /bin/bash -c 'echo sandbox ok'
+
+      - name: Cache Gradle downloads
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - name: Make the wrapper runnable
+        run: chmod +x gradlew
+
+      # Compile and warm Gradle before any provider is called, so a build problem costs no model requests.
+      - name: Compile the tests
+        run: ./gradlew --no-daemon -q compileDebugUnitTestKotlin
+
+      # 1.5.125: the JavaScript polyglot exercises' hidden tests run with jest, the versions their package.json files ask for.
+      # Installed once per job outside the project (the task sandbox has no network and binds this folder read-only); npm's
+      # download cache is kept between runs.
+      - name: Cache npm downloads for jest
+        if: matrix.suite == 'polyglot-js' || matrix.suite == 'polyglot-all'
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: polyglot-jest-29.7.0-babel-7.25.2-preset-0.2.1-corejs-3.37.1
+
+      - name: Install jest for the JavaScript polyglot exercises
+        if: matrix.suite == 'polyglot-js' || matrix.suite == 'polyglot-all'
+        run: |
+          d="$RUNNER_TEMP/polyglot-jest"
+          mkdir -p "$d" && cd "$d"
+          printf '{"private": true}\n' > package.json
+          npm install --no-audit --no-fund --silent jest@29.7.0 babel-jest@29.6.4 @babel/core@7.25.2 @exercism/babel-preset-javascript@0.2.1 core-js@3.37.1
+          node_modules/.bin/jest --version
+          echo "POCKETIDE_POLYGLOT_JEST=$d" >> "$GITHUB_ENV"
+
+      # 1.5.170: a local model, as a phone with Ollama (Termux) would run it, on the runner's CPU. The context is raised to 32K: Ollama's
+      # default would cut the app's instructions and tools off silently.
+      - name: Start Ollama with the local model
+        if: inputs.ollama != ''
+        env:
+          OLLAMA_MODEL: ${{ inputs.ollama }}
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          sudo systemctl stop ollama 2>/dev/null || true
+          OLLAMA_CONTEXT_LENGTH=32768 OLLAMA_KEEP_ALIVE=24h nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:11434/api/version && break; sleep 1; done
+          ollama pull "$OLLAMA_MODEL"
+          curl -sf http://127.0.0.1:11434/v1/chat/completions -H 'Content-Type: application/json' \
+            -d "{\"model\":\"$OLLAMA_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say ok\"}]}" | head -c 400; echo
+          echo "POCKETIDE_BENCH_BASE_OLLAMA=http://127.0.0.1:11434/v1" >> "$GITHUB_ENV"
+          nproc; free -g | head -2
+
+      - name: Check the keys for these models are set
+        env:
+          MODEL: ${{ matrix.model }}
+          POCKETIDE_BENCH_KEY_CLOUDFLARE: ${{ secrets.POCKETIDE_BENCH_KEY_CLOUDFLARE }}
+          POCKETIDE_BENCH_BASE_CLOUDFLARE: ${{ secrets.POCKETIDE_BENCH_BASE_CLOUDFLARE }}
+          POCKETIDE_BENCH_KEY_GROQ: ${{ secrets.POCKETIDE_BENCH_KEY_GROQ }}
+          POCKETIDE_BENCH_KEY_OPENROUTER: ${{ secrets.POCKETIDE_BENCH_KEY_OPENROUTER || secrets.POCKETIDE_BENCH_KEY_OPEN_ROUTER }}
+          POCKETIDE_BENCH_KEY_GEMINI: ${{ secrets.POCKETIDE_BENCH_KEY_GEMINI }}
+          POCKETIDE_BENCH_KEY_CEREBRAS: ${{ secrets.POCKETIDE_BENCH_KEY_CEREBRAS }}
+          POCKETIDE_BENCH_KEY_LLM7: ${{ secrets.POCKETIDE_BENCH_KEY_LLM7 }}
+          POCKETIDE_BENCH_KEY_KILO: ${{ secrets.POCKETIDE_BENCH_KEY_KILO }}
+          POCKETIDE_BENCH_KEY_NVIDIA: ${{ secrets.POCKETIDE_BENCH_KEY_NVIDIA || secrets.POCKETIDE_BENCH_KEY_NVDIA }}
+          POCKETIDE_BENCH_KEY_OLLAMACLOUD: ${{ secrets.POCKETIDE_BENCH_KEY_OLLAMACLOUD || secrets.POCKETIDE_BENCH_KEY_OLLAMA }}
+          POCKETIDE_BENCH_KEY_HAIMAKER: ${{ secrets.POCKETIDE_BENCH_KEY_HAIMAKER }}
+        run: |
+          p=$(printf '%s' "${MODEL%%:*}" | tr 'a-z-' 'A-Z_')
+          k="POCKETIDE_BENCH_KEY_$p"
+          case "$p" in KILO|LLM7|OVH|OLLAMA) keyless=1 ;; *) keyless= ;; esac
+          if [ -z "${!k}" ] && [ -n "$keyless" ]; then echo "no $k: $p runs without a key (lower limits)"; exit 0; fi
+          if [ -z "${!k}" ]; then echo "::error::Add the repository secret $k (Settings → Secrets and variables → Actions)"; exit 1; fi
+          if [ "$p" = CLOUDFLARE ] && [ -z "$POCKETIDE_BENCH_BASE_CLOUDFLARE" ]; then
+            echo "::error::Add the repository secret POCKETIDE_BENCH_BASE_CLOUDFLARE (https://api.cloudflare.com/client/v4/accounts/<account id>/ai/v1)"; exit 1
+          fi
+          v="${!k}"; case "$v" in sk-*) sk=yes ;; *) sk=no ;; esac
+          case "$v" in *[[:space:]\"\']*) odd="has spaces or quotes" ;; *) odd="no spaces or quotes" ;; esac
+          echo "keys present for $p (key: ${#v} characters, starts with sk-: $sk, $odd)"
+
+      - name: Install the page check's browser driver (look_at_preview)
+        if: inputs.look == '1'
+        run: |
+          d="$RUNNER_TEMP/look"
+          mkdir -p "$d" && cd "$d"
+          printf '{"private": true}\n' > package.json
+          npm install --no-audit --no-fund --silent playwright-core@1.49.1
+          c=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
+          [ -n "$c" ] || { echo "::error::No Chrome on this runner for look_at_preview"; exit 1; }
+          echo "NODE_PATH=$d/node_modules" >> "$GITHUB_ENV"
+          echo "POCKETIDE_BENCH_CHROME=$c" >> "$GITHUB_ENV"
+          echo "Chrome: $("$c" --version)"
+
+      - name: Run the benchmark
+        env:
+          POCKETIDE_BENCH_MODELS: ${{ matrix.model }}
+          POCKETIDE_BENCH_SUITE: ${{ matrix.suite }}
+          POCKETIDE_BENCH_TASKS: ${{ inputs.tasks }}
+          POCKETIDE_BENCH_REPEAT: ${{ inputs.repeat }}
+          POCKETIDE_BENCH_WHOLE_READS: ${{ inputs.whole_reads }}
+          POCKETIDE_BENCH_ADVISOR: ${{ inputs.advisor }}
+          POCKETIDE_BENCH_APP_TOOLS: ${{ inputs.app_tools }}
+          POCKETIDE_BENCH_SECOND_TRY: ${{ inputs.second_try }}
+          POCKETIDE_BENCH_ESCALATE: ${{ inputs.escalate }}
+          POCKETIDE_BENCH_HELPER: ${{ inputs.helper }}
+          POCKETIDE_BENCH_EMBED: ${{ inputs.embed }}
+          POCKETIDE_BENCH_CAUSE_FIRST: ${{ inputs.cause_first }}
+          POCKETIDE_BENCH_VARIETY: ${{ inputs.variety }}
+          POCKETIDE_BENCH_SCOPE: ${{ inputs.scope_check }}
+          POCKETIDE_BENCH_VERIFY: ${{ inputs.verify }}
+          POCKETIDE_BENCH_PREMISE: ${{ inputs.premise }}
+          POCKETIDE_BENCH_EXPLORE: ${{ inputs.explore }}
+          POCKETIDE_BENCH_LOOK: ${{ inputs.look }}
+          POCKETIDE_BENCH_ROUTE: ${{ inputs.route }}
+          POCKETIDE_BENCH_MAX_TOKENS: ${{ inputs.max_tokens }}
+          POCKETIDE_BENCH_ASK_CHECK: ${{ inputs.ask_check }}
+          POCKETIDE_BENCH_TIMEOUT: ${{ inputs.task_seconds }}
+          EFFORT: ${{ inputs.effort }}
+          POCKETIDE_BENCH_OUT: ${{ runner.temp }}/bench-out
+          POCKETIDE_BENCH_KEY_CLOUDFLARE: ${{ secrets.POCKETIDE_BENCH_KEY_CLOUDFLARE }}
+          POCKETIDE_BENCH_BASE_CLOUDFLARE: ${{ secrets.POCKETIDE_BENCH_BASE_CLOUDFLARE }}
+          POCKETIDE_BENCH_KEY_GROQ: ${{ secrets.POCKETIDE_BENCH_KEY_GROQ }}
+          POCKETIDE_BENCH_KEY_OPENROUTER: ${{ secrets.POCKETIDE_BENCH_KEY_OPENROUTER || secrets.POCKETIDE_BENCH_KEY_OPEN_ROUTER }}
+          POCKETIDE_BENCH_KEY_GEMINI: ${{ secrets.POCKETIDE_BENCH_KEY_GEMINI }}
+          POCKETIDE_BENCH_KEY_CEREBRAS: ${{ secrets.POCKETIDE_BENCH_KEY_CEREBRAS }}
+          POCKETIDE_BENCH_KEY_LLM7: ${{ secrets.POCKETIDE_BENCH_KEY_LLM7 }}
+          POCKETIDE_BENCH_KEY_KILO: ${{ secrets.POCKETIDE_BENCH_KEY_KILO }}
+          POCKETIDE_BENCH_KEY_NVIDIA: ${{ secrets.POCKETIDE_BENCH_KEY_NVIDIA || secrets.POCKETIDE_BENCH_KEY_NVDIA }}
+          POCKETIDE_BENCH_KEY_OLLAMACLOUD: ${{ secrets.POCKETIDE_BENCH_KEY_OLLAMACLOUD || secrets.POCKETIDE_BENCH_KEY_OLLAMA }}
+          POCKETIDE_BENCH_KEY_HAIMAKER: ${{ secrets.POCKETIDE_BENCH_KEY_HAIMAKER }}
+        run: |
+          mkdir -p "$POCKETIDE_BENCH_OUT"
+          if [ "$EFFORT" != default ]; then export POCKETIDE_BENCH_EFFORT="$EFFORT"; fi
+          extra=""
+          if [ "${POCKETIDE_BENCH_SUITE%%-*}" = polyglot ]; then
+            # Aider's polyglot benchmark (Exercism exercises, MIT), at a pinned commit; its exercises only run in the task sandbox.
+            # The fairness tests run first (PolyglotTasksTest): the JavaScript one only when jest was installed above (1.5.125)
+            git clone -q https://github.com/Aider-AI/polyglot-benchmark "$RUNNER_TEMP/polyglot"
+            git -C "$RUNNER_TEMP/polyglot" checkout -q 7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f
+            export POCKETIDE_POLYGLOT_DIR="$RUNNER_TEMP/polyglot"
+            extra="--tests *PolyglotTasksTest*"
+          fi
+          # --rerun: a changed setting must never reuse an up-to-date test result
+          ./gradlew --no-daemon testDebugUnitTest --rerun --tests '*LiveBench*' $extra
+
+      # The score is in the report: a green run means the benchmark ran, not that every task passed.
+      - name: Report
+        if: always()
+        env:
+          OUT: ${{ runner.temp }}/bench-out
+        run: |
+          r=$(ls -t "$OUT"/*.md 2>/dev/null | head -1)
+          if [ -n "$r" ]; then cat "$r" >> "$GITHUB_STEP_SUMMARY"; else echo "No report was written." >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Ollama's log
+        if: always() && inputs.ollama != ''
+        run: tail -n 60 "$RUNNER_TEMP/ollama.log" || true
+
+      - name: Upload the report and transcripts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-${{ strategy.job-index }}-${{ matrix.suite }}-${{ matrix.label }}
+          path: |
+            ${{ runner.temp }}/bench-out
+            app/build/test-results/testDebugUnitTest/*LiveBench*.xml
+          retention-days: 30
+          if-no-files-found: warn
+
+  # One table for the whole run: each model, ref and task with passes, median requests, seconds and reads (tools/bench/summarize.py).
+  summary:
+    needs: bench
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          path: reports
+          pattern: bench-*
+      - name: Summarize
+        run: |
+          python3 tools/bench/summarize.py reports | tee -a "$GITHUB_STEP_SUMMARY" > summary.md
+          # 1.5.170: whether the app's end label told the truth (tools/bench/trust.py)
+          { echo; echo "## End labels"; echo; python3 tools/bench/trust.py reports; } | tee -a "$GITHUB_STEP_SUMMARY" >> summary.md
+      - name: Upload the results to Neon
+        # 1.5.175: every run lands in one database (tools/bench/neon_upload.py); skipped when the secret is not set
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          if [ -n "$NEON_DATABASE_URL" ]; then python3 tools/bench/neon_upload.py --source actions --commit "$GITHUB_SHA" --notes "run $GITHUB_RUN_ID" reports || echo "Neon upload failed (the run's results are still in the artifact)."; else echo "No NEON_DATABASE_URL secret: not uploaded."; fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: summary
+          path: summary.md

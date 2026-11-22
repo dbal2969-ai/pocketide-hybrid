@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "deviceAbi": "arm64-v8a",
+  "androidApi": 26,
+  "llama.cpp": {
+    "source": "https://github.com/ggml-org/llama.cpp",
+    "tag": "v1.0.0",
+    "revision": "b1b770d90d94cad9e9ea5b993bdbc383a522fb28",
+    "license": "MIT",
+    "binary": "libllama_server.so (llama-server, statically linked)"
+  },
+  "kleidiai": {
+    "source": "fetched by llama.cpp's CMake (GGML_CPU_KLEIDIAI)",
+    "license": "Apache-2.0"
+  },
+  "models": "Not bundled. Downloaded on the phone from Hugging Face when the person picks one (core/Engine.kt lists repos, sizes and SHA-256)."
+}

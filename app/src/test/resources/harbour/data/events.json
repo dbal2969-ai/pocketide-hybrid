@@ -1,0 +1,6 @@
+[
+  { "type": "storm", "text": "A storm carries men overboard", "lost": [0, 3], "perDay": 0.06 },
+  { "type": "sickness", "text": "Scurvy below decks", "lost": [1, 4], "perDay": 0.03, "afterDay": 12 },
+  { "type": "calm", "text": "Becalmed", "days": [1, 3], "perDay": 0.05 },
+  { "type": "spoil", "text": "Damp spoils some food", "goods": ["fish", "biscuit"], "share": 0.2, "perDay": 0.04 }
+]

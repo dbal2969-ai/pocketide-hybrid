@@ -1,0 +1,5 @@
+# the game runs and answers the keys
+until 8000 typeof window.render_game_to_text === 'function'
+run window.__x0 = JSON.parse(window.render_game_to_text()).x
+key ArrowRight 600
+expect JSON.parse(window.render_game_to_text()).x > window.__x0

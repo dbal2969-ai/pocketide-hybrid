@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Game</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;font-family:sans-serif}
+canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+#menubtn{position:fixed;right:10px;top:10px;width:44px;height:44px;border-radius:8px;background:rgba(20,16,12,.8);border:2px solid #c8a060;color:#f0d8a0;font-size:24px;line-height:40px;text-align:center;z-index:5}
+#menu{position:fixed;left:8px;right:8px;top:62px;bottom:8px;max-width:720px;margin:0 auto;background:rgba(24,20,16,.95);border:2px solid #c8a060;border-radius:8px;color:#f0e6d0;z-index:6;display:flex;flex-direction:column}
+#menu[hidden]{display:none}
+#mtabs{display:flex}#mtabs div{flex:1;padding:10px;text-align:center;border-bottom:2px solid #5a4a30;cursor:pointer}#mtabs div.on{background:#5a4a30;color:#fff}
+#mbody{flex:1;overflow:auto;padding:8px}
+.st-head{font-weight:bold;margin:4px 0 8px;color:#ffd870}.st-cols{display:flex;gap:6px}.st-col{flex:1;border-top:3px solid;padding-top:4px;min-width:0}
+.st-branch{font-weight:bold;text-align:center;margin-bottom:6px}.st-node{padding:8px 6px;margin:5px 0;border-radius:6px;font-size:13px;background:#2e271e;border:1px solid #5a4a30}
+.st-node small{display:block;color:#bba;font-size:11px}.st-node.owned{background:#3e5a2e;border-color:#8c6}.st-node.open{border-color:#ffd870;box-shadow:0 0 6px #ffd87066}.st-node.locked{opacity:.55}
+.quest{padding:9px 6px;border-bottom:1px solid #3a3020;cursor:pointer}.qred{color:#ff6a5a}.qyellow{color:#ffe35a}.qgreen{color:#6aff6a}
+.qtitle{color:#ff981f;font-weight:bold;margin:6px 0}.qline{margin:5px 2px;font-size:14px}.qline.qdone{text-decoration:line-through;color:#998}
+.obtn{background:#2e271e;border:1px solid #5a4a30;padding:9px;margin:6px 0;text-align:center;border-radius:6px}
+.bag{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}.bag div{background:#2e271e;border:1px solid #5a4a30;border-radius:6px;padding:8px;font-size:13px}
+#dialog{position:fixed;left:8px;right:8px;bottom:8px;max-width:720px;margin:0 auto;min-height:96px;max-height:45vh;overflow:auto;z-index:7;background:#c7b48f;border:3px solid #3e3529;
+  box-shadow:inset 0 0 0 2px #e2d3b0;color:#000;font:15px sans-serif;text-align:center;padding:8px 10px 6px;box-sizing:border-box}
+#dialog .dname{color:#800000;font-weight:bold;margin-bottom:4px}#dialog .dline{margin:2px 0}#dialog .dcont{color:#0000c0;margin-top:6px;font-size:13px}
+#dialog .dopt{padding:9px 4px;margin:2px 0;border-top:1px solid rgba(0,0,0,.15);cursor:pointer}
+</style></head>
+<body><canvas id="view"></canvas><canvas id="hud"></canvas>
+<div id="menubtn" title="Menu">≡</div>
+<div id="menu" hidden><div id="mtabs"><div data-tab="skills" class="on">Skills</div><div data-tab="quests">Quests</div><div data-tab="bag">Bag</div><div data-tab="options">Options</div></div><div id="mbody"></div></div>
+<script type="module" src="main.js"></script></body></html>

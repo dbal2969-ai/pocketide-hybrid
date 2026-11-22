@@ -1,0 +1,7 @@
+{
+  "name": "mileage",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

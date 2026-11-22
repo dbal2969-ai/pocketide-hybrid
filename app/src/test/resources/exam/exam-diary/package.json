@@ -1,0 +1,7 @@
+{
+  "name": "diary",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

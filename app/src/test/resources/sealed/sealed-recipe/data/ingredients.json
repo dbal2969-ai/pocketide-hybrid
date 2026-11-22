@@ -1,0 +1,362 @@
+[
+  {
+    "id": "plain-flour",
+    "name": "plain flour",
+    "unit": "g",
+    "pricePerUnit": 0.0093
+  },
+  {
+    "id": "self-raising-flour",
+    "name": "self-raising flour",
+    "unit": "g",
+    "pricePerUnit": 0.0011
+  },
+  {
+    "id": "caster-sugar",
+    "name": "caster sugar",
+    "unit": "g",
+    "pricePerUnit": 0.0013
+  },
+  {
+    "id": "icing-sugar",
+    "name": "icing sugar",
+    "unit": "g",
+    "pricePerUnit": 0.0018
+  },
+  {
+    "id": "butter",
+    "name": "butter",
+    "unit": "g",
+    "pricePerUnit": 0.0095
+  },
+  {
+    "id": "eggs",
+    "name": "eggs",
+    "unit": "each",
+    "pricePerUnit": 0.3
+  },
+  {
+    "id": "milk",
+    "name": "milk",
+    "unit": "ml",
+    "pricePerUnit": 0.0187
+  },
+  {
+    "id": "double-cream",
+    "name": "double cream",
+    "unit": "ml",
+    "pricePerUnit": 0.0161
+  },
+  {
+    "id": "cocoa-powder",
+    "name": "cocoa powder",
+    "unit": "g",
+    "pricePerUnit": 0.0041
+  },
+  {
+    "id": "baking-powder",
+    "name": "baking powder",
+    "unit": "g",
+    "pricePerUnit": 0.0095
+  },
+  {
+    "id": "vanilla-extract",
+    "name": "vanilla extract",
+    "unit": "ml",
+    "pricePerUnit": 0.0194
+  },
+  {
+    "id": "strawberry-jam",
+    "name": "strawberry jam",
+    "unit": "g",
+    "pricePerUnit": 0.0065
+  },
+  {
+    "id": "raspberries",
+    "name": "raspberries",
+    "unit": "g",
+    "pricePerUnit": 0.02
+  },
+  {
+    "id": "lemons",
+    "name": "lemons",
+    "unit": "each",
+    "pricePerUnit": 0.2
+  },
+  {
+    "id": "oats",
+    "name": "oats",
+    "unit": "g",
+    "pricePerUnit": 0.0061
+  },
+  {
+    "id": "golden-syrup",
+    "name": "golden syrup",
+    "unit": "g",
+    "pricePerUnit": 0.0082
+  },
+  {
+    "id": "brown-sugar",
+    "name": "brown sugar",
+    "unit": "g",
+    "pricePerUnit": 0.0192
+  },
+  {
+    "id": "honey",
+    "name": "honey",
+    "unit": "g",
+    "pricePerUnit": 0.0045
+  },
+  {
+    "id": "dark-chocolate",
+    "name": "dark chocolate",
+    "unit": "g",
+    "pricePerUnit": 0.0196
+  },
+  {
+    "id": "milk-chocolate",
+    "name": "milk chocolate",
+    "unit": "g",
+    "pricePerUnit": 0.0127
+  },
+  {
+    "id": "white-chocolate",
+    "name": "white chocolate",
+    "unit": "g",
+    "pricePerUnit": 0.0021
+  },
+  {
+    "id": "almonds",
+    "name": "almonds",
+    "unit": "g",
+    "pricePerUnit": 0.0153
+  },
+  {
+    "id": "walnuts",
+    "name": "walnuts",
+    "unit": "g",
+    "pricePerUnit": 0.0024
+  },
+  {
+    "id": "hazelnuts",
+    "name": "hazelnuts",
+    "unit": "g",
+    "pricePerUnit": 0.0039
+  },
+  {
+    "id": "raisins",
+    "name": "raisins",
+    "unit": "g",
+    "pricePerUnit": 0.0041
+  },
+  {
+    "id": "sultanas",
+    "name": "sultanas",
+    "unit": "g",
+    "pricePerUnit": 0.013
+  },
+  {
+    "id": "cinnamon",
+    "name": "cinnamon",
+    "unit": "g",
+    "pricePerUnit": 0.0046
+  },
+  {
+    "id": "nutmeg",
+    "name": "nutmeg",
+    "unit": "g",
+    "pricePerUnit": 0.0161
+  },
+  {
+    "id": "ginger",
+    "name": "ginger",
+    "unit": "g",
+    "pricePerUnit": 0.0045
+  },
+  {
+    "id": "salt",
+    "name": "salt",
+    "unit": "g",
+    "pricePerUnit": 0.013
+  },
+  {
+    "id": "yeast",
+    "name": "yeast",
+    "unit": "g",
+    "pricePerUnit": 0.0046
+  },
+  {
+    "id": "olive-oil",
+    "name": "olive oil",
+    "unit": "ml",
+    "pricePerUnit": 0.0092
+  },
+  {
+    "id": "sunflower-oil",
+    "name": "sunflower oil",
+    "unit": "ml",
+    "pricePerUnit": 0.0177
+  },
+  {
+    "id": "cheddar",
+    "name": "cheddar",
+    "unit": "g",
+    "pricePerUnit": 0.0122
+  },
+  {
+    "id": "parmesan",
+    "name": "parmesan",
+    "unit": "g",
+    "pricePerUnit": 0.0192
+  },
+  {
+    "id": "mozzarella",
+    "name": "mozzarella",
+    "unit": "g",
+    "pricePerUnit": 0.0174
+  },
+  {
+    "id": "tomatoes",
+    "name": "tomatoes",
+    "unit": "each",
+    "pricePerUnit": 0.25
+  },
+  {
+    "id": "onions",
+    "name": "onions",
+    "unit": "each",
+    "pricePerUnit": 0.57
+  },
+  {
+    "id": "garlic",
+    "name": "garlic",
+    "unit": "each",
+    "pricePerUnit": 0.54
+  },
+  {
+    "id": "carrots",
+    "name": "carrots",
+    "unit": "g",
+    "pricePerUnit": 0.0122
+  },
+  {
+    "id": "potatoes",
+    "name": "potatoes",
+    "unit": "g",
+    "pricePerUnit": 0.0012
+  },
+  {
+    "id": "peas",
+    "name": "peas",
+    "unit": "g",
+    "pricePerUnit": 0.0142
+  },
+  {
+    "id": "rice",
+    "name": "rice",
+    "unit": "g",
+    "pricePerUnit": 0.0121
+  },
+  {
+    "id": "pasta",
+    "name": "pasta",
+    "unit": "g",
+    "pricePerUnit": 0.0145
+  },
+  {
+    "id": "chicken-thighs",
+    "name": "chicken thighs",
+    "unit": "g",
+    "pricePerUnit": 0.0114
+  },
+  {
+    "id": "beef-mince",
+    "name": "beef mince",
+    "unit": "g",
+    "pricePerUnit": 0.0059
+  },
+  {
+    "id": "bacon",
+    "name": "bacon",
+    "unit": "g",
+    "pricePerUnit": 0.0007
+  },
+  {
+    "id": "stock-cubes",
+    "name": "stock cubes",
+    "unit": "each",
+    "pricePerUnit": 0.27
+  },
+  {
+    "id": "soy-sauce",
+    "name": "soy sauce",
+    "unit": "ml",
+    "pricePerUnit": 0.0044
+  },
+  {
+    "id": "coconut-milk",
+    "name": "coconut milk",
+    "unit": "ml",
+    "pricePerUnit": 0.0294
+  },
+  {
+    "id": "chickpeas",
+    "name": "chickpeas",
+    "unit": "g",
+    "pricePerUnit": 0.0139
+  },
+  {
+    "id": "lentils",
+    "name": "lentils",
+    "unit": "g",
+    "pricePerUnit": 0.0011
+  },
+  {
+    "id": "spinach",
+    "name": "spinach",
+    "unit": "g",
+    "pricePerUnit": 0.0141
+  },
+  {
+    "id": "mushrooms",
+    "name": "mushrooms",
+    "unit": "g",
+    "pricePerUnit": 0.0129
+  },
+  {
+    "id": "peppers",
+    "name": "peppers",
+    "unit": "each",
+    "pricePerUnit": 0.12
+  },
+  {
+    "id": "courgettes",
+    "name": "courgettes",
+    "unit": "each",
+    "pricePerUnit": 0.55
+  },
+  {
+    "id": "basil",
+    "name": "basil",
+    "unit": "g",
+    "pricePerUnit": 0.0148
+  },
+  {
+    "id": "parsley",
+    "name": "parsley",
+    "unit": "g",
+    "pricePerUnit": 0.0183
+  },
+  {
+    "id": "thyme",
+    "name": "thyme",
+    "unit": "g",
+    "pricePerUnit": 0.0181
+  },
+  {
+    "id": "cumin",
+    "name": "cumin",
+    "unit": "g",
+    "pricePerUnit": 0.0159
+  }
+]

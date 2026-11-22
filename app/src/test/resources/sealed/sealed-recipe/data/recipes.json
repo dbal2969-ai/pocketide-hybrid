@@ -1,0 +1,90 @@
+[
+  {
+    "id": "victoria-sponge",
+    "name": "Victoria sponge",
+    "servings": 8,
+    "batches": 2,
+    "items": [
+      {
+        "id": "self-raising-flour",
+        "qty": 225
+      },
+      {
+        "id": "caster-sugar",
+        "qty": 225
+      },
+      {
+        "id": "butter",
+        "qty": 225
+      },
+      {
+        "id": "eggs",
+        "qty": 4
+      },
+      {
+        "id": "strawberry-jam",
+        "qty": 120
+      },
+      {
+        "id": "icing-sugar",
+        "qty": 20
+      }
+    ]
+  },
+  {
+    "id": "flapjack",
+    "name": "Flapjack",
+    "servings": 12,
+    "batches": 1,
+    "items": [
+      {
+        "id": "oats",
+        "qty": 250
+      },
+      {
+        "id": "butter",
+        "qty": 125
+      },
+      {
+        "id": "golden-syrup",
+        "qty": 100
+      },
+      {
+        "id": "brown-sugar",
+        "qty": 125
+      }
+    ]
+  },
+  {
+    "id": "tomato-pasta",
+    "name": "Tomato pasta",
+    "servings": 4,
+    "batches": 3,
+    "items": [
+      {
+        "id": "pasta",
+        "qty": 400
+      },
+      {
+        "id": "tomatoes",
+        "qty": 6
+      },
+      {
+        "id": "onions",
+        "qty": 1
+      },
+      {
+        "id": "garlic",
+        "qty": 2
+      },
+      {
+        "id": "olive-oil",
+        "qty": 30
+      },
+      {
+        "id": "basil",
+        "qty": 10
+      }
+    ]
+  }
+]

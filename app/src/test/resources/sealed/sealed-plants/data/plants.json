@@ -1,0 +1,39 @@
+[
+  {
+    "id": "aloe",
+    "name": "Aloe",
+    "group": "succulent",
+    "lastWatered": "2026-03-01"
+  },
+  {
+    "id": "jade",
+    "name": "Jade plant",
+    "group": "succulent",
+    "lastWatered": "2026-02-27"
+  },
+  {
+    "id": "fern",
+    "name": "Boston fern",
+    "group": "fern",
+    "lastWatered": "2026-03-03"
+  },
+  {
+    "id": "monstera",
+    "name": "Monstera",
+    "group": "tropical",
+    "lastWatered": "2026-03-02"
+  },
+  {
+    "id": "fig",
+    "name": "Fiddle-leaf fig",
+    "group": "tropical",
+    "lastWatered": "2026-02-28",
+    "dormant": true
+  },
+  {
+    "id": "basil",
+    "name": "Basil",
+    "group": "herb",
+    "lastWatered": "2026-03-04"
+  }
+]

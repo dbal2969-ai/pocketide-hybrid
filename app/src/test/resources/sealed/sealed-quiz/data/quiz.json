@@ -1,0 +1,38 @@
+[
+  {
+    "q": "Capital of Norway?",
+    "answers": [
+      "Oslo",
+      "Bergen",
+      "Trondheim",
+      "Stavanger"
+    ]
+  },
+  {
+    "q": "How many legs has a spider?",
+    "answers": [
+      "8",
+      "6",
+      "10",
+      "12"
+    ]
+  },
+  {
+    "q": "Which planet is largest?",
+    "answers": [
+      "Jupiter",
+      "Saturn",
+      "Neptune",
+      "Earth"
+    ]
+  },
+  {
+    "q": "H2O is?",
+    "answers": [
+      "Water",
+      "Salt",
+      "Hydrogen",
+      "Ozone"
+    ]
+  }
+]
