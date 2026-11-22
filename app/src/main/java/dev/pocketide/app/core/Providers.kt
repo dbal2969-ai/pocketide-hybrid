@@ -1,6 +1,6 @@
 package dev.pocketide.app.core
 
-enum class ProviderKind { DEMO, OPENAI, ANTHROPIC }
+enum class ProviderKind { DEMO, OPENAI, ANTHROPIC, HYBRID }
 
 class Provider(
     val id: String,
@@ -21,6 +21,8 @@ object Providers {
     val all: List<Provider> = listOf(
         Provider("demo", "Demo (no key)", ProviderKind.DEMO, keyless = true,
             note = "Sample replies so you can try the review flow. Pick a provider for real answers."),
+        Provider("hybrid", "Hybrid AI (Gemini Nano + cloud)", ProviderKind.HYBRID, keyless = true,
+            note = "Gemini Nano on this phone first, with a cloud Gemini model when Nano is missing or the request is long. No key or model name needed; set it up under Models → Hybrid AI. Works in chat and in the agent, with projects or without. The agent uses its text format here, since Gemini Nano does not call tools."),
         Provider("openrouter", "OpenRouter", ProviderKind.OPENAI, "https://openrouter.ai/api/v1/chat/completions", "poolside/laguna-s-2.1:free",
             "Free models have names ending in :free and a daily request limit. Model names change, so edit the model if this one stops working."),
         Provider("groq", "Groq", ProviderKind.OPENAI, "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile",

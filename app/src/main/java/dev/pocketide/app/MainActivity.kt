@@ -69,6 +69,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         // 1.5.178: every connection says it is PocketIDE, not "Dalvik/2.1.0" (Ollama Cloud's edge answers that with 403)
         System.setProperty("http.agent", dev.pocketide.app.core.BuildTag.userAgent)
+        dev.pocketide.app.HybridAi.appContext = applicationContext
         CrashReport.install(this)  // GPL route
         dev.pocketide.app.core.AppLog.attach(java.io.File(filesDir, "applog.txt"))
         dev.pocketide.app.core.BuildTag.app = try {
@@ -948,12 +949,12 @@ class MainActivity : Activity() {
             note.autoLinkMask = android.text.util.Linkify.WEB_URLS   // the key link is tappable
             note.movementMethod = android.text.method.LinkMovementMethod.getInstance()
             testOut.text = ""
-            test.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.DEMO) View.GONE else View.VISIBLE
+            test.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.DEMO || p.kind == dev.pocketide.app.core.ProviderKind.HYBRID) View.GONE else View.VISIBLE
             key.visibility = if (p.keyless && !p.custom) View.GONE else View.VISIBLE
             keyHelp.visibility = if (p.keyless) View.GONE else View.VISIBLE
             workspace.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.ANTHROPIC) View.VISIBLE else View.GONE
             howTo.visibility = if (p.id in dev.pocketide.app.core.HelpContent.keyProviders) View.VISIBLE else View.INVISIBLE
-            model.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.DEMO) View.GONE else View.VISIBLE
+            model.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.DEMO || p.kind == dev.pocketide.app.core.ProviderKind.HYBRID) View.GONE else View.VISIBLE
             base.visibility = if (p.custom) View.VISIBLE else View.GONE
             orBox.visibility = if (p.id == dev.pocketide.app.core.OpenRouter.ID) View.VISIBLE else View.GONE
             if (p.id == "cloudflare") {

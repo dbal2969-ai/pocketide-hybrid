@@ -69,6 +69,19 @@ object HybridAi {
         else -> mode to ""
     }
 
+    /** The app context, set when the app starts, so the chat and the agent can reach hybrid AI. */
+    @Volatile var appContext: Context? = null
+
+    /** A conversation as one prompt, routed like quick help: Nano first in on-phone mode, the cloud when it is long. Blocking. */
+    fun chat(ctx: Context, system: String, turns: List<Pair<String, String>>): Reply {
+        val prompt = buildString {
+            if (system.isNotBlank()) append(system.trim()).append("\n\n")
+            for ((role, text) in turns) if (text.isNotBlank()) append(role).append(": ").append(text.trim()).append("\n\n")
+            append("assistant:")
+        }
+        return ask(ctx, prompt, HybridScreen.mode(ctx))
+    }
+
     /** One single-turn request. Blocking. */
     fun ask(ctx: Context, prompt: String, mode: Mode): Reply {
         val (use, note) = route(mode, prompt.length)

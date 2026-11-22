@@ -112,6 +112,11 @@ object ModelClient {
             try {
                 if (provider.kind == ProviderKind.DEMO) {
                     acc = streamDemo(call, user, agent) { s -> main.post { if (!call.cancelled) listener.onDelta(s) } }
+                } else if (provider.kind == ProviderKind.HYBRID) {
+                    val withCtx = if (buildContext != null) dev.pocketide.app.core.PromptCache.withContext(buildContext(), user) else user
+                    val r = hybridChat(buildSystem(), history.map { it.role to it.content } + ("user" to withCtx))
+                    acc = r.text
+                    main.post { if (!call.cancelled) listener.onStatus(HybridScreen.label(r)) }
                 } else {
                     val result = StringBuilder()
                     val local = LocalModels.isLocal(providerId, base)
@@ -138,6 +143,12 @@ object ModelClient {
         return call
     }
 
+    /** Hybrid AI (Gemini Nano on the phone, cloud Gemini when needed). Text only: the agent falls back to its text format. */
+    private fun hybridChat(system: String, turns: List<Pair<String, String>>): HybridAi.Reply {
+        val ctx = HybridAi.appContext ?: throw Problem("Hybrid AI is not ready yet. Close and reopen PocketIDE.", false)
+        try { return HybridAi.chat(ctx, system, turns) } catch (e: Exception) { throw Problem(HybridAi.explain(e), false) }
+    }
+
     // ---- v0.4 W2: native tool calling ----
 
     /**
@@ -162,6 +173,11 @@ object ModelClient {
             var ts = dev.pocketide.app.core.ToolStream(anthropic)
             try {
                 if (!p.keyless && key.isBlank()) throw Problem("Add your API key in settings first.", true)
+                if (p.kind == ProviderKind.HYBRID) {
+                    val r = hybridChat(system, messages.map { ((it["role"] as? String) ?: "user") to (it["content"]?.toString() ?: "") })
+                    main.post { if (!call.cancelled) { listener.onStatus(HybridScreen.label(r)); listener.onTurn(dev.pocketide.app.core.ToolTurn(r.text, emptyList(), "stop")) } }
+                    return@execute
+                }
                 if (providerId == dev.pocketide.app.core.Engine.PROVIDER) engineReady?.invoke(model)?.let { throw Problem(it, true) }
                 val url = if (p.custom && base.contains("ACCOUNT_ID")) throw Problem("Replace ACCOUNT_ID in the server address with your Cloudflare account ID (Settings).", true) else if (p.custom) Providers.customUrl(base) ?: throw Problem("Enter the server address in settings.", true) else p.url
                 if (model.isBlank() && !p.modelOptional) throw Problem("Enter a model name in settings.", true)
