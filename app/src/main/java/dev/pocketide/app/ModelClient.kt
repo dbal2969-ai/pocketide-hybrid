@@ -115,8 +115,7 @@ object ModelClient {
                 } else if (provider.kind == ProviderKind.HYBRID) {
                     val withCtx = if (buildContext != null) dev.pocketide.app.core.PromptCache.withContext(buildContext(), user) else user
                     val r = hybridChat(buildSystem(), history.map { it.role to it.content } + ("user" to withCtx))
-                    acc = r.text
-                    main.post { if (!call.cancelled) listener.onStatus(HybridScreen.label(r)) }
+                    acc = r.text + "\n\n" + HybridScreen.label(r)   // the reply says where it ran, and how long it took
                 } else {
                     val result = StringBuilder()
                     val local = LocalModels.isLocal(providerId, base)
@@ -175,7 +174,7 @@ object ModelClient {
                 if (!p.keyless && key.isBlank()) throw Problem("Add your API key in settings first.", true)
                 if (p.kind == ProviderKind.HYBRID) {
                     val r = hybridChat(system, messages.map { ((it["role"] as? String) ?: "user") to (it["content"]?.toString() ?: "") })
-                    main.post { if (!call.cancelled) { listener.onStatus(HybridScreen.label(r)); listener.onTurn(dev.pocketide.app.core.ToolTurn(r.text, emptyList(), "stop")) } }
+                    main.post { if (!call.cancelled) { listener.onStatus(HybridScreen.label(r)); listener.onTurn(dev.pocketide.app.core.ToolTurn(r.text + "\n\n" + HybridScreen.label(r), emptyList(), "stop")) } }
                     return@execute
                 }
                 if (providerId == dev.pocketide.app.core.Engine.PROVIDER) engineReady?.invoke(model)?.let { throw Problem(it, true) }

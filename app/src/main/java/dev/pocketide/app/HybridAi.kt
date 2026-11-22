@@ -29,7 +29,7 @@ object HybridAi {
     const val CLOUD_MODEL = "gemini-3.1-flash-lite"
 
     /** Gemini Nano is made for short single-turn prompts; longer requests are routed to the cloud model. */
-    const val ON_DEVICE_MAX_CHARS = 4000
+    const val ON_DEVICE_MAX_CHARS = 14000
 
     enum class Mode(val label: String, val inference: InferenceMode) {
         PREFER_ON_DEVICE("On this phone first (cloud if Nano is missing)", InferenceMode.PREFER_ON_DEVICE),
