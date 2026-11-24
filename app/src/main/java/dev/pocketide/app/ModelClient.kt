@@ -132,7 +132,20 @@ object ModelClient {
                         if (strong != null) {
                             val done = java.util.concurrent.atomic.AtomicBoolean(false)
                             HybridCloud.log("strong", 0.0, ph.reason, "chat")
-                            val inner = start(AppSettings(hctx).also { it.override = strong }, buildSystem, history, user, handedChat(listener, handoff, done), images, buildContext)
+                            val inner = start(AppSettings(hctx).also { it.override = strong }, buildSystem, history, user,
+                                handedChat(listener, handoff, done, hybridTarget(strong)) { why ->
+                                    pool.execute {
+                                        try {
+                                            val note = HybridAgent.fallback(why, HybridCloud.cloudModel())
+                                            main.post { if (!call.cancelled) { listener.onStatus(note); listener.onDelta(listOf(handoff, note).filter { it.isNotBlank() }.joinToString("\n\n")) } }
+                                            val r = hybrid { HybridAi.chatCloud(hctx, sys, turns) }
+                                            HybridCloud.log("cloud", r.seconds, ph.reason, "chat")
+                                            val text = listOf(handoff, note, r.text, HybridScreen.label(r)).filter { it.isNotBlank() }.joinToString("\n\n")
+                                            main.post { if (!call.cancelled) listener.onDone(text) }
+                                        } catch (e: Problem) { main.post { if (!call.cancelled) listener.onError(e.message ?: "Request failed", e.needsSettings) } }
+                                        catch (e: Exception) { main.post { if (!call.cancelled) listener.onError(HybridAi.explain(e), false) } }
+                                    }
+                                }, images, buildContext)
                             link(call, inner, done)
                             return@execute
                         }
@@ -196,23 +209,25 @@ object ModelClient {
     }
 
     /** The strong model's chat reply, with Gemini Nano's handoff line kept above it. */
-    private fun handedChat(l: ModelListener, prefix: String, done: java.util.concurrent.atomic.AtomicBoolean) = object : ModelListener {
+    private fun handedChat(l: ModelListener, prefix: String, done: java.util.concurrent.atomic.AtomicBoolean, target: String,
+                           fallback: (String) -> Unit) = object : ModelListener {
         private fun p(s: String) = if (prefix.isEmpty()) s else prefix + "\n\n" + s
         override fun onStatus(text: String) = l.onStatus(text)
         override fun onDelta(acc: String) = l.onDelta(p(acc))
         override fun onDone(reply: String) { done.set(true); l.onDone(p(reply)) }
         override fun onStopped(partial: String) { done.set(true); l.onStopped(p(partial)) }
-        override fun onError(message: String, needsSettings: Boolean) { done.set(true); l.onError(message, needsSettings) }
+        override fun onError(message: String, needsSettings: Boolean) { done.set(true); fallback("$target could not answer: ${message.take(160)}") }
     }
 
     /** The strong model's agent turn, with Gemini Nano's handoff line kept above it. */
-    private fun handedNative(l: NativeListener, prefix: String, done: java.util.concurrent.atomic.AtomicBoolean) = object : NativeListener {
+    private fun handedNative(l: NativeListener, prefix: String, done: java.util.concurrent.atomic.AtomicBoolean, target: String,
+                             fallback: (String) -> Unit) = object : NativeListener {
         private fun p(s: String) = if (prefix.isEmpty()) s else prefix + "\n\n" + s
         override fun onStatus(text: String) = l.onStatus(text)
         override fun onDelta(acc: String) = l.onDelta(p(acc))
         override fun onTurn(turn: dev.pocketide.app.core.ToolTurn) { done.set(true); l.onTurn(turn.copy(text = p(turn.text))) }
         override fun onStopped(partial: String) { done.set(true); l.onStopped(p(partial)) }
-        override fun onError(message: String, needsSettings: Boolean, toolsRejected: Boolean) { done.set(true); l.onError(message, needsSettings, toolsRejected) }
+        override fun onError(message: String, needsSettings: Boolean, toolsRejected: Boolean) { done.set(true); fallback("$target could not answer: ${message.take(160)}") }
     }
 
     // ---- v0.4 W2: native tool calling ----
@@ -257,13 +272,24 @@ object ModelClient {
                         else {
                             // Gemini Nano passes it on, and says so at once: to the strong model when one is set, else the cloud model.
                             // The cloud-first mode (no reason) always uses the cloud model.
-                            val strong = if (ph.reason.isNotEmpty() || ph.stay) hybridStrong(settings) else null
+                            val strong = if ((ph.reason.isNotEmpty() || ph.stay) && !ph.strongFailed) hybridStrong(settings) else null
                             val handoff = if (ph.reason.isEmpty()) "" else HybridAgent.handoff(ph.reason, hybridTarget(strong))
                             if (handoff.isNotEmpty()) main.post { if (!call.cancelled) { listener.onStatus(handoff); listener.onDelta(handoff) } }
                             if (strong != null) {
                                 val done = java.util.concurrent.atomic.AtomicBoolean(false)
                                 HybridCloud.log("strong", 0.0, ph.reason, "agent")
-                                val inner = startNative(AppSettings(hctx).also { it.override = strong }, system, messages, tools, handedNative(listener, handoff, done), docs, loaded)
+                                val inner = startNative(AppSettings(hctx).also { it.override = strong }, system, messages, tools,
+                                    handedNative(listener, handoff, done, hybridTarget(strong)) { why ->
+                                        // the strong model failed (a sign-in, a key, a limit): the cloud model answers instead, and Nano says so
+                                        pool.execute {
+                                            try {
+                                                val note = HybridAgent.fallback(why, HybridCloud.cloudModel())
+                                                main.post { if (!call.cancelled) listener.onStatus(note) }
+                                                emit(hybrid { HybridAgent.cloud(hctx, system, messages, toolList) }, listOf(handoff, note).filter { it.isNotBlank() }.joinToString("\n\n"), ph.reason)
+                                            } catch (e: Problem) { main.post { if (!call.cancelled) listener.onError(e.message ?: "Request failed", e.needsSettings, false) } }
+                                            catch (e: Exception) { main.post { if (!call.cancelled) listener.onError(HybridAi.explain(e), false, false) } }
+                                        }
+                                    }, docs, loaded)
                                 link(call, inner, done)
                                 return@execute
                             }

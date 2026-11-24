@@ -32,4 +32,10 @@ class HybridRouteTest {
         val reply = h + "\n\nHere are three GitHub projects…\n\n☁ Ran in the cloud (gemini-3.1-flash-lite) · 2.0 s"
         check(HybridAgent.clean(reply) == "Here are three GitHub projects…") { "cleaned: " + HybridAgent.clean(reply) }
     }
+
+    @Test fun strongModelFailureLineIsShownAndNotSentBack() {
+        val f = HybridAgent.fallback("kilo/some-model could not answer: You need to sign in to use this model. (HTTP 401)", "gemini-3.1-flash-lite")
+        check(f.contains("I'm passing this to the cloud model (gemini-3.1-flash-lite) instead") && f.contains("HTTP 401")) { f }
+        check(HybridAgent.clean(f + "\n\nThe answer.") == "The answer.") { HybridAgent.clean(f + "\n\nThe answer.") }
+    }
 }

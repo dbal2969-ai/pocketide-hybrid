@@ -41,20 +41,22 @@ object HybridAgent {
      * the phone (empty in the cloud-first mode, where nothing is said). The caller picks where it goes: the strong model
      * when one is set (Workflow), else the cloud model ([cloud]).
      */
-    class Phone(val result: Result?, val reason: String, val stay: Boolean = false)
+    class Phone(val result: Result?, val reason: String, val stay: Boolean = false, val strongFailed: Boolean = false)
 
     /** Tests only (HybridAgentLoopTest): stand-ins for Gemini Nano (prompt → reply) and the cloud model (system, messages, tools → turn). */
     @Volatile var testPhone: ((String) -> String)? = null
     @Volatile var testCloud: ((String, List<Map<String, Any?>>, List<*>?) -> ToolTurn)? = null
 
     private const val HANDOFF_MARK = "⚡ Gemini Nano (on this phone): I'm passing this to"
+    private const val FALLBACK_MARK = " instead. Why: "
 
     fun phone(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
         val mode = HybridScreen.mode(ctx)
         if (mode == HybridAi.Mode.PREFER_IN_CLOUD) return Phone(null, "")
         // once a step of this request was passed on, the rest of it stays with that model (Nano would only start over)
-        if (mode == HybridAi.Mode.PREFER_ON_DEVICE && messages.any { it["role"] == "assistant" && (it["content"] as? String).orEmpty().contains(HANDOFF_MARK) })
-            return Phone(null, "", stay = true)
+        val said = messages.filter { it["role"] == "assistant" }.map { (it["content"] as? String).orEmpty() }
+        if (mode == HybridAi.Mode.PREFER_ON_DEVICE && said.any { it.contains(HANDOFF_MARK) })
+            return Phone(null, "", stay = true, strongFailed = said.any { it.contains(FALLBACK_MARK) })
         val limit = HybridAi.settings(ctx).onDeviceMaxChars
         val only = mode == HybridAi.Mode.ONLY_ON_DEVICE
         // a request that needs the web skips the phone in the on-phone-first mode (Nano's tools cannot reach it)
@@ -99,6 +101,10 @@ object HybridAgent {
     /** What Gemini Nano says when it passes a request on: shown at once, and kept above the reply. */
     fun handoff(reason: String, target: String): String =
         "$HANDOFF_MARK $target. Why: $reason."
+
+    /** What Gemini Nano says when the strong model it passed a request to fails, and the cloud model answers instead. */
+    fun fallback(why: String, cloudModel: String): String =
+        "$HANDOFF_MARK the cloud model ($cloudModel) instead. Why: $why."
 
     /** A reply without the app's where-it-ran and handoff lines, for sending back to a model. */
     fun clean(text: String): String = LABEL.replace(text, "").trim()
