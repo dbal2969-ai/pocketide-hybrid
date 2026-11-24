@@ -26,7 +26,7 @@ object HybridScreen {
     private const val PREFS = "hybrid_ai"
 
     fun mode(ctx: Context): HybridAi.Mode =
-        HybridAi.Mode.entries.firstOrNull { it.name == ctx.getSharedPreferences(PREFS, 0).getString("mode", null) } ?: HybridAi.Mode.PREFER_ON_DEVICE
+        HybridAi.Mode.entries.firstOrNull { it.name == ctx.getSharedPreferences(PREFS, 0).getString("mode", null) } ?: HybridCloud.remoteMode()
 
     private fun setMode(ctx: Context, m: HybridAi.Mode) = ctx.getSharedPreferences(PREFS, 0).edit().putString("mode", m.name).apply()
 
@@ -157,12 +157,34 @@ object HybridScreen {
                 val r = try { Result.success(HybridAi.ask(ctx, q, mode(ctx))) } catch (e: Exception) { Result.failure(e) }
                 main.post {
                     if (closed) return@post
-                    r.onSuccess { answer.text = it.text.ifBlank { "(empty reply)" }; where.text = label(it) }
+                    r.onSuccess { answer.text = it.text.ifBlank { "(empty reply)" }; where.text = label(it)
+                        HybridCloud.log(if (it.onDevice) "phone" else "cloud", it.seconds, "", "try") }
                         .onFailure { answer.text = HybridAi.explain(it); where.text = "" }
                 }
             }
         })
         tryCard.addView(answer); tryCard.addView(where)
+
+        // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
+        fs.heading("Your hybrid usage")
+        val useCard = fs.card()
+        val useLine = Ui.text(ctx, "Loading…", 13f, Ui.TEXT)
+        val cfgLine = Ui.text(ctx, "", 12f, Ui.MUTED)
+        useCard.addView(useLine); useCard.addView(cfgLine)
+        fun loadUsage() {
+            useLine.text = "Loading…"
+            Thread {
+                val s = HybridCloud.summary()
+                main.post {
+                    if (closed) return@post
+                    useLine.text = s
+                    cfgLine.text = HybridCloud.authNote + "\n" + HybridCloud.configNote +
+                        "\nStored in Firestore: where each request ran, its time and why it was passed on. Never prompts or code."
+                }
+            }.start()
+        }
+        fs.buttonRow(useCard, Ui.button(ctx, "Refresh") { loadUsage() })
+        loadUsage()
 
         // ---- App Check (debug builds) ----
         if (AppCheckSetup.DEBUG) {
@@ -186,7 +208,7 @@ object HybridScreen {
 
     /** "On this phone (Gemini Nano) · 1.2 s" plus the routing note, if any. */
     fun label(r: HybridAi.Reply): String =
-        (if (r.onDevice) "⚡ Ran on this phone (Gemini Nano)" else "☁ Ran in the cloud (${HybridAi.CLOUD_MODEL})") +
+        (if (r.onDevice) "⚡ Ran on this phone (Gemini Nano)" else "☁ Ran in the cloud (${HybridCloud.cloudModel()})") +
             " · ${"%.1f".format(r.seconds)} s" + (if (r.note.isNotEmpty()) "\n" + r.note else "")
 
     /** Editor quick assist: one action on the selected lines, shown in a dialog with where it ran. */
@@ -207,6 +229,7 @@ object HybridScreen {
                     dlg.dismiss()
                     val b = AlertDialog.Builder(ctx).setTitle(a.label).setPositiveButton("Close", null)
                     r.onSuccess { rep ->
+                        HybridCloud.log(if (rep.onDevice) "phone" else "cloud", rep.seconds, "", "quick")
                         b.setMessage(rep.text.ifBlank { "(empty reply)" } + "\n\n" + label(rep))
                         if (onEscalate != null) b.setNegativeButton("Hand to the agent") { _, _ -> onEscalate(prompt) }
                         b.setNeutralButton(if (a == HybridAi.Action.DOC && onInsert != null) "Insert above" else "Copy") { _, _ ->

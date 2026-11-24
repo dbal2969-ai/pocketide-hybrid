@@ -70,6 +70,7 @@ class MainActivity : Activity() {
         // 1.5.178: every connection says it is PocketIDE, not "Dalvik/2.1.0" (Ollama Cloud's edge answers that with 403)
         System.setProperty("http.agent", dev.pocketide.app.core.BuildTag.userAgent)
         dev.pocketide.app.HybridAi.appContext = applicationContext
+        dev.pocketide.app.HybridCloud.start(applicationContext)   // Remote Config and anonymous sign-in, in the background
         CrashReport.install(this)  // GPL route
         dev.pocketide.app.core.AppLog.attach(java.io.File(filesDir, "applog.txt"))
         dev.pocketide.app.core.BuildTag.app = try {

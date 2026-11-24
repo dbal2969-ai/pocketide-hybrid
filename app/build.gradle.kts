@@ -91,6 +91,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     // #BuildHybridAI: JSON values for Firebase function calls (the version firebase-ai already brings)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+    // #BuildHybridAI: Remote Config (hybrid defaults, cloud switch), Authentication (anonymous) and Firestore (usage), BoM 35.2.0 versions
+    implementation("com.google.firebase:firebase-config:24.0.1")
+    implementation("com.google.firebase:firebase-auth:25.0.0")
+    implementation("com.google.firebase:firebase-firestore:27.2.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")  // MIT licence; runs Android classes on the JVM for the agent harness
 }

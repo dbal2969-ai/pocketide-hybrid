@@ -45,7 +45,7 @@ object HybridAi {
     }
 
     class Reply(val text: String, val onDevice: Boolean, val seconds: Double, val note: String) {
-        val where: String get() = if (onDevice) "on this phone (Gemini Nano)" else "in the cloud ($CLOUD_MODEL)"
+        val where: String get() = if (onDevice) "on this phone (Gemini Nano)" else "in the cloud (${HybridCloud.cloudModel()})"
     }
 
     private val models = HashMap<Mode, GenerativeModel>()
@@ -63,7 +63,7 @@ object HybridAi {
         val s = settings(ctx)
         return models.getOrPut(mode) {
             FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
-                .generativeModel(modelName = CLOUD_MODEL, generationConfig = gen(s),
+                .generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s),
                     onDeviceConfig = OnDeviceConfig(mode = mode.inference, maxOutputTokens = s.maxOutputTokens,
                         temperature = s.temperature, topK = s.topK,
                         modelOption = if (s.fullModel) OnDeviceModelOption.PREVIEW else OnDeviceModelOption.PREVIEW_FAST))
@@ -82,13 +82,18 @@ object HybridAi {
     @Synchronized
     fun cloudToolModel(ctx: Context, system: String, tools: List<FunctionDeclaration>): GenerativeModel {
         check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
+        check(HybridCloud.cloudEnabled()) { "The cloud model is switched off right now (Remote Config: ${HybridCloud.KEY_CLOUD_ON}). Gemini Nano on the phone still works." }
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
         return FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI()).generativeModel(
-            modelName = CLOUD_MODEL, generationConfig = gen(settings(ctx)),
+            modelName = HybridCloud.cloudModel(), generationConfig = gen(settings(ctx)),
             tools = if (tools.isEmpty()) null else listOf(Tool.functionDeclarations(tools)),
             toolConfig = if (tools.isEmpty()) null else ToolConfig(FunctionCallingConfig.auto()),
             systemInstruction = if (system.isBlank()) null else Content("system", listOf(TextPart(system))))
     }
+
+    /** Drops the cached models, so the next request uses new settings or a new cloud model from Remote Config. */
+    @Synchronized
+    fun reset() { models.clear() }
 
     /** The settings the person saved (Models → Hybrid AI), clamped to safe ranges. */
     fun settings(ctx: Context): HybridSettings {
@@ -98,7 +103,7 @@ object HybridAi {
             temperature = p.getFloat("temperature", d.temperature),
             topK = p.getInt("topK", d.topK),
             maxOutputTokens = p.getInt("maxOutputTokens", d.maxOutputTokens),
-            onDeviceMaxChars = p.getInt("onDeviceMaxChars", d.onDeviceMaxChars),
+            onDeviceMaxChars = p.getInt("onDeviceMaxChars", HybridCloud.remoteLimit()),   // Remote Config's default until the person saves their own
             fullModel = p.getBoolean("fullModel", d.fullModel)))
     }
 
@@ -166,7 +171,11 @@ object HybridAi {
 
     /** One single-turn request. Blocking. */
     fun ask(ctx: Context, prompt: String, mode: Mode): Reply {
-        val (use, note) = route(mode, prompt.length, settings(ctx).onDeviceMaxChars)
+        var (use, note) = route(mode, prompt.length, settings(ctx).onDeviceMaxChars)
+        if (!HybridCloud.cloudEnabled() && use != Mode.ONLY_ON_DEVICE) {
+            use = Mode.ONLY_ON_DEVICE
+            note = "The cloud is switched off right now (Remote Config), so this stayed on the phone."
+        }
         val t0 = System.nanoTime()
         val r = runBlocking { model(ctx, use).generateContent(prompt) }
         val secs = (System.nanoTime() - t0) / 1e9
