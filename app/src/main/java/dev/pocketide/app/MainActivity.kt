@@ -821,6 +821,8 @@ class MainActivity : Activity() {
         val workspace = EditText(this).also { it.hint = "Anthropic workspace ID (only if you get a 'workspace' error)"; it.setSingleLine(true); it.setText(settings.anthropicWorkspace) }
         val test = Ui.button(this, "Test connection") {}
         val testOut = Ui.text(this, "", 12f, Ui.MUTED)
+        // hybrid AI: its settings live on the Hybrid AI screen, opened from here when that provider is chosen
+        val hybridBtn = Ui.button(this, "Hybrid AI settings (temperature, limits)") { HybridScreen.show(this) }
         // under the key: how to get a free one, and paste from the clipboard
         val keyHelp = Ui.horizontal(this)
         val howTo = Ui.text(this, "How do I get a free key?", 13f, Ui.ACCENT)
@@ -915,7 +917,7 @@ class MainActivity : Activity() {
         val orRoute = Spinner(this).also { sp -> sp.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, orRoutes.map { "Providers: " + it.label }); sp.setSelection(orRoutes.indexOf(settings.openRouterRoute)) }
         for (v in listOf<View>(orRow, orSpendRow, orOut, orFallbacks, orRoute)) orBox.addView(v, Ui.lp(Ui.MATCH, Ui.WRAP).also { it.topMargin = Ui.dp(this, 4) })
         for (row in listOf(orRow, orSpendRow)) (row.layoutParams as? LinearLayout.LayoutParams)?.width = Ui.WRAP
-        group("AI provider", spin, note, key, keyHelp, orBox, model, base, cfAccount, workspace, test, testOut)
+        group("AI provider", spin, note, key, keyHelp, orBox, model, base, cfAccount, workspace, hybridBtn, test, testOut)
         group("Assistant", agent, autoAgent, autoCredit, auto, tools, fastBox, routeBox, slowBox, reqBox, partsBox, parallelBox, partsAlwaysBox, partsSameBox, partsPickBox, partsTeamBox, queueBox, planFirst, verifyBox, askBox, causeBox, scopeBox, varietyBox, premiseBox, freshBox, exploreBox, tapBox, secondBox, escalateBox, webBox, braveBox, embedBox)
         group("How long it may work", roundsLabel, rounds, effortLabel, effort, runLabel, Ui.text(this, "Dollars per request (uses list prices for Claude models when you have not set a price)", 12f, Ui.TEXT, false), runUsd, Ui.text(this, "Tokens per request (covers free and unpriced models)", 12f, Ui.TEXT, false), runTok)
         group("Cost and context", all, cacheBox, cacheLongBox)
@@ -955,6 +957,7 @@ class MainActivity : Activity() {
             workspace.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.ANTHROPIC) View.VISIBLE else View.GONE
             howTo.visibility = if (p.id in dev.pocketide.app.core.HelpContent.keyProviders) View.VISIBLE else View.INVISIBLE
             model.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.DEMO || p.kind == dev.pocketide.app.core.ProviderKind.HYBRID) View.GONE else View.VISIBLE
+            hybridBtn.visibility = if (p.kind == dev.pocketide.app.core.ProviderKind.HYBRID) View.VISIBLE else View.GONE
             base.visibility = if (p.custom) View.VISIBLE else View.GONE
             orBox.visibility = if (p.id == dev.pocketide.app.core.OpenRouter.ID) View.VISIBLE else View.GONE
             if (p.id == "cloudflare") {
