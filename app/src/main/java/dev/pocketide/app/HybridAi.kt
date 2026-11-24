@@ -12,7 +12,13 @@ import com.google.firebase.ai.InferenceSource
 import com.google.firebase.ai.OnDeviceConfig
 import com.google.firebase.ai.OnDeviceModelOption
 import com.google.firebase.ai.OnDeviceModelStatus
+import com.google.firebase.ai.type.Content
+import com.google.firebase.ai.type.FunctionCallingConfig
+import com.google.firebase.ai.type.FunctionDeclaration
 import com.google.firebase.ai.type.GenerationConfig
+import com.google.firebase.ai.type.TextPart
+import com.google.firebase.ai.type.Tool
+import com.google.firebase.ai.type.ToolConfig
 import com.google.firebase.ai.type.GenerativeBackend
 import dev.pocketide.app.core.HybridSettings
 import kotlinx.coroutines.runBlocking
@@ -56,14 +62,32 @@ object HybridAi {
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
         val s = settings(ctx)
         return models.getOrPut(mode) {
-            val gen = GenerationConfig.builder().apply {
-                temperature = s.temperature; topK = s.topK; maxOutputTokens = s.maxOutputTokens
-            }.build()
             FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
-                .generativeModel(modelName = CLOUD_MODEL, generationConfig = gen,
+                .generativeModel(modelName = CLOUD_MODEL, generationConfig = gen(s),
                     onDeviceConfig = OnDeviceConfig(mode = mode.inference, maxOutputTokens = s.maxOutputTokens,
-                        temperature = s.temperature, topK = s.topK, modelOption = OnDeviceModelOption.PREVIEW_FAST))
+                        temperature = s.temperature, topK = s.topK,
+                        modelOption = if (s.fullModel) OnDeviceModelOption.PREVIEW else OnDeviceModelOption.PREVIEW_FAST))
         }
+    }
+
+    private fun gen(s: HybridSettings): GenerationConfig = GenerationConfig.builder().apply {
+        temperature = s.temperature; topK = s.topK; maxOutputTokens = s.maxOutputTokens
+    }.build()
+
+    /** One request on Gemini Nano only, never the cloud (the agent's phone path). Blocking; throws when Nano cannot run it. */
+    fun onDeviceText(ctx: Context, prompt: String): String =
+        runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateContent(prompt) }.text?.trim().orEmpty()
+
+    /** The cloud model with PocketIDE's tools as functions (the agent's cloud path). Built per request, since the tools can change. */
+    @Synchronized
+    fun cloudToolModel(ctx: Context, system: String, tools: List<FunctionDeclaration>): GenerativeModel {
+        check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
+        if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
+        return FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI()).generativeModel(
+            modelName = CLOUD_MODEL, generationConfig = gen(settings(ctx)),
+            tools = if (tools.isEmpty()) null else listOf(Tool.functionDeclarations(tools)),
+            toolConfig = if (tools.isEmpty()) null else ToolConfig(FunctionCallingConfig.auto()),
+            systemInstruction = if (system.isBlank()) null else Content("system", listOf(TextPart(system))))
     }
 
     /** The settings the person saved (Models → Hybrid AI), clamped to safe ranges. */
@@ -74,7 +98,8 @@ object HybridAi {
             temperature = p.getFloat("temperature", d.temperature),
             topK = p.getInt("topK", d.topK),
             maxOutputTokens = p.getInt("maxOutputTokens", d.maxOutputTokens),
-            onDeviceMaxChars = p.getInt("onDeviceMaxChars", d.onDeviceMaxChars)))
+            onDeviceMaxChars = p.getInt("onDeviceMaxChars", d.onDeviceMaxChars),
+            fullModel = p.getBoolean("fullModel", d.fullModel)))
     }
 
     /** Saves the settings; the models are rebuilt on the next request. */
@@ -83,7 +108,8 @@ object HybridAi {
         val c = HybridSettings.clamp(s)
         ctx.getSharedPreferences(PREFS, 0).edit()
             .putFloat("temperature", c.temperature).putInt("topK", c.topK)
-            .putInt("maxOutputTokens", c.maxOutputTokens).putInt("onDeviceMaxChars", c.onDeviceMaxChars).apply()
+            .putInt("maxOutputTokens", c.maxOutputTokens).putInt("onDeviceMaxChars", c.onDeviceMaxChars)
+            .putBoolean("fullModel", c.fullModel).apply()
         models.clear()
     }
 

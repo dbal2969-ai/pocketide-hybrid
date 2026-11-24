@@ -89,6 +89,8 @@ dependencies {
     implementation("com.google.firebase:firebase-appcheck-playintegrity:20.1.0")
     debugImplementation("com.google.firebase:firebase-appcheck-debug:20.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // #BuildHybridAI: JSON values for Firebase function calls (the version firebase-ai already brings)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")  // MIT licence; runs Android classes on the JVM for the agent harness
 }

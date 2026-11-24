@@ -109,6 +109,9 @@ object SmallLocal {
         return TextTools.Parsed(thought, listOf(ToolCall("sl${System.nanoTime()}", tool, MiniJson.write(typed))))
     }
 
+    /** True when the reply holds a JSON object this mode can read as one action (or an answer). */
+    fun isAction(reply: String): Boolean = obj(reply) != null
+
     /** The first JSON object in a reply (a fence around it is fine), or null. */
     private fun obj(reply: String): Map<String, Any?>? {
         val start = reply.indexOf('{')

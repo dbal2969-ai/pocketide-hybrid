@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -109,25 +110,31 @@ object HybridScreen {
         val outBox = field("Max output tokens (64 to 8192)", cur.maxOutputTokens.toString())
         val charsBox = field("On-phone limit, characters (1000 to 30000)", cur.onDeviceMaxChars.toString())
         val warn = Ui.text(ctx, HybridSettings.warning(cur) ?: "", 12f, Ui.BAD)
+        val fullBox = CheckBox(ctx).apply {
+            text = "Use the Full on-phone model (Gemma 4 E4B: slower, stronger) instead of Fast (E2B). It may need its own download."
+            isChecked = cur.fullModel; setTextColor(Ui.TEXT)
+        }
         setCard.addView(Ui.text(ctx, "Temperature: lower is more predictable. Top-K: how many likely words the model picks from. " +
             "Max output tokens: the longest reply. On-phone limit: longer requests go to the cloud in the on-phone-first mode. " +
             "Changes apply to the next request.", 12f, Ui.MUTED))
         for (box in listOf(tempBox, topKBox, outBox, charsBox)) setCard.addView(box, LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP))
+        setCard.addView(fullBox)
         setCard.addView(warn)
         fun fill(s: HybridSettings) {
             tempBox.setText(s.temperature.toString()); topKBox.setText(s.topK.toString())
             outBox.setText(s.maxOutputTokens.toString()); charsBox.setText(s.onDeviceMaxChars.toString())
             warn.text = HybridSettings.warning(s) ?: ""
+            fullBox.isChecked = s.fullModel
         }
         fs.buttonRow(setCard, Ui.button(ctx, "Save settings", true) {
             val s = HybridSettings.parse(HybridAi.settings(ctx), tempBox.text.toString(), topKBox.text.toString(),
-                outBox.text.toString(), charsBox.text.toString())
+                outBox.text.toString(), charsBox.text.toString()).copy(fullModel = fullBox.isChecked)
             HybridAi.saveSettings(ctx, s)
-            fill(s); paintMode()
+            fill(s); paintMode(); refresh()
             toast("Saved. The next request uses these settings.")
         }, Ui.button(ctx, "Reset to defaults") {
             HybridAi.saveSettings(ctx, HybridSettings.DEFAULT)
-            fill(HybridSettings.DEFAULT); paintMode()
+            fill(HybridSettings.DEFAULT); paintMode(); refresh()
             toast("Back to the defaults.")
         })
 

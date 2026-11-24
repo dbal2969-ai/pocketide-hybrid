@@ -10,6 +10,8 @@ data class HybridSettings(
     val topK: Int = DEFAULT_TOP_K,
     val maxOutputTokens: Int = DEFAULT_MAX_OUTPUT,
     val onDeviceMaxChars: Int = DEFAULT_ON_DEVICE_CHARS,
+    /** The Full on-device model (Gemma 4 E4B) instead of Fast (E2B): slower, stronger, may need its own download. */
+    val fullModel: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_TEMPERATURE = 0.2f
@@ -37,6 +39,7 @@ data class HybridSettings(
             topK = s.topK.coerceIn(TOP_K_MIN, TOP_K_MAX),
             maxOutputTokens = s.maxOutputTokens.coerceIn(OUT_MIN, OUT_MAX),
             onDeviceMaxChars = s.onDeviceMaxChars.coerceIn(CHARS_MIN, CHARS_MAX),
+            fullModel = s.fullModel,
         )
 
         /** The values the person typed. A field that is not a number keeps its old value; the result is clamped. */
@@ -46,6 +49,7 @@ data class HybridSettings(
                 topK = topK.trim().toIntOrNull() ?: old.topK,
                 maxOutputTokens = maxOutput.trim().toIntOrNull() ?: old.maxOutputTokens,
                 onDeviceMaxChars = onDeviceChars.trim().toIntOrNull() ?: old.onDeviceMaxChars,
+                fullModel = old.fullModel,
             ))
 
         /** A note to show under the settings when a value may cause trouble, or null. */

@@ -148,6 +148,12 @@ object ModelClient {
         try { return HybridAi.chat(ctx, system, turns) } catch (e: Exception) { throw Problem(HybridAi.explain(e), false) }
     }
 
+    /** The agent's hybrid turn (HybridAgent), with errors explained the same way as quick help. */
+    private fun hybridAgent(system: String, messages: List<Map<String, Any?>>, docs: Boolean, tools: List<*>?): HybridAgent.Result {
+        val ctx = HybridAi.appContext ?: throw Problem("Hybrid AI is not ready yet. Close and reopen PocketIDE.", false)
+        try { return HybridAgent.run(ctx, system, messages, docs, tools) } catch (e: Problem) { throw e } catch (e: Exception) { throw Problem(HybridAi.explain(e), false) }
+    }
+
     // ---- v0.4 W2: native tool calling ----
 
     /**
@@ -173,8 +179,19 @@ object ModelClient {
             try {
                 if (!p.keyless && key.isBlank()) throw Problem("Add your API key in settings first.", true)
                 if (p.kind == ProviderKind.HYBRID) {
-                    val r = hybridChat(system, messages.map { ((it["role"] as? String) ?: "user") to (it["content"]?.toString() ?: "") })
-                    main.post { if (!call.cancelled) { listener.onStatus(HybridScreen.label(r)); listener.onTurn(dev.pocketide.app.core.ToolTurn(r.text + "\n\n" + HybridScreen.label(r), emptyList(), "stop")) } }
+                    if (tools) {
+                        // the agent: real tool calls, from Gemini Nano (small local model mode) or the cloud (function calling)
+                        val toolList = dev.pocketide.app.core.Tools.body(false, "", system, messages, true, docs, false, false, 0, loaded)["tools"] as? List<*>
+                        main.post { if (!call.cancelled) listener.onStatus("Thinking (hybrid AI)…") }
+                        val res = hybridAgent(system, messages, docs, toolList)
+                        val lab = HybridScreen.label(HybridAi.Reply("", res.onDevice, res.seconds, res.note))
+                        val t = res.turn
+                        val shown = if (t.text.isBlank()) lab else t.text + "\n\n" + lab
+                        main.post { if (!call.cancelled) { listener.onStatus(lab); listener.onTurn(t.copy(text = shown)) } }
+                    } else {
+                        val r = hybridChat(system, messages.map { ((it["role"] as? String) ?: "user") to (it["content"]?.toString() ?: "") })
+                        main.post { if (!call.cancelled) { listener.onStatus(HybridScreen.label(r)); listener.onTurn(dev.pocketide.app.core.ToolTurn(r.text + "\n\n" + HybridScreen.label(r), emptyList(), "stop")) } }
+                    }
                     return@execute
                 }
                 if (providerId == dev.pocketide.app.core.Engine.PROVIDER) engineReady?.invoke(model)?.let { throw Problem(it, true) }

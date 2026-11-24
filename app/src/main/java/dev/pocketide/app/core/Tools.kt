@@ -303,6 +303,7 @@ object Tools {
     fun providerSupports(providerId: String): Boolean =
         providerId in setOf("groq", "cerebras", "gemini", "openrouter", "openai", "mistral", "anthropic", "cloudflare", "ollamacloud",
             "haimaker", "deepseek", "xai", "together", "fireworks", "deepinfra", "moonshot", "zai", "nebius", "nvidia", "huggingface", "sambanova",
+            "hybrid",   // #BuildHybridAI: HybridAgent returns real tool calls (Gemini Nano in small local model mode, or cloud function calling)
             "kilo",     // 1.5.180: the no-key gateway a fresh install starts on; Flint, Nemotron 3 Ultra and kilo-auto/free all returned tool calls (2026-11-18)
             "custom")   // any OpenAI-style server or gateway: tried with tools; a server that refuses them falls back to the text format
 
