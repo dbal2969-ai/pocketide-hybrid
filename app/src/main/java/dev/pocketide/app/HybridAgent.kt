@@ -59,6 +59,9 @@ object HybridAgent {
             return Phone(null, "", stay = true, strongFailed = said.any { it.contains(FALLBACK_MARK) })
         val limit = HybridAi.settings(ctx).onDeviceMaxChars
         val only = mode == HybridAi.Mode.ONLY_ON_DEVICE
+        // Nano tends to repeat a failing step (a benchmark run had six refused edits in a row): after two, the cloud takes over
+        val streak = failStreak(messages)
+        if (streak >= FAIL_LIMIT && !only) return Phone(null, "my last $streak tool calls failed (the last: ${lastFailure(messages)})")
         // a request that needs the web skips the phone in the on-phone-first mode (Nano's tools cannot reach it)
         val ask = messages.lastOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty()
         val web = dev.pocketide.app.core.HybridRoute.needsCloud(ask)
@@ -110,6 +113,25 @@ object HybridAgent {
     fun clean(text: String): String = LABEL.replace(text, "").trim()
 
     // ---------------- phone: small local model mode ----------------
+
+    const val FAIL_LIMIT = 2
+    private val FAILED = Regex("""(?i)^\s*(NOT SAVED|Not saved|Not written|Edit not applied|Error\b|Could not|Failed|No such file|Unknown tool|Give something)""")
+
+    /**
+     * How many of the last tool results in a row failed (refused or not applied writes, errors). The agent loop's own notes in
+     * between (user messages such as "From now on you have a few plain tools") do not break the run; tool results only exist
+     * inside the current request, since earlier requests reach the model as text.
+     */
+    fun failStreak(messages: List<Map<String, Any?>>): Int {
+        var n = 0
+        for (m in messages.asReversed()) {
+            if (m["role"] == "tool") { if (FAILED.containsMatchIn(textOf(m["content"]))) n++ else return n }
+        }
+        return n
+    }
+
+    private fun lastFailure(messages: List<Map<String, Any?>>): String =
+        messages.lastOrNull { it["role"] == "tool" }?.let { textOf(it["content"]).lineSequence().first().take(100) }.orEmpty()
 
     private val WRITES = setOf("write_file", "edit_file", "edit_lines", "multi_edit", "apply_patch", "delete_file")
     /** "I created / have updated / fixed …", or "… has been added": a claim that files changed. */

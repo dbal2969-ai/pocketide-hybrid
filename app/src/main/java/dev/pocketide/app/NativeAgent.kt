@@ -1719,7 +1719,7 @@ class NativeAgent(
      * Adds a warning for names the written script reads but nothing defines (FOOD in `FOOD[sid]`), counting only names that were
      * not already undefined before this write, so old problems elsewhere in the file do not pull the work off course.
      */
-    private fun namesThen(p: String, text: String, before: String?, ok: String, next: (String) -> Unit) {
+    private fun namesThen(p: String, text: String, before: String?, ok: String, refuse: ((String) -> Unit)? = null, next: (String) -> Unit) {
         val n = names
         if (n == null || !dev.pocketide.app.core.UndefinedNames.checks(p)) return next(ok)
         n(p, text) { raw ->
@@ -1727,10 +1727,18 @@ class NativeAgent(
             if (now.isEmpty()) { undefinedLeft.remove(p); return@n next(ok) }
             val finish = { old: List<dev.pocketide.app.core.UndefinedNames.Use>? ->
                 val fresh = try { dev.pocketide.app.core.UndefinedNames.fresh(p, text, now, old, paths()) { current(it) } } catch (e: Exception) { emptyList() }
+                // a change that deletes a definition the file still uses is not kept (a small model replaced `let selected = [];`
+                // with code that reads it, then spent every later round failing around the gap)
+                val gone = if (refuse != null && before != null && before !== NO_BEFORE) dev.pocketide.app.core.UndefinedNames.removedDefinitions(fresh, before) else emptyList()
                 // a name first reported on an earlier write stays reported until it is fixed
                 val kept = undefinedLeft[p].orEmpty().map { it.name }.toSet()
                 val left = now.filter { u -> u.name in kept || fresh.any { it.name == u.name } }
-                if (left.isEmpty()) { undefinedLeft.remove(p); next(ok) }
+                if (gone.isNotEmpty() && before != null && write(FileEdit(p, before))) {
+                    trace("change deleted definitions still used in $p: " + gone.joinToString { it.name })
+                    note("Not saved: the change deleted $p's definition of ${gone.first().name}, which is still used; the earlier version was put back.", Ui.BAD)
+                    refuse!!(dev.pocketide.app.core.UndefinedNames.removedRefusal(p, gone))
+                }
+                else if (left.isEmpty()) { undefinedLeft.remove(p); next(ok) }
                 else {
                     undefinedLeft[p] = left
                     trace("undefined names in $p: " + left.joinToString { it.name })
@@ -1776,10 +1784,11 @@ class NativeAgent(
             if (pr.isEmpty()) "$ok0 ${dev.pocketide.app.core.PlayTests.parse(text).size} play test(s) saved; run them with look_at_preview test=all."
             else "$ok0\nProblems in the play tests (fix them):\n" + pr.joinToString("\n") { "- $it" } } else ok0).let { it + swallowNote(p, text, before) }
         val s = syntax
-        if (s == null) { namesThen(p, text, before, ok) { o -> lspThen(p, text, o) { runHooks(p, it, label, reply) } }; return }
+        val refuse = { m: String -> reply(m, "$label (not saved: deleted a definition still in use)") }
+        if (s == null) { namesThen(p, text, before, ok, refuse) { o -> lspThen(p, text, o) { runHooks(p, it, label, reply) } }; return }
         phase("Checking $p")
         s(p, text) { err ->
-            if (err == null) { namesThen(p, text, before, ok) { o -> lspThen(p, text, o) { runHooks(p, it, label, reply) } }; return@s }
+            if (err == null) { namesThen(p, text, before, ok, refuse) { o -> lspThen(p, text, o) { runHooks(p, it, label, reply) } }; return@s }
             val warn = { note("Syntax error in $p: $err", Ui.BAD); reply(ok + "\n" + dev.pocketide.app.core.SyntaxCheck.note(p, err), "$label (syntax error)") }
             // a broken script, page or data file is not kept when the text before it was fine (or the file is new): a cut-off
             // rewrite must never replace a working file. When the old text was already broken, the new one is kept as a step.
@@ -2658,8 +2667,9 @@ class NativeAgent(
                 consult(dev.pocketide.app.core.Advisor.Purpose.HELP) { adv -> reply(adv?.let { "Advisor: $it" } ?: "The advisor could not be reached. Continue on your own.", "Asked the advisor") }
             }
             "web_search" -> {
-                val q = g("query").trim()
-                if (q.isEmpty()) { reply("Give something to search for."); return }
+                // models often name the argument after another search tool (pattern, q)
+                val q = g("query").ifBlank { g("q") }.ifBlank { g("pattern") }.ifBlank { g("search") }.trim()
+                if (q.isEmpty()) { reply("Give something to search for: web_search needs query."); return }
                 McpClient.background { val r = WebClient.search(q, settings.braveKey); McpClient.onMain { reply(r) } }
             }
             "sql_query" -> {

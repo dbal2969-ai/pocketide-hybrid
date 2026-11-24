@@ -38,4 +38,26 @@ class HybridRouteTest {
         check(f.contains("I'm passing this to the cloud model (gemini-3.1-flash-lite) instead") && f.contains("HTTP 401")) { f }
         check(HybridAgent.clean(f + "\n\nThe answer.") == "The answer.") { HybridAgent.clean(f + "\n\nThe answer.") }
     }
+
+    @Test fun twoFailedToolCallsInARowAreAStreak() {
+        fun tool(t: String) = mapOf<String, Any?>("role" to "tool", "tool_call_id" to "x", "content" to t)
+        val start = listOf(mapOf<String, Any?>("role" to "user", "content" to "Fix it"))
+        check(HybridAgent.failStreak(start + tool("Edited app.js.")) == 0)
+        check(HybridAgent.failStreak(start + tool("Edited app.js.") + tool("NOT SAVED: app.js has a syntax error")) == 1)
+        check(HybridAgent.failStreak(start + tool("NOT SAVED: syntax error") + tool("Edit not applied to app.js: the SEARCH text was not found")) == 2)
+        check(HybridAgent.failStreak(start + tool("Not written: index.html has 35 lines.") + tool("Edited app.js.")) == 0) { "a success ends the streak" }
+        val nudge = mapOf<String, Any?>("role" to "user", "content" to "From now on you have a few plain tools")
+        check(HybridAgent.failStreak(start + tool("NOT SAVED: syntax error") + tool("Edit not applied") + nudge) == 2) { "the loop's own note does not end the streak" }
+    }
+
+    @Test fun aDeletedDefinitionThatIsStillUsedIsFound() {
+        val before = "let selectedRecipeIds = [];\nfunction toggle(id) { selectedRecipeIds.push(id); }\n"
+        val fresh = listOf(dev.pocketide.app.core.UndefinedNames.Use("selectedRecipeIds", 2))
+        val gone = dev.pocketide.app.core.UndefinedNames.removedDefinitions(fresh, before)
+        check(gone.map { it.name } == listOf("selectedRecipeIds")) { "$gone" }
+        check(dev.pocketide.app.core.UndefinedNames.removedDefinitions(fresh, "function toggle(id) { selectedRecipeIds.push(id); }\n").isEmpty()) {
+            "a name that was never defined is the old warning, not a deleted definition" }
+        val msg = dev.pocketide.app.core.UndefinedNames.removedRefusal("app.js", gone)
+        check(msg.startsWith("NOT SAVED") && msg.contains("`selectedRecipeIds` at line 2") && msg.contains("put back")) { msg }
+    }
 }

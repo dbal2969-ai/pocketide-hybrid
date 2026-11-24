@@ -70,6 +70,16 @@ object UndefinedNames {
         }
     }
 
+    /** The names in [fresh] that [before] (the file before the change) declared: the change deleted a definition still in use. */
+    fun removedDefinitions(fresh: List<Use>, before: String): List<Use> =
+        fresh.filter { declares(it.name).containsMatchIn(before) }.distinctBy { it.name }
+
+    /** The refusal for a change that deleted definitions still in use (the file was put back). */
+    fun removedRefusal(path: String, gone: List<Use>): String =
+        "NOT SAVED: this change deleted the definition of " + gone.take(3).joinToString { "`${it.name}`" } + " from $path, but $path still uses " +
+            (if (gone.size == 1) "it" else "them") + " (" + gone.take(3).joinToString { "`${it.name}` at line ${it.line}" } + "). " +
+            "The file was put back exactly as it was. Keep the definition in your replace text (or change every use too), then make the change again."
+
     /** Another file that declares [name] (so it may only need importing), or null. */
     fun definedIn(name: String, path: String, paths: Collection<String>, read: (String) -> String?): String? =
         paths.filter { it != path && checks(it) }.sorted().take(MAX_FILES).firstOrNull { p ->

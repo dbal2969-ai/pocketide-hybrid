@@ -131,4 +131,31 @@ class HybridAgentLoopTest {
         assertEquals(0, nanoPrompts)
         assertFalse(shown(o), shown(o).contains("I'm passing this to"))
     }
+
+    @Test fun twoFailedEditsInARowHandTheRestToTheCloud() {
+        nano(action("edit_file", "path" to "app.js", "search" to "return a + c;", "replace" to "return a + b;"),
+            action("edit_file", "path" to "app.js", "search" to "return a * b;", "replace" to "return a + b;"),
+            action("edit_file", "path" to "app.js", "search" to "nope", "replace" to "still wrong"))
+        cloud(tools("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            tools("run_command", "command" to "node test.js"))
+        val o = run("Fix add in app.js so the test passes")
+        assertFalse("timed out", o.timedOut)
+        assertEquals("Nano got two tries, then the cloud took over", 2, nanoPrompts)
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+        assertTrue(shown(o), shown(o).contains("my last 2 tool calls failed"))
+    }
+
+    @Test fun anEditThatDeletesADefinitionStillInUseIsPutBack() {
+        org.junit.Assume.assumeTrue("needs Node", NodeNames.available)
+        val start = mapOf("app.js" to "let selected = [];\nfunction pick(id) { selected.push(id); return selected.length; }\nmodule.exports = { pick };\n",
+            "test.js" to "const { pick } = require('./app.js');\nif (pick(1) !== 1) process.exit(1);\nconsole.log('ok');\n")
+        nano(action("edit_file", "path" to "app.js", "search" to "let selected = [];", "replace" to "let days = Array(30).fill(null);"),
+            action("run_command", "command" to "node test.js"))
+        cloud()
+        val o = AgentHarness(start, "Add a days array to app.js", ModelGateway.NETWORK, provider = "hybrid", modelName = "", timeoutSeconds = 60).run()
+        assertFalse("timed out", o.timedOut)
+        val edit = o.resultsOf("edit_file").first()
+        assertTrue(edit, edit.startsWith("NOT SAVED: this change deleted the definition of `selected`"))
+        assertTrue("the file was put back", o.file("app.js")!!.startsWith("let selected = [];"))
+    }
 }

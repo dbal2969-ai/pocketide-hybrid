@@ -189,8 +189,12 @@ object ModelClient {
     private inline fun <T> hybrid(f: () -> T): T =
         try { f() } catch (e: Problem) { throw e } catch (e: Exception) { throw Problem(HybridAi.explain(e), false) }
 
-    /** Where Gemini Nano passes requests it cannot do: the strong model set for workflows, when that is another provider ready to use. */
+    /**
+     * Where Gemini Nano passes requests it cannot do: the workflow's strong model, but only when a multi-model workflow (Cascade or
+     * Critique) is chosen and that model is another provider ready to use. In Single model mode it is always the cloud model.
+     */
     private fun hybridStrong(settings: AppSettings): dev.pocketide.app.core.Workflow.Slot? {
+        if (settings.workflow == dev.pocketide.app.core.Workflow.SINGLE) return null
         val s = settings.strongSlot() ?: return null
         if (s.provider == "hybrid" || s.provider == "demo") return null
         if (!Providers.byId(s.provider).keyless && settings.key(s.provider).isBlank()) return null
