@@ -126,13 +126,42 @@ object HybridAi {
     @Volatile var appContext: Context? = null
 
     /** A conversation as one prompt, routed like quick help: Nano first in on-phone mode, the cloud when it is long. Blocking. */
-    fun chat(ctx: Context, system: String, turns: List<Pair<String, String>>): Reply {
-        val prompt = buildString {
-            if (system.isNotBlank()) append(system.trim()).append("\n\n")
-            for ((role, text) in turns) if (text.isNotBlank()) append(role).append(": ").append(text.trim()).append("\n\n")
-            append("assistant:")
+    private fun chatPrompt(system: String, turns: List<Pair<String, String>>): String = buildString {
+        if (system.isNotBlank()) append(system.trim()).append("\n\n")
+        for ((role, text) in turns) {
+            val t = HybridAgent.clean(text)
+            if (t.isNotBlank()) append(role).append(": ").append(t).append("\n\n")
         }
-        return ask(ctx, prompt, HybridScreen.mode(ctx))
+        append("assistant:")
+    }
+
+    /** What the phone did with a chat request: the reply, or null and why it leaves the phone (empty: cloud-first, nothing to say). */
+    class PhoneReply(val reply: Reply?, val reason: String)
+
+    /** Chat on the phone first. A request that needs the web, or is over the on-phone limit, or that Nano only refuses, is passed on. */
+    fun chatPhone(ctx: Context, system: String, turns: List<Pair<String, String>>): PhoneReply {
+        val prompt = chatPrompt(system, turns)
+        val mode = HybridScreen.mode(ctx)
+        if (mode == Mode.PREFER_IN_CLOUD) return PhoneReply(null, "")
+        if (mode == Mode.ONLY_ON_DEVICE) return PhoneReply(ask(ctx, prompt, mode), "")
+        val web = dev.pocketide.app.core.HybridRoute.needsCloud(turns.lastOrNull { it.first == "user" }?.second.orEmpty())
+        if (web != null) return PhoneReply(null, web)
+        val limit = settings(ctx).onDeviceMaxChars
+        if (prompt.length > limit) return PhoneReply(null, "this request is longer than my on-phone limit ($limit characters)")
+        val r = ask(ctx, prompt, mode)   // the SDK itself uses the cloud when Nano is not available; the label says so
+        if (r.onDevice && dev.pocketide.app.core.HybridRoute.refused(r.text)) return PhoneReply(null, "I could not do this one on the phone")
+        return PhoneReply(r, "")
+    }
+
+    /** Chat on the cloud model. Blocking. */
+    fun chatCloud(ctx: Context, system: String, turns: List<Pair<String, String>>): Reply = ask(ctx, chatPrompt(system, turns), Mode.PREFER_IN_CLOUD)
+
+    /** Chat, phone first, then the cloud model. Blocking. */
+    fun chat(ctx: Context, system: String, turns: List<Pair<String, String>>): Reply {
+        val p = chatPhone(ctx, system, turns)
+        p.reply?.let { return it }
+        val c = chatCloud(ctx, system, turns)
+        return if (p.reason.isEmpty()) c else Reply(c.text, c.onDevice, c.seconds, "Sent to the cloud: ${p.reason}.")
     }
 
     /** One single-turn request. Blocking. */

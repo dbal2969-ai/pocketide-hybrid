@@ -114,8 +114,26 @@ object ModelClient {
                     acc = streamDemo(call, user, agent) { s -> main.post { if (!call.cancelled) listener.onDelta(s) } }
                 } else if (provider.kind == ProviderKind.HYBRID) {
                     val withCtx = if (buildContext != null) dev.pocketide.app.core.PromptCache.withContext(buildContext(), user) else user
-                    val r = hybridChat(buildSystem(), history.map { it.role to it.content } + ("user" to withCtx))
-                    acc = r.text + "\n\n" + HybridScreen.label(r)   // the reply says where it ran, and how long it took
+                    val turns = history.map { it.role to it.content } + ("user" to withCtx)
+                    val hctx = hybridCtx()
+                    val sys = buildSystem()
+                    val ph = hybrid { HybridAi.chatPhone(hctx, sys, turns) }
+                    val got = ph.reply
+                    if (got != null) acc = got.text + "\n\n" + HybridScreen.label(got)   // the reply says where it ran, and how long it took
+                    else {
+                        // Gemini Nano passes it on, and says so at once: to the strong model when one is set, else the cloud model
+                        val strong = hybridStrong(settings)
+                        val handoff = if (ph.reason.isEmpty()) "" else HybridAgent.handoff(ph.reason, hybridTarget(strong))
+                        if (handoff.isNotEmpty()) main.post { if (!call.cancelled) { listener.onStatus(handoff); listener.onDelta(handoff) } }
+                        if (strong != null) {
+                            val done = java.util.concurrent.atomic.AtomicBoolean(false)
+                            val inner = start(AppSettings(hctx).also { it.override = strong }, buildSystem, history, user, handedChat(listener, handoff, done), images, buildContext)
+                            link(call, inner, done)
+                            return@execute
+                        }
+                        val r = hybrid { HybridAi.chatCloud(hctx, sys, turns) }
+                        acc = listOf(handoff, r.text, HybridScreen.label(r)).filter { it.isNotBlank() }.joinToString("\n\n")
+                    }
                 } else {
                     val result = StringBuilder()
                     val local = LocalModels.isLocal(providerId, base)
@@ -143,15 +161,52 @@ object ModelClient {
     }
 
     /** Hybrid AI (Gemini Nano on the phone, cloud Gemini when needed). Text only: the agent falls back to its text format. */
-    private fun hybridChat(system: String, turns: List<Pair<String, String>>): HybridAi.Reply {
-        val ctx = HybridAi.appContext ?: throw Problem("Hybrid AI is not ready yet. Close and reopen PocketIDE.", false)
-        try { return HybridAi.chat(ctx, system, turns) } catch (e: Exception) { throw Problem(HybridAi.explain(e), false) }
+    private fun hybridChat(system: String, turns: List<Pair<String, String>>): HybridAi.Reply = hybrid { HybridAi.chat(hybridCtx(), system, turns) }
+
+    private fun hybridCtx(): android.content.Context =
+        HybridAi.appContext ?: throw Problem("Hybrid AI is not ready yet. Close and reopen PocketIDE.", false)
+
+    /** Runs a hybrid AI step with its errors explained the same way as quick help. */
+    private inline fun <T> hybrid(f: () -> T): T =
+        try { f() } catch (e: Problem) { throw e } catch (e: Exception) { throw Problem(HybridAi.explain(e), false) }
+
+    /** Where Gemini Nano passes requests it cannot do: the strong model set for workflows, when that is another provider ready to use. */
+    private fun hybridStrong(settings: AppSettings): dev.pocketide.app.core.Workflow.Slot? {
+        val s = settings.strongSlot() ?: return null
+        if (s.provider == "hybrid" || s.provider == "demo") return null
+        if (!Providers.byId(s.provider).keyless && settings.key(s.provider).isBlank()) return null
+        return s
     }
 
-    /** The agent's hybrid turn (HybridAgent), with errors explained the same way as quick help. */
-    private fun hybridAgent(system: String, messages: List<Map<String, Any?>>, docs: Boolean, tools: List<*>?): HybridAgent.Result {
-        val ctx = HybridAi.appContext ?: throw Problem("Hybrid AI is not ready yet. Close and reopen PocketIDE.", false)
-        try { return HybridAgent.run(ctx, system, messages, docs, tools) } catch (e: Problem) { throw e } catch (e: Exception) { throw Problem(HybridAi.explain(e), false) }
+    private fun hybridTarget(s: dev.pocketide.app.core.Workflow.Slot?): String =
+        if (s == null) "the cloud model (${HybridAi.CLOUD_MODEL})"
+        else s.model.ifBlank { Providers.byId(s.provider).model }.ifBlank { Providers.byId(s.provider).name } + " (your strong model)"
+
+    /** Stops [inner] when [outer] is stopped, until [done]. */
+    private fun link(outer: ModelCall, inner: ModelCall, done: java.util.concurrent.atomic.AtomicBoolean) {
+        Thread {
+            try { while (!done.get()) { if (outer.cancelled) { inner.cancel(); break }; Thread.sleep(200) } } catch (e: InterruptedException) { /* done */ }
+        }.apply { isDaemon = true }.start()
+    }
+
+    /** The strong model's chat reply, with Gemini Nano's handoff line kept above it. */
+    private fun handedChat(l: ModelListener, prefix: String, done: java.util.concurrent.atomic.AtomicBoolean) = object : ModelListener {
+        private fun p(s: String) = if (prefix.isEmpty()) s else prefix + "\n\n" + s
+        override fun onStatus(text: String) = l.onStatus(text)
+        override fun onDelta(acc: String) = l.onDelta(p(acc))
+        override fun onDone(reply: String) { done.set(true); l.onDone(p(reply)) }
+        override fun onStopped(partial: String) { done.set(true); l.onStopped(p(partial)) }
+        override fun onError(message: String, needsSettings: Boolean) { done.set(true); l.onError(message, needsSettings) }
+    }
+
+    /** The strong model's agent turn, with Gemini Nano's handoff line kept above it. */
+    private fun handedNative(l: NativeListener, prefix: String, done: java.util.concurrent.atomic.AtomicBoolean) = object : NativeListener {
+        private fun p(s: String) = if (prefix.isEmpty()) s else prefix + "\n\n" + s
+        override fun onStatus(text: String) = l.onStatus(text)
+        override fun onDelta(acc: String) = l.onDelta(p(acc))
+        override fun onTurn(turn: dev.pocketide.app.core.ToolTurn) { done.set(true); l.onTurn(turn.copy(text = p(turn.text))) }
+        override fun onStopped(partial: String) { done.set(true); l.onStopped(p(partial)) }
+        override fun onError(message: String, needsSettings: Boolean, toolsRejected: Boolean) { done.set(true); l.onError(message, needsSettings, toolsRejected) }
     }
 
     // ---- v0.4 W2: native tool calling ----
@@ -183,11 +238,28 @@ object ModelClient {
                         // the agent: real tool calls, from Gemini Nano (small local model mode) or the cloud (function calling)
                         val toolList = dev.pocketide.app.core.Tools.body(false, "", system, messages, true, docs, false, false, 0, loaded)["tools"] as? List<*>
                         main.post { if (!call.cancelled) listener.onStatus("Thinking (hybrid AI)…") }
-                        val res = hybridAgent(system, messages, docs, toolList)
-                        val lab = HybridScreen.label(HybridAi.Reply("", res.onDevice, res.seconds, res.note))
-                        val t = res.turn
-                        val shown = if (t.text.isBlank()) lab else t.text + "\n\n" + lab
-                        main.post { if (!call.cancelled) { listener.onStatus(lab); listener.onTurn(t.copy(text = shown)) } }
+                        val hctx = hybridCtx()
+                        fun emit(res: HybridAgent.Result, handoff: String) {
+                            val lab = HybridScreen.label(HybridAi.Reply("", res.onDevice, res.seconds, res.note))
+                            val shown = listOf(handoff, res.turn.text, lab).filter { it.isNotBlank() }.joinToString("\n\n")
+                            main.post { if (!call.cancelled) { listener.onStatus(lab); listener.onTurn(res.turn.copy(text = shown)) } }
+                        }
+                        val ph = hybrid { HybridAgent.phone(hctx, messages, docs) }
+                        val here = ph.result
+                        if (here != null) emit(here, "")
+                        else {
+                            // Gemini Nano passes it on, and says so at once: to the strong model when one is set, else the cloud model
+                            val strong = hybridStrong(settings)
+                            val handoff = if (ph.reason.isEmpty()) "" else HybridAgent.handoff(ph.reason, hybridTarget(strong))
+                            if (handoff.isNotEmpty()) main.post { if (!call.cancelled) { listener.onStatus(handoff); listener.onDelta(handoff) } }
+                            if (strong != null) {
+                                val done = java.util.concurrent.atomic.AtomicBoolean(false)
+                                val inner = startNative(AppSettings(hctx).also { it.override = strong }, system, messages, tools, handedNative(listener, handoff, done), docs, loaded)
+                                link(call, inner, done)
+                                return@execute
+                            }
+                            emit(hybrid { HybridAgent.cloud(hctx, system, messages, toolList) }, handoff)
+                        }
                     } else {
                         val r = hybridChat(system, messages.map { ((it["role"] as? String) ?: "user") to (it["content"]?.toString() ?: "") })
                         main.post { if (!call.cancelled) { listener.onStatus(HybridScreen.label(r)); listener.onTurn(dev.pocketide.app.core.ToolTurn(r.text + "\n\n" + HybridScreen.label(r), emptyList(), "stop")) } }

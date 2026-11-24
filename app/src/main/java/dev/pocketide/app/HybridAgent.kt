@@ -36,40 +36,62 @@ import java.util.concurrent.atomic.AtomicLong
 object HybridAgent {
     class Result(val turn: ToolTurn, val onDevice: Boolean, val seconds: Double, val note: String)
 
-    /** One agent turn. Blocking. [tools] is the OpenAI-style tool list the agent would send (Tools.body). */
-    fun run(ctx: Context, system: String, messages: List<Map<String, Any?>>, docs: Boolean, tools: List<*>?): Result {
+    /**
+     * What the phone did with one agent turn: [result] when it is answered here, else null and [reason], why it leaves
+     * the phone (empty in the cloud-first mode, where nothing is said). The caller picks where it goes: the strong model
+     * when one is set (Workflow), else the cloud model ([cloud]).
+     */
+    class Phone(val result: Result?, val reason: String)
+
+    fun phone(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
         val mode = HybridScreen.mode(ctx)
+        if (mode == HybridAi.Mode.PREFER_IN_CLOUD) return Phone(null, "")
         val limit = HybridAi.settings(ctx).onDeviceMaxChars
-        var note = ""
-        if (mode != HybridAi.Mode.PREFER_IN_CLOUD) {
-            val prompt = phonePrompt(docs, messages, limit)
-            if (prompt == null) {
-                if (mode == HybridAi.Mode.ONLY_ON_DEVICE)
-                    return Result(ToolTurn("This request is longer than the on-phone limit ($limit characters), and this mode never uses the cloud. " +
-                        "Raise the limit or change where requests run (Models → Hybrid AI).", emptyList(), "stop"), true, 0.0, "")
-                note = "Sent to the cloud: the conversation is longer than the on-phone limit ($limit characters)."
-            } else {
-                val t0 = System.nanoTime()
-                val reply = try { HybridAi.onDeviceText(ctx, prompt) } catch (e: Exception) {
-                    if (mode == HybridAi.Mode.ONLY_ON_DEVICE) throw e
-                    note = "Sent to the cloud: Gemini Nano could not run (${(e.message ?: e.javaClass.simpleName).take(80)})."
-                    null
-                }
-                val secs = (System.nanoTime() - t0) / 1e9
-                if (reply != null) {
-                    val (turn, why) = phoneTurn(reply, messages)
-                    if (turn != null) return Result(turn, true, secs, "")
-                    if (mode == HybridAi.Mode.ONLY_ON_DEVICE)
-                        return Result(ToolTurn(reply.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud.")
-                    note = "Sent to the cloud: Gemini Nano $why."
-                }
-            }
+        val only = mode == HybridAi.Mode.ONLY_ON_DEVICE
+        // a request that needs the web skips the phone in the on-phone-first mode (Nano's tools cannot reach it)
+        val ask = messages.lastOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty()
+        val web = dev.pocketide.app.core.HybridRoute.needsCloud(ask)
+        if (web != null && !only) return Phone(null, web)
+        val prompt = phonePrompt(docs, messages, limit)
+        if (prompt == null) {
+            if (only) return Phone(Result(ToolTurn("This request is longer than the on-phone limit ($limit characters), and this mode never uses the cloud. " +
+                "Raise the limit or change where requests run (Models → Hybrid AI).", emptyList(), "stop"), true, 0.0, ""), "")
+            return Phone(null, "the conversation is longer than my on-phone limit ($limit characters)")
         }
+        val t0 = System.nanoTime()
+        val reply = try { HybridAi.onDeviceText(ctx, prompt) } catch (e: Exception) {
+            if (only) throw e
+            return Phone(null, "I could not run on this phone (${(e.message ?: e.javaClass.simpleName).take(80)})")
+        }
+        val secs = (System.nanoTime() - t0) / 1e9
+        val (turn, why) = phoneTurn(reply, messages)
+        if (turn != null) return Phone(Result(turn, true, secs, ""), "")
+        if (only) return Phone(Result(ToolTurn(reply.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")
+        return Phone(null, "Gemini Nano $why")
+    }
+
+    /** The turn on the cloud model through Firebase AI Logic, with every tool as a function. Blocking. */
+    fun cloud(ctx: Context, system: String, messages: List<Map<String, Any?>>, tools: List<*>?): Result {
         val t0 = System.nanoTime()
         val model = HybridAi.cloudToolModel(ctx, system, declarations(tools))
         val r = runBlocking { model.generateContent(contents(messages)) }
-        return Result(turn(r), false, (System.nanoTime() - t0) / 1e9, note)
+        return Result(turn(r), false, (System.nanoTime() - t0) / 1e9, "")
     }
+
+    /** One agent turn, phone first, then the cloud model. Blocking. [tools] is the OpenAI-style tool list (Tools.body). */
+    fun run(ctx: Context, system: String, messages: List<Map<String, Any?>>, docs: Boolean, tools: List<*>?): Result {
+        val p = phone(ctx, messages, docs)
+        p.result?.let { return it }
+        val c = cloud(ctx, system, messages, tools)
+        return if (p.reason.isEmpty()) c else Result(c.turn, false, c.seconds, "Sent to the cloud: ${p.reason}.")
+    }
+
+    /** What Gemini Nano says when it passes a request on: shown at once, and kept above the reply. */
+    fun handoff(reason: String, target: String): String =
+        "⚡ Gemini Nano (on this phone): I'm passing this to $target. Why: $reason."
+
+    /** A reply without the app's where-it-ran and handoff lines, for sending back to a model. */
+    fun clean(text: String): String = LABEL.replace(text, "").trim()
 
     // ---------------- phone: small local model mode ----------------
 
@@ -120,6 +142,7 @@ object HybridAgent {
             if (Tools.paramTypes(c.name) == null) return null to "asked for a tool that does not exist (${c.name})"
             return ToolTurn(p.text, p.calls, "tool_calls") to ""
         }
+        if (dev.pocketide.app.core.HybridRoute.refused(p.text)) return null to "said it could not do it"
         val wrote = messages.any { m -> (m["tool_calls"] as? List<*>).orEmpty().any { callOf(it)?.name in WRITES } }
         if (!wrote && CLAIM.containsMatchIn(p.text)) return null to "said it changed files, but no file was written"
         if (p.text.isBlank()) return null to "gave an empty answer"
@@ -253,7 +276,7 @@ object HybridAgent {
         try { Json.parseToJsonElement(json).jsonObject } catch (e: Exception) { emptyMap() }
 
     /** The where-it-ran line the app adds to replies; left out when the conversation is sent back to a model. */
-    private val LABEL = Regex("""(?m)^[ \t]*(⚡|☁) Ran (on this phone|in the cloud).*$\n?(Sent to the cloud:.*$\n?)?""")
+    private val LABEL = Regex("""(?m)^[ \t]*((⚡|☁) Ran (on this phone|in the cloud).*$\n?(Sent to the cloud:.*$\n?)?|⚡ Gemini Nano \(on this phone\): I'm passing this to.*$\n?)""")
 
     private fun textOf(c: Any?): String {
         val raw = when (c) {
