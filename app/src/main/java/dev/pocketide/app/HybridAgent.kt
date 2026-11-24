@@ -41,11 +41,20 @@ object HybridAgent {
      * the phone (empty in the cloud-first mode, where nothing is said). The caller picks where it goes: the strong model
      * when one is set (Workflow), else the cloud model ([cloud]).
      */
-    class Phone(val result: Result?, val reason: String)
+    class Phone(val result: Result?, val reason: String, val stay: Boolean = false)
+
+    /** Tests only (HybridAgentLoopTest): stand-ins for Gemini Nano (prompt → reply) and the cloud model (system, messages, tools → turn). */
+    @Volatile var testPhone: ((String) -> String)? = null
+    @Volatile var testCloud: ((String, List<Map<String, Any?>>, List<*>?) -> ToolTurn)? = null
+
+    private const val HANDOFF_MARK = "⚡ Gemini Nano (on this phone): I'm passing this to"
 
     fun phone(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
         val mode = HybridScreen.mode(ctx)
         if (mode == HybridAi.Mode.PREFER_IN_CLOUD) return Phone(null, "")
+        // once a step of this request was passed on, the rest of it stays with that model (Nano would only start over)
+        if (mode == HybridAi.Mode.PREFER_ON_DEVICE && messages.any { it["role"] == "assistant" && (it["content"] as? String).orEmpty().contains(HANDOFF_MARK) })
+            return Phone(null, "", stay = true)
         val limit = HybridAi.settings(ctx).onDeviceMaxChars
         val only = mode == HybridAi.Mode.ONLY_ON_DEVICE
         // a request that needs the web skips the phone in the on-phone-first mode (Nano's tools cannot reach it)
@@ -59,7 +68,7 @@ object HybridAgent {
             return Phone(null, "the conversation is longer than my on-phone limit ($limit characters)")
         }
         val t0 = System.nanoTime()
-        val reply = try { HybridAi.onDeviceText(ctx, prompt) } catch (e: Exception) {
+        val reply = try { testPhone?.invoke(prompt) ?: HybridAi.onDeviceText(ctx, prompt) } catch (e: Exception) {
             if (only) throw e
             return Phone(null, "I could not run on this phone (${(e.message ?: e.javaClass.simpleName).take(80)})")
         }
@@ -72,6 +81,7 @@ object HybridAgent {
 
     /** The turn on the cloud model through Firebase AI Logic, with every tool as a function. Blocking. */
     fun cloud(ctx: Context, system: String, messages: List<Map<String, Any?>>, tools: List<*>?): Result {
+        testCloud?.let { f -> return Result(f(system, messages, tools), false, 0.5, "") }
         val t0 = System.nanoTime()
         val model = HybridAi.cloudToolModel(ctx, system, declarations(tools))
         val r = runBlocking { model.generateContent(contents(messages)) }
@@ -88,7 +98,7 @@ object HybridAgent {
 
     /** What Gemini Nano says when it passes a request on: shown at once, and kept above the reply. */
     fun handoff(reason: String, target: String): String =
-        "⚡ Gemini Nano (on this phone): I'm passing this to $target. Why: $reason."
+        "$HANDOFF_MARK $target. Why: $reason."
 
     /** A reply without the app's where-it-ran and handoff lines, for sending back to a model. */
     fun clean(text: String): String = LABEL.replace(text, "").trim()

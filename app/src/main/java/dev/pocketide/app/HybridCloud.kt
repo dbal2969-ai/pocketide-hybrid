@@ -34,6 +34,9 @@ object HybridCloud {
 
     private val io = Executors.newSingleThreadExecutor()
 
+    /** Tests only: no Remote Config, sign-in or usage records. */
+    @Volatile var off = false
+
     @Volatile var configNote: String = "Remote Config: not fetched yet; using the built-in defaults."
         private set
     @Volatile var authNote: String = "Firebase Authentication: not signed in yet."
@@ -41,6 +44,7 @@ object HybridCloud {
 
     /** At app start: fetch Remote Config and sign in anonymously, in the background. */
     fun start(ctx: Context) {
+        if (off) return
         val app = ctx.applicationContext
         io.execute {
             if (!HybridAi.configured(app)) return@execute
@@ -102,6 +106,7 @@ object HybridCloud {
 
     /** Records one hybrid request: where it ran (phone, cloud or strong), its time, why Nano passed it on, and from where (chat, agent, try). */
     fun log(where: String, seconds: Double, reason: String, kind: String) {
+        if (off) return
         val ctx = HybridAi.appContext ?: return
         io.execute {
             if (!HybridAi.configured(ctx)) return@execute

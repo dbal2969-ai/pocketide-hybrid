@@ -124,8 +124,9 @@ object ModelClient {
                         HybridCloud.log(if (got.onDevice) "phone" else "cloud", got.seconds, "", "chat")
                     }
                     else {
-                        // Gemini Nano passes it on, and says so at once: to the strong model when one is set, else the cloud model
-                        val strong = hybridStrong(settings)
+                        // Gemini Nano passes it on, and says so at once: to the strong model when one is set, else the cloud model.
+                        // The cloud-first mode (no reason) always uses the cloud model.
+                        val strong = if (ph.reason.isNotEmpty()) hybridStrong(settings) else null
                         val handoff = if (ph.reason.isEmpty()) "" else HybridAgent.handoff(ph.reason, hybridTarget(strong))
                         if (handoff.isNotEmpty()) main.post { if (!call.cancelled) { listener.onStatus(handoff); listener.onDelta(handoff) } }
                         if (strong != null) {
@@ -254,8 +255,9 @@ object ModelClient {
                         val here = ph.result
                         if (here != null) emit(here, "", "")
                         else {
-                            // Gemini Nano passes it on, and says so at once: to the strong model when one is set, else the cloud model
-                            val strong = hybridStrong(settings)
+                            // Gemini Nano passes it on, and says so at once: to the strong model when one is set, else the cloud model.
+                            // The cloud-first mode (no reason) always uses the cloud model.
+                            val strong = if (ph.reason.isNotEmpty() || ph.stay) hybridStrong(settings) else null
                             val handoff = if (ph.reason.isEmpty()) "" else HybridAgent.handoff(ph.reason, hybridTarget(strong))
                             if (handoff.isNotEmpty()) main.post { if (!call.cancelled) { listener.onStatus(handoff); listener.onDelta(handoff) } }
                             if (strong != null) {
