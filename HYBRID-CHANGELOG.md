@@ -489,7 +489,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   HybridScreen.kt; bench/hybrid/app/project/, analyze.py, README.md; .github/workflows/changelog.yml.
 - **Tests:** AppSelfKnowledgeTest (9). AgentTest's tool counts are updated for the two new tools. 1,305 tests, 0 failures.
 
-### (next) · 2026-11-25 12:55 · Chat home: Gemini Nano knows there is no project, and leftover files are not sent as one
+### 509f511 · 2026-11-25 12:55 · Chat home: Gemini Nano knows there is no project, and leftover files are not sent as one
 - **Why:** owner's screenshot from the from-scratch benchmark (to-do list from the chat, before 103b58d). Nano replied "The
   current project is for a local isometric RPG… I will start by creating a new file", tried to write todo.js, and was refused
   ("Not done (read-only)"). There were two causes:
