@@ -306,4 +306,18 @@ class HybridAgentLoopTest {
         assertEquals("test.js is unchanged", app["test.js"], o.file("test.js"))
         assertTrue(o.file("app.js")!!.contains("a + b"))
     }
+
+    /** Benchmark runs 4 and 7, task 01: after node test.js passed, Nano swapped its fix back, then had to redo it. */
+    @Test fun nanoCannotUndoAFixThatJustPassed() {
+        nano(action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            action("run_command", "command" to "node test.js"),
+            action("edit_file", "path" to "app.js", "search" to "return a + b;", "replace" to "return a - b;"))
+        cloud()
+        val o = run("Fix add in app.js so node test.js prints ok")
+        assertFalse("timed out", o.timedOut)
+        assertEquals("only the fix was run", 1, o.resultsOf("edit_file").size)
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+        assertEquals(0, cloudCalls)
+        assertTrue(o.result!!.text, o.result!!.ok)
+    }
 }

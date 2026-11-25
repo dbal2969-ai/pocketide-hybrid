@@ -102,6 +102,11 @@ object HybridAgent {
             val retry = try { testPhone?.invoke(prompt + note) ?: HybridAi.onDeviceText(ctx, prompt + note) } catch (e: Exception) { null }
             if (retry != null) { val t2 = phoneTurn(retry, messages); turn = t2.first; why = t2.second }
         }
+        // 1.5.184 (runs 4 and 7, task 01): with the note in its prompt, Nano still swapped its passing fix back. An edit that undoes an
+        // earlier edit right after a passing check is not run; the request is reported done.
+        if (turn != null && passedNote(messages).isNotEmpty() && turn.calls.firstOrNull()?.let { undoes(it, messages) } == true)
+            return Phone(Result(ToolTurn("Done: the check passed after the change, so I left the files as they are.", emptyList(), "stop"), true, secs,
+                "Gemini Nano tried to undo a change that had just passed the check; it was not run."), "")
         if (turn != null) return Phone(Result(turn, true, secs, ""), "")
         if (only) return Phone(Result(ToolTurn(reply.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")
         return Phone(null, "Gemini Nano $why")
@@ -160,6 +165,17 @@ object HybridAgent {
         val calls = messages.filter { it["role"] == "assistant" }.flatMap { (it["tool_calls"] as? List<*>).orEmpty().mapNotNull { tc -> callOf(tc) } }
         if (calls.lastOrNull()?.name != "run_command" || calls.none { it.name in WRITES }) return ""
         return "NOTE: the check passed after your change. If the request is done, reply with the answer action now and do not change the files again.\n"
+    }
+
+    /** True when [call] is an edit_file that swaps back an earlier edit of the same file in this request (its search and replace reversed). */
+    fun undoes(call: ToolCall, messages: List<Map<String, Any?>>): Boolean {
+        if (call.name != "edit_file") return false
+        val a = args(call.arguments)
+        val (path, search, replace) = Triple(a["path"]?.toString(), a["search"]?.toString(), a["replace"]?.toString())
+        if (path == null || search == null || replace == null) return false
+        return messages.filter { it["role"] == "assistant" }.flatMap { (it["tool_calls"] as? List<*>).orEmpty().mapNotNull { tc -> callOf(tc) } }
+            .filter { it.name == "edit_file" }.map { args(it.args) }
+            .any { it["path"]?.toString() == path && it["search"]?.toString() == replace && it["replace"]?.toString() == search }
     }
 
     /** True while PocketIDE is the app on screen. */

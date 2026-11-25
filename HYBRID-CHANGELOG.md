@@ -39,6 +39,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | 1124-2048 (run 4) | `feb7289` | 8 of 8, all ended done | 39 of 68 | 01 Nano un-did its passing fix; 08 Private mode repeated a refused edit five times | `e61aafe` |
 | 1124-2111 (run 5) | `e61aafe` | 8 of 8 | 25 of 57 | 01 done in 2 steps and 08 in 8 (were 7 and 19); 05 held on a Run/Skip card for `apk add` until the owner tapped Run, then ended "unfinished files: app.js" with the stand-in gone; 06 ended "stopped or failed" with no reason in the log | `fd54990` |
 | 1124-2131 (run 6) | `c59582a` | 7 of 8, no stalls, every task ended done | 33 of 55 | 03 done entirely on the phone (9 steps); 08 failed: Nano's email regex lost its backslashes (`/S+@S+.S+/`), then Nano edited test.js instead of the app; 06 still showed "Changed, not checked" for a notes file | `f8e624b` |
+| 1124-2147 (run 7) | `a943442` | 8 of 8, no stalls, every task ended done | 23 of 50 | 03 went to the cloud because PocketIDE was in the background (reason shown); 07 Nano's first reply was not an action, so the cloud took it; 08 passed in Private mode (7 steps); 01 Nano again swapped its passing fix back despite the note | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -240,6 +241,13 @@ the files after the run, `transcript.txt` and `check.txt`.
   it, and says so in check.txt. A run that only wrote notes gets no "Changed, not checked" verdict.
 - **Files:** core/MiniJson.kt, core/Scope.kt (`namedChecks`, `checkRefusal`), NativeAgent.kt (`testGate`, `verdict`), HybridBench.kt.
 - **Tests:** NamedCheckTest (7), HybridAgentLoopTest (Nano cannot rewrite the named test). 1,237 tests.
+
+### (next) · 2026-11-24 · Nano cannot undo a fix that just passed (run 7)
+- **Evidence:** runs 1124-2048 and 1124-2147, task 01: after `node test.js` passed, Nano edited `return a + b;` back to
+  `return a - b;`, failed, re-read and redid the fix (7 steps instead of 2). The prompt note from `e61aafe` did not stop it.
+- **Change:** right after a passing check, an `edit_file` that reverses an earlier edit of the same file (search and replace
+  swapped) is not run; the request ends as done and the chat says Nano tried to undo a change that had just passed.
+- **Files:** HybridAgent.kt (`undoes`). **Tests:** HybridAgentLoopTest (fails on the old code). 1,238 tests.
 
 ---
 
