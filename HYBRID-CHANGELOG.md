@@ -52,8 +52,8 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | local 1125-1111 (local run 3) | `33dd884` | app 18 of 20; **analysis 16 clean** | 116 of 116 | l08 now passes (Nano read the test). The full analysis found two passes that were wrong: l05 `return 5;` (the visible test's answer, hard-coded) and l13 `Default:` (a label, not the default case). Fails: l12 replaced the line it meant to insert after (ArrowRight lost, tap added twice); l19 left the old module.exports after the new one. l18 was right but ended "getScore still appears" because the test names the old name | `fb9312f` |
 | scratch 1125-1218 (from-scratch run 1) | `3a8cd77` | app 4 of 10; **analysis 3 clean, 1 with problems** | 26 of 125 | Four requests died on quota or busy errors with Best never tried; Nano in the Chat home took leftover files for "an isometric RPG"; after Build this Nano only answered (s10); the tip calculator became a Node CLI (s09); the to-do kit was kept with made-up records (s05) | `509f511`, `ce51e65`, `517496e` |
 | app 1125-1338 (in-app questions run 1) | `103b58d` | app 3 of 14 | 12 of 19 | Nano was never offered app_help (the project context's file names hid the question), answered from what it thought it knew, and its refusals showed as JSON; the cloud passed app03 and app07 | `517496e` |
-| scratch 1125-1527 (from-scratch run 2) | `ea46a32` | app 1 of 10; analysis 1 clean | 6 of 90 | 8 tasks ended when every cloud tier hit its free per-minute limit; 17 of 20 Nano replies were whole pages cut off at the 1,024-token output limit | (next) |
-| app 1125-1555 (in-app questions run 2) | `ea46a32` | **app 10 of 14; analysis 10 clean** | 14 of 16 | app11 matched "OpenAI API Key" to the wrong tick box and Nano claimed a proposal; app05 Nano missed the top match; app04 not taken as about the app; app08 wording not accepted | (next) |
+| scratch 1125-1527 (from-scratch run 2) | `ea46a32` | app 1 of 10; analysis 1 clean | 6 of 90 | 8 tasks ended when every cloud tier hit its free per-minute limit; 17 of 20 Nano replies were whole pages cut off at the 1,024-token output limit | `5ac38af` |
+| app 1125-1555 (in-app questions run 2) | `ea46a32` | **app 10 of 14; analysis 10 clean** | 14 of 16 | app11 matched "OpenAI API Key" to the wrong tick box and Nano claimed a proposal; app05 Nano missed the top match; app04 not taken as about the app; app08 wording not accepted | `5ac38af` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -590,7 +590,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** 1,316 unit tests, 0 failures; Firestore rules 14 of 14 in the emulator (firebase-tools 15.37.0).
 - **Evidence:** the skills' checklists (docs/FIREBASE-AGENT-SKILLS.md).
 
-### (next) · 2026-11-25 16:40 · Fixes from in-app run 2 (10 of 14) and from-scratch run 2 (1 of 10)
+### 5ac38af · 2026-11-25 16:40 · Fixes from in-app run 2 (10 of 14) and from-scratch run 2 (1 of 10)
 - **Why:** both runs were analysed in full with analyze.py.
   - **From-scratch run 1125-1527:**
     - Eight tasks ended on "You exceeded your current quota". Every cloud tier hit its free per-minute limit at once, so the new
