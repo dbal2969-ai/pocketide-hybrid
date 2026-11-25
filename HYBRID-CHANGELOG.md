@@ -249,7 +249,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   swapped) is not run; the request ends as done and the chat says Nano tried to undo a change that had just passed.
 - **Files:** HybridAgent.kt (`undoes`). **Tests:** HybridAgentLoopTest (fails on the old code). 1,238 tests.
 
-### (next) · 2026-11-24 · Hard hybrid benchmark (ten tasks)
+### 93708e3 · 2026-11-24 22:45 · Hard hybrid benchmark (ten tasks)
 - **Why:** owner's request for harder benchmark tests; the standard eight had passed 8 of 8 in three of the last four runs.
 - **Change:** `bench/hybrid/hard`: ten tasks, each harder in a different way: two bugs in two files behind one symptom (h01), code
   from a written spec with 20 cases (h02), an async ordering and error bug (h03), a refactor into new files that must keep old
