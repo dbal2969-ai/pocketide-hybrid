@@ -23,14 +23,39 @@ object HybridBenchTasks {
         val command: String? = "node test.js",
         /** Run with Private mode on (Gemini Nano only). */
         val privateMode: Boolean = false,
+        /** The skill the task checks (the local suite groups its report by it). */
+        val skill: String = "",
         /** Null = passed, else why it did not. */
         val judge: (Facts) -> String?,
     ) {
-        val files: Map<String, String> get() = (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id] ?: HybridBenchGameFiles.FILES[id]).orEmpty()
+        val files: Map<String, String> get() = (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id] ?: HybridBenchGameFiles.FILES[id]
+            ?: HybridBenchLocalFiles.FILES[id]).orEmpty()
     }
 
     /** [other]: steps by another model (the strong model in "Hybrid helps my strong model"), which carry no ⚡ or ☁ label. */
-    class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>, val other: Int = 0)
+    class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>, val other: Int = 0, val nano: Nano = Nano())
+
+    /**
+     * How Gemini Nano's steps went (the local suite, 1.5.184): tool calls the app refused (an edit that did not match, a file not
+     * saved), steps that repeated a read with nothing new, replies that were not a usable action, and the app's repairs that stepped in.
+     */
+    class Nano(val refused: Int = 0, val repeats: Int = 0, val unusable: Int = 0, val repairs: Int = 0)
+
+    private val REFUSED = Regex("""(?m)^→ (Edit not applied|NOT SAVED|Not written|Error\b|Could not|No such file)""")
+    private val REPEAT = Regex("""(?m)^→ (You already read|.{0,80}has not changed since)""")
+    private val UNUSABLE = Regex("""did not reply with one JSON action|asked for a tool that does not exist|gave an empty answer""")
+    private val REPAIR = Regex("""that exact action already failed|tried to undo a change that had just passed|No internet connection, so this stayed""")
+
+    fun nano(transcript: String) = Nano(REFUSED.findAll(transcript).count(), REPEAT.findAll(transcript).count(),
+        UNUSABLE.findAll(transcript).count(), REPAIR.findAll(transcript).count())
+
+    /** The text of the model's last reply in a chat log (what it answered), or "". */
+    fun lastAnswer(transcript: String): String {
+        val i = transcript.lastIndexOf("· assistant said\n")
+        if (i < 0) return ""
+        return transcript.substring(i + "· assistant said\n".length).substringBefore("\n-----").substringBefore("\n=====")
+            .lines().filterNot { it.startsWith("⚡") || it.startsWith("☁") }.joinToString("\n").trim()
+    }
 
     private val STEP = Regex("""· round (\d+) · assistant (said|thought)""")
 
@@ -49,6 +74,7 @@ object HybridBenchTasks {
         CLOUD.findAll(transcript).count(),
         HANDOFF.findAll(transcript).map { it.groupValues[1].trim() + ": " + it.groupValues[2].trim() }.distinct().toList(),
         maxOf(0, steps(transcript) - PHONE.findAll(transcript).count() - CLOUD.findAll(transcript).count()),
+        nano(transcript),
     )
 
     /** The check command printed "ok" on its own line and exited cleanly. */
@@ -189,6 +215,55 @@ object HybridBenchTasks {
         },
     )
 
+    private fun unchanged(f: Facts): String? = if (f.files.filterKeys { !it.startsWith(".") } != f.original) "files were changed; the task asked for no change" else null
+    private fun inPrivate(f: Facts): String? = if (counts(f.transcript).cloud > 0) "a step ran in the cloud in Private mode" else null
+    private fun code(f: Facts): String? = inPrivate(f) ?: if (commandOk(f)) null else commandWhy(f)
+    private fun said(f: Facts, what: String, re: Regex): String? = inPrivate(f) ?: unchanged(f) ?: lastAnswer(f.transcript).let {
+        if (re.containsMatchIn(it)) null else "the answer does not say $what: \"${it.take(120)}\""
+    }
+
+    /**
+     * The local suite (bench/hybrid/local, 1.5.184): twenty tiny tasks for Gemini Nano alone, in Private mode, grouped by skill, to
+     * tune how PocketIDE drives it (its instructions, examples, tools, settings and repairs; the model itself cannot be changed).
+     * Every code task fails as given and passes with its reference fix (check_hard.py).
+     */
+    val LOCAL: List<Task> = listOf(
+        Task("l01-find-file", "Find which file defines a name", "Which file defines MAX_LIVES? Reply with the file name only. Change nothing.", command = null, privateMode = true, skill = "Find and explain") { f ->
+            said(f, "rules.js", Regex("""rules\.js"""))
+        },
+        Task("l02-explain-function", "Say what a function returns", "What does step() in snake.js return? Answer in one sentence. Change nothing.", command = null, privateMode = true, skill = "Find and explain") { f ->
+            said(f, "that it returns the body's length", Regex("""(?i)length|number of|how many|size|count"""))
+        },
+        Task("l03-explain-no-change", "Explain code without changing it", "Explain what parse() in csv.js does. Change nothing.", command = null, privateMode = true, skill = "Find and explain") { f ->
+            said(f, "commas and quotes", Regex("""(?is)(?=.*comma)(?=.*quot)"""))
+        },
+        Task("l04-report-test-result", "Run a test and report it", "Run node test.js and tell me whether it passes. Change nothing.", privateMode = true, skill = "Find and explain") { f ->
+            inPrivate(f) ?: unchanged(f) ?: when {
+                !Regex("""tool run_command[^\n]*\n\{"command":"node test\.js""").containsMatchIn(f.transcript) -> "node test.js was not run"
+                !Regex("""(?i)\b(pass(es|ed)?|ok|succeed(s|ed)?)\b""").containsMatchIn(lastAnswer(f.transcript)) -> "the answer does not say it passes"
+                else -> null
+            }
+        },
+        Task("l05-fix-operator", "Fix a wrong operator", "Fix add in app.js so node test.js prints ok", privateMode = true, skill = "Fix one line") { f -> code(f) },
+        Task("l06-fix-text", "Fix a typo in a string", "greet in greet.js should return 'Hello, Ana!' for Ana. Fix it so node test.js prints ok", privateMode = true, skill = "Fix one line") { f -> code(f) },
+        Task("l07-fix-off-by-one", "Fix an off-by-one", "sumTo(n) in sum.js should add the numbers 1 to n. Fix it so node test.js prints ok", privateMode = true, skill = "Fix one line") { f -> code(f) },
+        Task("l08-fix-property", "Fix a wrong property name", "label() in user.js prints undefined for the name. Fix it so node test.js prints ok", privateMode = true, skill = "Fix one line") { f -> code(f) },
+        Task("l09-fix-and-verify", "Fix, then check with the test", "withTax in price.js should add 20% tax. Fix it, then run node test.js to check that it prints ok", privateMode = true, skill = "Fix one line") { f ->
+            code(f) ?: if (f.transcript.lastIndexOf("tool run_command") < f.transcript.lastIndexOf("tool edit_")) "the test was not run after the last change" else null
+        },
+        Task("l10-add-function", "Add a function", "Add a function double(n) to math.js that returns n * 2, and export it. node test.js must print ok", privateMode = true, skill = "Add new code") { f -> code(f) },
+        Task("l11-add-key", "Add a key control", "In controls.js, make the ArrowUp key call move('up'). node test.js must print ok", privateMode = true, skill = "Add new code") { f -> code(f) },
+        Task("l12-add-touch", "Add a touch control", "In controls.js, add touch control: a touchstart on the document calls move('tap'). Keep the keys working. node test.js must print ok", privateMode = true, skill = "Add new code") { f -> code(f) },
+        Task("l13-add-switch-case", "Add a case to a switch", "Make delta('left') in dir.js return [-1, 0]. node test.js must print ok", privateMode = true, skill = "Add new code") { f -> code(f) },
+        Task("l14-add-field", "Add a field to an object", "Add speed: 150 to the config in config.js. node test.js must print ok", privateMode = true, skill = "Add new code") { f -> code(f) },
+        Task("l15-keep-existing", "Add a line, keep the rest", "Make tick() in loop.js also count frames: state.frames goes up by one each tick. node test.js must print ok", privateMode = true, skill = "Add new code") { f -> code(f) },
+        Task("l16-new-json", "Create a JSON file", "Create config.json with speed 150 and lives 3. node test.js must print ok", privateMode = true, skill = "New file") { f -> code(f) },
+        Task("l17-new-module", "Create a module", "main.js needs greet.js. Create greet.js exporting greet(name) that returns 'Hello, ' + name + '!'. node test.js must print ok", privateMode = true, skill = "New file") { f -> code(f) },
+        Task("l18-rename-two-files", "Rename across two files", "Rename getScore to readScore in score.js and ui.js. node test.js must print ok", privateMode = true, skill = "Two files or a stale quote") { f -> code(f) },
+        Task("l19-html-and-js", "Change HTML and JS together", "Add a Reset button (id reset) to index.html, and a reset() function in app.js that sets count to 0, exported like add. node test.js must print ok", privateMode = true, skill = "Two files or a stale quote") { f -> code(f) },
+        Task("l20-stale-snippet", "Edit from a quote that differs", "In timer.js, change the line `seconds: 60 // one minute` so the timer is 90 seconds. node test.js must print ok", privateMode = true, skill = "Two files or a stale quote") { f -> code(f) },
+    )
+
     /** A game task passed when [code] changed, the play tests are as given, and the app's checks passed (the play tests run there). */
     private fun game(f: Facts, code: String): String? = when {
         f.files[code] == f.original[code] -> "$code was not changed"
@@ -223,6 +298,15 @@ object HybridBenchTasks {
         val strong = title.contains("helping")
         if (phone + cloud > 0) append(" · steps on this phone: ").append(phone).append(" of ").append(phone + cloud + if (strong) other else 0)
         if (strong) append(" · steps by the strong model: ").append(other)
+        // the local suite: how Nano's steps went, and the score per skill
+        if (results.isNotEmpty() && results.all { it.task.skill.isNotEmpty() }) {
+            val n = results.map { it.counts.nano }
+            append("\n\n**Gemini Nano's steps:** ").append(n.sumOf { it.refused }).append(" refused by the app (edits that did not match, files not saved) · ")
+                .append(n.sumOf { it.repeats }).append(" repeated reads · ").append(n.sumOf { it.unusable }).append(" replies that were not a usable action · ")
+                .append(n.sumOf { it.repairs }).append(" repairs by the app")
+            append("\n\n| Skill | Passed |\n| --- | --- |\n")
+            for ((skill, rs) in results.groupBy { it.task.skill }) append("| ").append(skill).append(" | ").append(rs.count { it.passed }).append(" of ").append(rs.size).append(" |\n")
+        }
         append("\n\n| # | Task | Result | Why not | On phone / in cloud | Handoffs | Time | Ended |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
         for (r in results) {
             append("| ").append(r.task.id.substringBefore('-')).append(" | ").append(r.task.title).append(" | ").append(if (r.passed) "✓ passed" else "✗ failed")

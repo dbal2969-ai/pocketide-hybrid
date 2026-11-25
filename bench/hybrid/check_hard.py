@@ -1,4 +1,4 @@
-"""Proves every hard task is fair: `node test.js` fails on the starting project and passes once the reference fix is applied.
+"""Proves every hard (or local) task is fair: `node test.js` fails on the starting project and passes once the reference fix is applied.
 (h06 is checked by the app's play test on the phone; here only its files are checked to exist.)
 
 Usage: python3 bench/hybrid/check_hard.py bench/hybrid/hard
@@ -10,7 +10,9 @@ bad = 0
 for name in sorted(os.listdir(os.path.join(root, "tasks"))):
     task = os.path.join(root, "tasks", name)
     if not os.path.exists(os.path.join(task, "test.js")):
-        print(f"{name}: no test.js (checked by the play test)"); continue
+        print(f"{name}: no test.js (a question, or checked by the play test)"); continue
+    if not os.path.isdir(os.path.join(root, "solutions", name)):
+        print(f"{name}: no reference fix (a task that must change nothing)"); continue
     with tempfile.TemporaryDirectory() as d:
         work = os.path.join(d, "p"); shutil.copytree(task, work)
         before = subprocess.run(["node", "test.js"], cwd=work, capture_output=True, text=True, timeout=60)

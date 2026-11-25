@@ -32,7 +32,10 @@ object HybridBench {
     private const val TASK_LIMIT_MS = 12 * 60_000L
 
     /** The suites: the standard eight, the hard ten, and the games (HybridBenchTasks.ALL, HARD, GAMES). */
-    enum class Suite(val id: String, val title: String) { STANDARD("hybrid", "Hybrid AI benchmark"), HARD("hybrid-hard", "Hybrid AI benchmark (hard)"), GAMES("hybrid-games", "Hybrid AI benchmark (games)") }
+    enum class Suite(val id: String, val title: String) {
+        STANDARD("hybrid", "Hybrid AI benchmark"), HARD("hybrid-hard", "Hybrid AI benchmark (hard)"), GAMES("hybrid-games", "Hybrid AI benchmark (games)"),
+        LOCAL("hybrid-local", "Hybrid AI benchmark (local model)"),
+    }
 
     /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
     fun helperStrong(s: AppSettings): dev.pocketide.app.core.Workflow.Slot? = s.pickedStrongSlot() ?: s.strongerOther()
@@ -63,7 +66,9 @@ object HybridBench {
         val suite = kind.id
         val out = File(act.filesDir, "bench-results/$suite-$stamp").apply { mkdirs() }
         val results = ArrayList<HybridBenchTasks.Result>()
-        val tasks = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.STANDARD -> HybridBenchTasks.ALL }
+        val tasks = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL; Suite.STANDARD -> HybridBenchTasks.ALL }
+        /** Gemini Nano's exchanges in the current task (HybridAgent.recorder), saved as nano.jsonl. */
+        val nanoLog = StringBuilder()
         var i = 0
 
         fun toast(s: String) = Toast.makeText(act, s, Toast.LENGTH_LONG).show()
@@ -98,6 +103,8 @@ object HybridBench {
             for ((p, text) in t.files) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
             HybridScreen.setMode(act, if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
             val t0 = System.currentTimeMillis()
+            synchronized(nanoLog) { nanoLog.setLength(0) }
+            HybridAgent.recorder = { line -> synchronized(nanoLog) { nanoLog.append(line).append('\n') } }
             val chat = act.benchChat()
             var ended = "did not start"
             var finished = false
@@ -141,6 +148,7 @@ object HybridBench {
                     val dir = File(out, t.id).apply { mkdirs() }
                     for ((p, s) in files) File(dir, "files/$p").apply { parentFile?.mkdirs(); writeText(s) }
                     File(dir, "transcript.txt").writeText(transcript)
+                    synchronized(nanoLog) { if (nanoLog.isNotEmpty()) File(dir, "nano.jsonl").writeText(nanoLog.toString()) }
                     File(dir, "check.txt").writeText(tamperNote + (t.command?.let { "$ $it\nexit $code\n$text\n\n" } ?: "") + "Result: " + (why ?: "passed") + "\n")
                 } catch (e: Exception) { /* the report still has the result */ }
                 i++
@@ -165,13 +173,14 @@ object HybridBench {
         }
 
         fun finish(problem: String?) {
+            HybridAgent.recorder = null
             settings.provider = before.first; settings.workflow = before.second; settings.agent = before.third; settings.mode = chatModeBefore
             settings.restoreSlot(true, draftBefore); settings.restoreSlot(false, strongBefore)
             HybridScreen.setMode(act, modeBefore)
             act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             val hs = HybridAi.settings(act)
             val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
-                "on-phone limit ${hs.onDeviceMaxChars} characters · " +
+                "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
                 (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
             val report = HybridBenchTasks.report(results, about, problem, tasks.size, kind.title + if (helping) " · hybrid helping a strong model" else "")
             File(out, "report.md").writeText(report)

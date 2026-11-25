@@ -102,6 +102,15 @@ object HybridAgent {
         }
         val secs = (System.nanoTime() - t0) / 1e9
         var (turn, why) = phoneTurn(reply, messages)
+        recorder?.let { rec ->
+            val c = turn?.calls?.firstOrNull()
+            val previous = messages.lastOrNull()?.takeIf { it["role"] == "tool" }?.let { textOf(it["content"]) }.orEmpty()
+            try {
+                rec(MiniJson.write(mapOf("seconds" to "%.1f".format(secs), "prompt_chars" to prompt.length, "previous_result" to previous.take(600),
+                    "prompt" to prompt, "reply" to reply, "tool" to (c?.name ?: if (turn != null) "answer" else ""), "args" to c?.arguments.orEmpty(),
+                    "unusable" to why)))
+            } catch (e: Exception) { /* the record is best-effort */ }
+        }
         val again = turn?.calls?.firstOrNull()?.takeIf { repeatsFailure(it, messages) }
         if (again != null && !only) return Phone(null, "Gemini Nano repeated a step that already failed (${again.name})")
         // 1.5.184 (run 4, task 08): in Private mode there is no one to pass to, and Nano sent the same refused edit five times.
@@ -219,6 +228,13 @@ object HybridAgent {
     // ---------------- phone: small local model mode ----------------
 
     const val FAIL_LIMIT = 2
+
+    /**
+     * Set by the benchmark (1.5.184): receives one JSON line per Gemini Nano exchange: its prompt and reply, the tool it chose (or why
+     * the reply was unusable), the time, and the result of its previous step. The local suite saves them as nano.jsonl per task, to
+     * see where Nano goes wrong and to judge prompt changes.
+     */
+    @Volatile var recorder: ((String) -> Unit)? = null
 
     /** For tests: whether the phone is online (null = ask Android). */
     @Volatile var testOnline: Boolean? = null

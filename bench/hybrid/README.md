@@ -94,3 +94,26 @@ play-test script in Chromium: `POCKETIDE_DUMP_PLAY=/tmp/play ./gradlew testDebug
 | gm03 | Add pause and resume with the P key (status shows Paused), and keep the best score in localStorage under snakeBest, shown in #best as Best: N. Snake must keep working | 8 | New features without breaking the six existing play tests |
 | gm04 | Build tic-tac-toe with a computer opponent exactly as GAME.md describes | 5 | Taps on cells, an opponent with exact rules (win, block, centre, corners), win and draw |
 | gm05 | Every time Restart is pressed the game gets faster. Fix it | 3 | A restart that stacks game loops (setInterval never cleared) |
+
+## Local model benchmark (Gemini Nano alone)
+
+Models → Hybrid AI → **Run the local model benchmark** runs twenty tiny tasks in Private mode, so every step is Gemini Nano's.
+It is for tuning how PocketIDE drives Nano: its instructions, examples, tools, settings and the app's repairs. The model itself
+cannot be changed (Android's AICore installs and updates it). About 20 to 40 minutes, no internet needed; Node must be installed.
+
+The report scores each skill and counts how Nano's steps went: tool calls the app refused (edits that did not match, files not
+saved), repeated reads, replies that were not a usable action, and the app's repairs. Its header records the settings used
+(on-phone model, temperature, top-K, output limit, on-phone limit), so runs with different settings can be compared. Each task's
+folder also has `nano.jsonl`: one line per Nano exchange with its prompt, its reply, the tool it chose (or why the reply was
+unusable), the time, and the result of its previous step.
+
+`make_local.py local` builds the tasks (`local/tasks`, `local/zips`, `local/solutions`); `python3 check_hard.py local` proves
+every code task fails as given and passes with its reference fix; `to_kotlin.py local ../../app/src/main/java/dev/pocketide/app/core/HybridBenchLocalFiles.kt HybridBenchLocalFiles` updates the app's copy.
+
+| Skill | Tasks |
+| --- | --- |
+| Find and explain (no change) | l01 which file defines a name · l02 what a function returns · l03 explain code · l04 run the test and report |
+| Fix one line | l05 operator · l06 typo in a string · l07 off-by-one · l08 property name · l09 fix, then run the test |
+| Add new code | l10 a function · l11 a key control · l12 a touch control · l13 a switch case · l14 an object field · l15 one more line in a function |
+| New file | l16 a JSON file · l17 a module |
+| Two files or a stale quote | l18 rename across two files · l19 HTML and JS together · l20 a request that quotes the line slightly wrong |

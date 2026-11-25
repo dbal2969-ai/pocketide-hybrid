@@ -376,6 +376,23 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** NanoEditsTest (5), HybridAgentLoopTest (offline Nano keeps going; a tool named in another language runs),
   HybridBenchGamesTest (the strong model's steps are counted). 1,275 tests.
 
+### (next) · 2026-11-25 · Local model benchmark: twenty tiny tasks for Gemini Nano alone, with every exchange recorded
+- **Why:** owner's request: benchmarks solely for the local model, to tune it. Gemini Nano's weights cannot be changed by apps
+  (AICore manages the model; no fine-tuning or adapters are documented), so what is tuned is how PocketIDE drives it.
+- **Change:** `bench/hybrid/local`: twenty tasks in Private mode, five skills: find and explain without changing anything (4), fix
+  one line (5), add new code (6, among them a key control and a touch control, the owner's failing case), create a file (2), and two
+  files or a request that quotes a line slightly wrong (3). Questions are judged on the last answer and on nothing changing; code
+  tasks on `node test.js`; any cloud step fails a task. The report adds a score per skill and counts of Nano's refused tool calls,
+  repeated reads, unusable replies and the app's repairs, and its header records the settings used. Each task saves `nano.jsonl`,
+  one line per Nano exchange (prompt, reply, tool or why unusable, time, previous step's result). Models → Hybrid AI → **Run the
+  local model benchmark**. `check_hard.py` proves the 16 code tasks fail as given and pass with their reference fixes.
+- **Files:** bench/hybrid/make_local.py, local/ (tasks, zips, solutions), check_hard.py, README.md; core/HybridBenchTasks.kt
+  (`LOCAL`, `Task.skill`, `Nano`, `nano`, `lastAnswer`, report), core/HybridBenchLocalFiles.kt (generated), HybridAgent.kt
+  (`recorder`), HybridBench.kt (`Suite.LOCAL`, nano.jsonl, settings in the header), HybridScreen.kt.
+- **Tests:** HybridBenchLocalTest (5), HybridAgentLoopTest (every Nano exchange is recorded). 1,281 tests.
+- **Next:** after the first run, a tuning matrix (Fast or Full model, temperature, instruction variants with worked examples) run
+  overnight, and the winning settings shipped through Remote Config.
+
 ---
 
 ## Outside the code

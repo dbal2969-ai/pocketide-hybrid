@@ -210,7 +210,8 @@ object HybridScreen {
             if (helpBox.isChecked) HybridBench.helperProblem(dev.pocketide.app.AppSettings(ctx))?.let { toast(it); return }
             val hard = suite != HybridBench.Suite.STANDARD
             val m = activity as? MainActivity
-            val n = when (suite) { HybridBench.Suite.HARD -> dev.pocketide.app.core.HybridBenchTasks.HARD.size; HybridBench.Suite.GAMES -> dev.pocketide.app.core.HybridBenchTasks.GAMES.size; else -> dev.pocketide.app.core.HybridBenchTasks.ALL.size }
+            val n = when (suite) { HybridBench.Suite.HARD -> dev.pocketide.app.core.HybridBenchTasks.HARD.size; HybridBench.Suite.GAMES -> dev.pocketide.app.core.HybridBenchTasks.GAMES.size
+                HybridBench.Suite.LOCAL -> dev.pocketide.app.core.HybridBenchTasks.LOCAL.size; else -> dev.pocketide.app.core.HybridBenchTasks.ALL.size }
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
                 HybridBench.running -> toast("The benchmark is already running.")
@@ -230,6 +231,9 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "The game benchmark has ${dev.pocketide.app.core.HybridBenchTasks.GAMES.size} browser games checked by play tests: " +
             "keys that must work without clicking first, a game from a spec, new features, an opponent, and a restart that stacks loops.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Run the game benchmark") { startBench(HybridBench.Suite.GAMES) })
+        benchCard.addView(Ui.text(ctx, "The local model benchmark has ${dev.pocketide.app.core.HybridBenchTasks.LOCAL.size} tiny tasks for Gemini Nano alone " +
+            "(Private mode), grouped by skill, and saves every Nano prompt and reply, to tune how PocketIDE drives it. About 20 to 40 minutes; no internet needed.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Run the local model benchmark") { startBench(HybridBench.Suite.LOCAL) })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

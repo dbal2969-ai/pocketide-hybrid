@@ -40,7 +40,7 @@ class HybridAgentLoopTest {
         ctx.getSharedPreferences("hybrid_ai", 0).edit().clear().putString("mode", HybridAi.Mode.PREFER_ON_DEVICE.name).commit()
     }
 
-    @After fun tearDown() { HybridAgent.testPhone = null; HybridAgent.testCloud = null; HybridAgent.testOnline = null }
+    @After fun tearDown() { HybridAgent.testPhone = null; HybridAgent.testCloud = null; HybridAgent.testOnline = null; HybridAgent.recorder = null }
 
     private fun nano(vararg replies: String) {
         val q = ArrayDeque(replies.toList())
@@ -368,5 +368,19 @@ class HybridAgentLoopTest {
         assertEquals("read_file", o.names.first())
         assertEquals(0, cloudCalls)
         assertTrue(o.file("app.js")!!.contains("a + b"))
+    }
+
+    /** The local suite saves every Nano exchange: prompt, reply, the tool chosen, and the previous step's result. */
+    @Test fun everyNanoExchangeIsRecorded() {
+        val lines = ArrayList<String>()
+        HybridAgent.recorder = { lines.add(it) }
+        nano(action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"), action("run_command", "command" to "node test.js"))
+        cloud()
+        run("Fix add in app.js so node test.js prints ok")
+        check(lines.size >= 3) { lines.toString() }
+        val first = MiniJson.obj(MiniJson.parse(lines[0]))!!
+        check(first["tool"] == "edit_file" && (first["prompt"] as String).contains("Fix add") && (first["reply"] as String).contains("edit_file"))
+        val second = MiniJson.obj(MiniJson.parse(lines[1]))!!
+        check(second["tool"] == "run_command" && (second["previous_result"] as String).startsWith("Edited")) { second.toString() }
     }
 }
