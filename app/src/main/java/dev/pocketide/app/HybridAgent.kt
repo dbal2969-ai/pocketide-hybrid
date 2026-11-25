@@ -400,6 +400,13 @@ object HybridAgent {
         val p = SmallLocal.parse(reply) { Tools.paramTypes(it) }
         if (p.calls.isNotEmpty()) {
             val c = p.calls[0]
+            // insert_lines (Nano's own tool) is edit_lines inserting after a line: start = after + 1, end = after
+            if (c.name == "insert_lines") {
+                val a = MiniJson.obj(MiniJson.parse(c.arguments)) ?: emptyMap<String, Any?>()
+                val after = (a["after"] as? Number)?.toInt() ?: a["after"]?.toString()?.toIntOrNull() ?: return null to "gave insert_lines no line number"
+                val args = MiniJson.write(mapOf("path" to a["path"], "start" to after + 1, "end" to after, "text" to (a["text"] ?: "")))
+                return ToolTurn(p.text, listOf(ToolCall(c.id, "edit_lines", args)), "tool_calls") to ""
+            }
             if (Tools.paramTypes(c.name) == null) {
                 val keys = (MiniJson.obj(MiniJson.parse(c.arguments)) ?: emptyMap<String, Any?>()).keys
                 val known = toolFromArgs(c.name, keys) ?: return null to "asked for a tool that does not exist (${c.name})"

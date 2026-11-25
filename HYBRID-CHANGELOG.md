@@ -49,6 +49,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | hard helping 1125-0743 | `7bc42e7` | **10 of 10**, all ended done | 26 on the phone (the report did not count the strong model's steps) | first "Hybrid helps my strong model" run, with `kilo/recursive/flint-v1.0:free` as the strong model: every handoff went to it and every task passed; h08 Private stayed on the phone (13 steps). Nano asked for a tool named `membaca_file` (h07) | `316fd34` |
 | local 1125-0955 (local run 1) | `e379bb8` | **12 of 20** (Gemini Nano alone) | 115 of 115 | Find and explain 0 of 4, but Nano's answers were right ("rules.js"; "it passed"): "Change nothing" made the app take each as a task and end it "Nothing was changed", and final answers were not in the chat log. Nano's own failures: a search for a block's first line or a line's start with a whole new block or line as the replacement (l08 syntax error, l11 doubled keys); edit_lines 3–5 used to insert, deleting three cases (l13); a module without module.exports (l17); it tried to edit test.js (refused). 32 refused calls, 4 repeated reads, 0 unusable replies. l02's one Nano call took 548 s (the app was off screen) | `1ababce` |
 | local 1125-1040 (local run 2) | `1ababce` | **19 of 20** | 116 of 116 | every skill but one at 100%: Find and explain 4/4 (was 0/4), Add new code 6/6, New file 2/2, Two files 3/3; refused calls 32 → 12. Only l08 failed: told "label gave Unknown Name (30)", Nano added fallbacks twice and never read test.js to learn the property is `name` | `33dd884` |
+| local 1125-1111 (local run 3) | `33dd884` | app 18 of 20; **analysis 16 clean** | 116 of 116 | l08 now passes (Nano read the test). The full analysis found two passes that were wrong: l05 `return 5;` (the visible test's answer, hard-coded) and l13 `Default:` (a label, not the default case). Fails: l12 replaced the line it meant to insert after (ArrowRight lost, tap added twice); l19 left the old module.exports after the new one. l18 was right but ended "getScore still appears" because the test names the old name | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -430,6 +431,18 @@ the files after the run, `transcript.txt` and `check.txt`.
   pass had a syntax error, a browser error, a failing replayed play test or lost code. Two flags in standard runs 1 and 6 (task 03
   "changed the play test") were the app's save dropping the file's last newline, now ignored.
 - **Files:** bench/hybrid/analyze.py, browser_check.js, README.md; test GamePlayScriptDump.kt; CONTRIBUTING-AGENTS.md.
+
+### (next) · 2026-11-25 · Hidden checks, insert_lines for Nano, warnings for doubled exports and capitalised keywords (local run 3)
+- **Evidence:** local run 1125-1111 analysed in full: two of the app's 18 passes were wrong (l05 hard-coded the answer; l13 wrote
+  `Default:`), and l12, l19 and l18 as in the benchmark history.
+- **Change:** the local suite has **hidden checks** (`bench/hybrid/local/hidden/`): inputs the model never sees, run by analyze.py
+  on every pass; check_hard.py proves the reference fixes pass them. Nano gets an `insert_lines` tool (after = N, nothing removed),
+  mapped to edit_lines, and its instructions say to use it to add code and never to return a test's expected value. After a JS
+  write the result warns when the file now sets module.exports more than once, declares a function twice, or has a capitalised
+  `Default:`/`Case:`/`Return:` that JavaScript reads as a label. The rename check skips the test the request names as its check.
+- **Files:** bench/hybrid/local/hidden/ (16), analyze.py, check_hard.py, make_local.py; core/Doubles.kt (new), core/SmallLocal.kt,
+  core/Tools.kt, HybridAgent.kt (insert_lines), NativeAgent.kt (rename check, warnings).
+- **Tests:** LocalRun3Test (5). 1,294 tests. Re-analysis with the hidden checks: local run 3 is 16 clean passes, not 18.
 
 ---
 

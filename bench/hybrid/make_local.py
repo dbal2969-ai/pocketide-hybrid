@@ -119,7 +119,15 @@ fix("l20-stale-snippet",
      "test.js": test("const t = require('./timer.js');\nneed(t.seconds === 90, 'seconds is ' + t.seconds);\nneed(t.running === false, 'running changed');\n")},
     {"timer.js": "const timer = {\n  seconds: 90, // one minute and a half\n  running: false,\n};\nmodule.exports = timer;\n"})
 
+# hidden/ holds checks the model never sees (written by hand, run by analyze.py); keep them when the tasks are rebuilt
+hidden = {}
+hd = os.path.join(OUT, "hidden")
+if os.path.isdir(hd):
+    for f in os.listdir(hd): hidden[f] = open(os.path.join(hd, f)).read()
 if os.path.exists(OUT): shutil.rmtree(OUT)
+if hidden:
+    os.makedirs(hd)
+    for f, c in hidden.items(): open(os.path.join(hd, f), "w").write(c)
 for kind, src in (("tasks", T), ("solutions", S)):
     for name, files in src.items():
         for p, c in files.items():

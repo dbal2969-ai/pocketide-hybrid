@@ -431,6 +431,9 @@ object Tools {
             // 1.5.184: edit_lines keeps its second sentence (how to insert); cut to the first, Gemini Nano never inserted with it
             val text = if (d.name == "edit_lines") d.description.split(". ").take(2).joinToString(". ").trimEnd('.') + "." else d.description.substringBefore(". ").trimEnd('.') + "."
             sb.append(TextTools.describe(d.name, text, d.props, d.required))
+            // 1.5.184 (local run 3, l12): Nano used edit_lines start 4, end 4 to insert and replaced line 4 instead, four times
+            if (d.name == "edit_lines") sb.append(TextTools.describe("insert_lines", "Insert new lines after line `after` (0 = at the top); nothing is removed.",
+                mapOf("path" to mapOf("type" to "string"), "after" to mapOf("type" to "integer"), "text" to mapOf("type" to "string")), listOf("path", "after", "text")))
         }
         sb.append("- answer: reply to the person (the work is done, or the request is a question).\n    - text (string, required)\n")
         return sb.toString()

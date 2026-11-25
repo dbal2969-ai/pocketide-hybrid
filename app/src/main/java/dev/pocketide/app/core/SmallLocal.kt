@@ -82,12 +82,13 @@ object SmallLocal {
             "How to work:\n" +
             "1. Find the code: search for a word from the request, or list_files.\n" +
             "2. read_file the file before you change it.\n" +
-            "3. Change it. To ADD new code (a new feature, new event handlers), use edit_lines to insert after line N: start = N+1 and " +
-                "end = N, with N from read_file's line numbers; nothing has to be copied. To change existing lines, edit_file with search " +
+            "3. Change it. To ADD new code (a new feature, new event handlers), use insert_lines with after = N, the line number from " +
+                "read_file that the new lines go after; nothing is removed or copied. To change existing lines, edit_file with search " +
                 "copied exactly from read_file's output (without the line numbers), whole lines, never \"...\". write_file for a new file; " +
                 "in a Node file, end it with module.exports = { … } naming what other files use.\n" +
             "4. Check it: run_command to run the tests or the program. If a test fails and its message does not say why, read the test " +
-                "file to see what it expects, then fix the code. Never change the test.\n" +
+                "file to see what it expects, then fix the code. Never change the test, and never return a test's expected value " +
+                "directly (like return 5;): fix the real logic so every input works.\n" +
             "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +
             "For a question, read what you need and answer; change nothing.\n\n" + tools
 

@@ -196,6 +196,18 @@ def main():
             if r.returncode != 0 or not r.stdout.strip().endswith("ok"):
                 problems.append("node test.js (original test) fails: " + (r.stderr or r.stdout).strip().splitlines()[-1][:140] if (r.stderr or r.stdout).strip() else "node test.js fails")
             shutil.rmtree(d, ignore_errors=True)
+        # the hidden check: inputs the model never saw (a hard-coded answer passes the visible test but not this)
+        hid = os.path.join(suite_dir, "hidden", tid + ".js")
+        if os.path.exists(hid) and app_verdict.startswith("✓"):
+            d = tempfile.mkdtemp()
+            for p, s in final.items():
+                fp = os.path.join(d, p); os.makedirs(os.path.dirname(fp), exist_ok=True); open(fp, "w").write(s)
+            shutil.copy(hid, os.path.join(d, "hidden.js"))
+            r = subprocess.run(["node", "hidden.js"], cwd=d, capture_output=True, text=True, timeout=60)
+            if r.returncode != 0:
+                problems.append("hidden check fails (inputs the model never saw): " + "; ".join(l for l in (r.stderr or r.stdout).strip().splitlines() if "hidden check" in l or "Error" in l)[:200])
+            else: notes.append("hidden check passes")
+            shutil.rmtree(d, ignore_errors=True)
         # the page in a browser, and the play tests
         if "index.html" in final:
             d = tempfile.mkdtemp()

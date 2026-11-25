@@ -269,7 +269,7 @@ class NativeAgent(
         refreshStubs()
         if (stubs.isNotEmpty()) open.add("unfinished files: " + stubs.keys.take(3).joinToString(", "))
         undefinedLeft.filterKeys { it in changed && store.read(it) != null }.takeIf { it.isNotEmpty() }?.let { open.add("names nothing defines in " + it.keys.take(3).joinToString(", ")) }
-        dev.pocketide.app.core.RenameCheck.asked(steers.lastOrNull() ?: request)?.let { rn -> val (_, n) = dev.pocketide.app.core.RenameCheck.left(rn.old, paths()) { current(it) }; if (n > 0) open.add("${rn.old} still appears in $n place${if (n == 1) "" else "s"}") }
+        dev.pocketide.app.core.RenameCheck.asked(steers.lastOrNull() ?: request)?.let { rn -> val (_, n) = dev.pocketide.app.core.RenameCheck.left(rn.old, paths() - dev.pocketide.app.core.Scope.namedChecks(request)) { current(it) }; if (n > 0) open.add("${rn.old} still appears in $n place${if (n == 1) "" else "s"}") }
         // 1.5.175: "remove the coupon feature" with the thing still mentioned (RemoveCheck)
         dev.pocketide.app.core.RemoveCheck.asked(steers.lastOrNull() ?: request)?.let { st -> val (_, n) = dev.pocketide.app.core.RemoveCheck.left(st, paths()) { current(it) }; if (n > 0) open.add("\"$st\" still mentioned in $n place${if (n == 1) "" else "s"}") }
         return dev.pocketide.app.core.Outcome.of(r.changed.size, passed, failed, cut, open, r.staged.size)
@@ -1268,7 +1268,8 @@ class NativeAgent(
         if (agent && !nested && !renameAsked && !question && !reportOnly && changed.isNotEmpty() && round < maxRounds && wrapAt < 0) {
             val r = dev.pocketide.app.core.RenameCheck.asked(steers.lastOrNull() ?: request)
             if (r != null) {
-                val (lines, count) = dev.pocketide.app.core.RenameCheck.left(r.old, paths()) { current(it) }
+                // 1.5.184 (local run 3, l18): test.js must keep naming the old name ("…, not getScore"); it is the check, not code to rename
+                val (lines, count) = dev.pocketide.app.core.RenameCheck.left(r.old, paths() - dev.pocketide.app.core.Scope.namedChecks(request)) { current(it) }
                 if (count > 0) {
                     renameAsked = true
                     trace("the rename of ${r.old} left $count place(s); asking the model to finish it")
@@ -1812,7 +1813,8 @@ class NativeAgent(
         val split = if (p == dev.pocketide.app.core.PlayTests.FILE && before !== NO_BEFORE && before != null) dev.pocketide.app.core.PlayTests.splits(before, text) else emptyList()
         val ok = (if (p == dev.pocketide.app.core.PlayTests.FILE) (dev.pocketide.app.core.PlayTests.problems(text) + split).let { pr ->
             if (pr.isEmpty()) "$ok0 ${dev.pocketide.app.core.PlayTests.parse(text).size} play test(s) saved; run them with look_at_preview test=all."
-            else "$ok0\nProblems in the play tests (fix them):\n" + pr.joinToString("\n") { "- $it" } } else ok0).let { it + swallowNote(p, text, before) }
+            else "$ok0\nProblems in the play tests (fix them):\n" + pr.joinToString("\n") { "- $it" } } else ok0).let { it + swallowNote(p, text, before) +
+            dev.pocketide.app.core.Doubles.note(p, text, before.takeIf { b -> b !== NO_BEFORE }) }
         val s = syntax
         val refuse = { m: String -> reply(m, "$label (not saved: deleted a definition still in use)") }
         if (s == null) { namesThen(p, text, before, ok, refuse) { o -> lspThen(p, text, o) { runHooks(p, it, label, reply) } }; return }
