@@ -38,7 +38,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | 1124-2028 (run 3) | `ed08bdb` (old APK) | 6 of 8 | 24 of 47 | 06 stalled on the "Let the assistant read npmjs.com?" card; 07 Nano saw only 2,000 characters of a 22,000-character file; 08 stopped when the app left the screen | `feb7289` |
 | 1124-2048 (run 4) | `feb7289` | 8 of 8, all ended done | 39 of 68 | 01 Nano un-did its passing fix; 08 Private mode repeated a refused edit five times | `e61aafe` |
 | 1124-2111 (run 5) | `e61aafe` | 8 of 8 | 25 of 57 | 01 done in 2 steps and 08 in 8 (were 7 and 19); 05 held on a Run/Skip card for `apk add` until the owner tapped Run, then ended "unfinished files: app.js" with the stand-in gone; 06 ended "stopped or failed" with no reason in the log | `fd54990` |
-| 1124-2131 (run 6) | `c59582a` | 7 of 8, no stalls, every task ended done | 33 of 55 | 03 done entirely on the phone (9 steps); 08 failed: Nano's email regex lost its backslashes (`/S+@S+.S+/`), then Nano edited test.js instead of the app; 06 still showed "Changed, not checked" for a notes file | `(next)` |
+| 1124-2131 (run 6) | `c59582a` | 7 of 8, no stalls, every task ended done | 33 of 55 | 03 done entirely on the phone (9 steps); 08 failed: Nano's email regex lost its backslashes (`/S+@S+.S+/`), then Nano edited test.js instead of the app; 06 still showed "Changed, not checked" for a notes file | `f8e624b` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -231,7 +231,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** ChatPane.kt (`askRunCard`, `showError`), NativeAgent.kt (`refreshStubs`, verification gate).
 - **Tests:** HybridAgentLoopTest (a stand-in removed with edit_lines; fails on the old code). 1,229 tests.
 
-### (next) · 2026-11-24 · Fixes from benchmark run 6 (7 of 8)
+### f8e624b · 2026-11-24 22:05 · Fixes from benchmark run 6 (7 of 8)
 - **Evidence:** run 1124-2131, task 08 (Private mode) and task 06.
 - **Change:** the JSON reader keeps a backslash before a character JSON does not escape (`\S`, `\d`, `\.`): Gemini Nano writes
   regexes that way, and dropping it saved `/S+@S+.S+/`, which refused every good email. The test file a request names as its check
