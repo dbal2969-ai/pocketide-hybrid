@@ -345,7 +345,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   (`GAMES`), core/HybridBenchGameFiles.kt (generated), HybridBench.kt (`Suite`), HybridScreen.kt.
 - **Tests:** HybridBenchGamesTest (3), GamePlayScriptDump (every play test parses; dumps the scripts when asked). 1,266 tests.
 
-### (next) · 2026-11-25 · Benchmark "Hybrid helps my strong model" (Cascade), never Cloudflare
+### 64de562 · 2026-11-25 08:00 · Benchmark "Hybrid helps my strong model" (Cascade), never Cloudflare
 - **Why:** owner's request: test the hybrid models as the weaker models that help a stronger model's API, and not Cloudflare (it
   billed the owner $450 past its free allowance).
 - **Change:** the benchmark card has a **Hybrid helps my strong model** switch for all three suites. The run then uses the Cascade
