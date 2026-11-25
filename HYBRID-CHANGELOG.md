@@ -459,7 +459,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   (`benchChatHome`, `benchBuildFromChat`), HybridScreen.kt.
 - **Tests:** HybridBenchScratchTest (2).
 
-### (next) · 2026-11-25 14:30 · PocketIDE knows itself: app_help, app_settings and the in-app questions benchmark
+### 103b58d · 2026-11-25 14:30 · PocketIDE knows itself: app_help, app_settings and the in-app questions benchmark
 - **Why:** the owner asked whether the assistant knows it is inside PocketIDE and can answer in-app troubleshooting questions,
   change settings with explicit permission, or walk a person through the exact steps, without hallucinating. It could not: the
   prompt held one paragraph about the mode chip and told the model to say "I don't know"; Help & FAQ was never given to any model.
