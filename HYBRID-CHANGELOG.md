@@ -43,7 +43,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | hard 1124-2213 (hard run 1) | `a31830a` | 9 of 10 | 39 of 84 | every handoff gave its reason (failed edits, a reply that was not an action, the web); h08 Private mode passed in 3 steps; h07 ended before any step: one cloud call failed with the SDK's "Something unexpected happened."; the report's # column showed "h0" | `31b6415` |
 | hard 1124-2237 (hard run 2) | `82ab9d0` | 9 of 10 | 31 of 82 | h07 failed: the cloud reply stopped at `MAX_TOKENS` because the phone's 1,024-token output setting applied to the cloud model too; Nano also named a tool in Chinese (讀取文件), handed off | `3cbcdd0` |
 | hard 1124-2308 (hard run 3) | `eb8137a` (cloud tiers) | **2 of 10** (regression) | 32 of 40 | every cloud step failed: `Role 'function' is not supported. Please use a valid role: user, model.` The newer models refuse the role the app sent tool results under (gemini-3.1-flash-lite had accepted it), and that error matched the loose "is not supported" test for a missing model, so Balanced was skipped and Flash-Lite answered and failed too. Only h08 and h10 (all on the phone) passed; Auto did move up to Best once ("the check failed 2 times") | `a06ce7a` |
-| hard 1124-2343 (hard run 4) | `b7a2354` | **10 of 10** | 49 of 102 | first perfect hard run. Auto moved to Gemini 4 Hydrogen once ("the check failed 2 times"), and Hydrogen answered, so the project can use it. Google reported "high demand" during the run: it ended h01's request after its work was done, and in h02 Balanced was marked unusable for the session, so Fast (`gemini-3.5-flash-lite`) answered 51 of the cloud steps | `(next)` |
+| hard 1124-2343 (hard run 4) | `b7a2354` | **10 of 10** | 49 of 102 | first perfect hard run. Auto moved to Gemini 4 Hydrogen once ("the check failed 2 times"), and Hydrogen answered, so the project can use it. Google reported "high demand" during the run: it ended h01's request after its work was done, and in h02 Balanced was marked unusable for the session, so Fast (`gemini-3.5-flash-lite`) answered 51 of the cloud steps | `3375f9a` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -309,7 +309,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Lesson:** the headless tests replace the cloud call, so they could not see what the new models accept. The phone benchmark is
   what caught it; a cloud model change must be followed by a benchmark run before it is called done.
 
-### (next) · 2026-11-25 · A busy cloud model hands one step down; it is not marked unusable (hard run 4, 10 of 10)
+### 3375f9a · 2026-11-25 00:15 · A busy cloud model hands one step down; it is not marked unusable (hard run 4, 10 of 10)
 - **Evidence:** hard run 1124-2343: `error: This model is currently experiencing high demand…` and, in h02, "Balanced
   (gemini-3.8-flash) is not available to this project, so Fast answered" for the rest of the session (the error itself was not
   in the log).
