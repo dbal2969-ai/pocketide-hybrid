@@ -90,6 +90,8 @@ object HybridAgent {
         val r = p.result ?: return p
         if (HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE || (online(ctx) && !HybridAi.cloudOut())) return p
         val why = if (!online(ctx)) "No internet connection, so this stayed on the phone." else CLOUD_OUT_NOTE
+        // 1.5.186 (standard run 1125-1718): the note was repeated under all 97 steps; it is said once per request
+        if (messages.any { it["role"] == "assistant" && (it["content"] as? String).orEmpty().contains(why) }) return p
         return Phone(Result(r.turn, r.onDevice, r.seconds, listOf(r.note, why).filter { it.isNotBlank() }.joinToString(" "), r.model), p.reason, p.stay, p.strongFailed)
     }
 

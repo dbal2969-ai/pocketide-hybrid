@@ -1,0 +1,231 @@
+[
+ {
+  "id": "requests_7427",
+  "repo": "requests",
+  "fix": "src/requests/utils.py",
+  "tests": [
+   "tests/test_utils.py"
+  ],
+  "new_tests": [
+   "test_should_bypass_proxies_no_proxy_domain_boundary"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_utils.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_structures.py tests/test_hooks.py",
+  "pythonpath": "src",
+  "statement": "Port bpo-39057 to Requests\n\nThis PR ports a [fix](https://bugs.python.org/issue39057) from CPython to constrain no_proxy behavior to domain boundaries. This was originally undefined behavior when Requests implemented `no_proxy` support but has since had bug fixes released in both CPython and Curl. We'll follow suit to conform with ecosystem expectations and resolve long standing issue #4795.",
+  "kaggle_resolve_rate": 0.75,
+  "files": 26,
+  "bytes": 252960
+ },
+ {
+  "id": "requests_6644",
+  "repo": "requests",
+  "fix": "src/requests/adapters.py",
+  "tests": [
+   "tests/test_adapters.py"
+  ],
+  "new_tests": [
+   "test_request_url_trims_leading_path_separators"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_adapters.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_structures.py tests/test_hooks.py",
+  "pythonpath": "src",
+  "statement": "Trim excess leading path separators\n\nA URL with excess leading / (path-separator)s would cause urllib3 to attempt to reparse the request-uri as a full URI with a host and port. This bypasses that logic in ConnectionPool.urlopen by replacing these leading /s with just a single /.\r\n\r\nCloses #6643",
+  "kaggle_resolve_rate": 0.625,
+  "files": 23,
+  "bytes": 183657
+ },
+ {
+  "id": "requests_7315",
+  "repo": "requests",
+  "fix": "src/requests/adapters.py",
+  "tests": [
+   "tests/test_adapters.py"
+  ],
+  "new_tests": [
+   "test_request_url_handles_leading_path_separators"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_adapters.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_structures.py tests/test_hooks.py",
+  "pythonpath": "src",
+  "statement": "Preserve leading slashes in request path_url\n\n## Summary\r\nFixes issue #6711 where S3 presigned URLs with keys starting with '/' were incorrectly modified, breaking URL signatures.\r\nURLs like `https://bucket.s3.amazonaws.com//key_name` now correctly preserve `//key_name` in the path.\r\n\r\n## Changes\r\n- Remove URL manipulation that collapsed leading slashes in `request_url()` method\r\n- Add test to verify leading slashes are preserved for S3-style URLs\r\n\r\n## Reproduction\r\n```python\r\nimport requests\r\n\r\n# S3 presigned URL with key starting with '/'\r\nurl = \"https://bucket.s3.amazonaws.com//key_with_leading_slash.txt\"\r\nr = requests.get(url)  # Previously broken, now works correctly\r\nFixes #6711",
+  "kaggle_resolve_rate": 0.25,
+  "files": 23,
+  "bytes": 190937
+ },
+ {
+  "id": "rich_3894",
+  "repo": "rich",
+  "fix": "rich/_inspect.py",
+  "tests": [
+   "tests/test_inspect.py"
+  ],
+  "new_tests": [
+   "test_qualname_in_slots"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_inspect.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "Handle unusual __qualname__ in inspect\n\n\r\n\r\n\r\n\r\n## Type of changes\r\n\r\n- [x] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [x] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [x] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [x] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate (see note about typos above).\r\n- [x] I've added tests for new code.\r\n- [x] I accept that @willmcgugan may be pedantic in the code review.\r\n\r\n## Description\r\n\r\nI discovered, that an object with an unusual `__qualname__` attribute (not a `str`, e.g. a descriptor) causes `inspect` to fail.\r\nThis can happen if an object is created this way intentionally, but I discovered it, when decorating a class with `@functools.lru_cache` which forwards the underlying attributes using a descriptor when it can't add the to it's `__dict__` because the class uses `__slots__`:\r\n\r\n```python\r\nfrom functools import lru_cache\r\nfrom rich import inspect\r\n\r\n\r\n@lru_cache\r\nclass Klaas:\r\n    __slots__ = (\"__qualname__\",)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    from rich.traceback import install\r\n\r\n    install()\r\n\r\n    inspect(Klaas.__qualname__)\r\n    inspect(Klaas, all=True)\r\n```\r\n\r\nI fixed it by checking the type of `__qualname__` falling back to `__name__` and if that isn't a `str` using the already provided fallback.",
+  "kaggle_resolve_rate": 1.0,
+  "files": 85,
+  "bytes": 1038957
+ },
+ {
+  "id": "rich_3518",
+  "repo": "rich",
+  "fix": "rich/table.py",
+  "tests": [
+   "tests/test_table.py"
+  ],
+  "new_tests": [
+   "test_columns_highlight_added_by_add_row"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_table.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "fix(table): highlight columns added by add_row\n\n## Type of changes\r\n\r\n- [x] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [ ] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [x] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [x] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate.\r\n- [x] I've added tests for new code.\r\n- [x] I accept that @willmcgugan may be pedantic in the code review.\r\n\r\n## Description\r\n\r\nFixes #3517. The default value for the `Column.highlight` is False, so where necessary columns are added by the `add_row` method this should default to the `Table.highlight` value.",
+  "kaggle_resolve_rate": 1.0,
+  "files": 85,
+  "bytes": 1035880
+ },
+ {
+  "id": "rich_3006",
+  "repo": "rich",
+  "fix": "rich/repr.py",
+  "tests": [
+   "tests/test_repr.py"
+  ],
+  "new_tests": [
+   "test_rich_repr"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_repr.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "Fixed issue with custom classes (fixes #2875)\n\n## Type of changes\r\n\r\n- [x] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [ ] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [x] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [x] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate.\r\n- [x] I've added tests for new code.\r\n- [x] I accept that @willmcgugan may be pedantic in the code review.\r\n\r\n## Description\r\n\r\nWhen `repr`ing classes that have overwritten `__eq__` as parameters, the check with `== Parameters.empty` can be `True`.\r\nFixes #2875 with the suggested change. Also added the sample code as a test.",
+  "kaggle_resolve_rate": 1.0,
+  "files": 85,
+  "bytes": 991865
+ },
+ {
+  "id": "rich_3718",
+  "repo": "rich",
+  "fix": "rich/panel.py",
+  "tests": [
+   "tests/test_panel.py"
+  ],
+  "new_tests": [
+   "test_title_text_with_border_color",
+   "test_title_text_with_panel_background"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_panel.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "fix(panel): fix title missing panel background\n\n Fix `Panel` title missing the panel background style.\r\n    \r\nThis really just reverts the change in 7a38204. There's a history of issues related to the panel title styles, so I was careful to run all the examples in those issues to ensure there wasn't any regression.\r\n    \r\nFixes #3569\r\n\r\n## Type of changes\r\n\r\n- [x] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [ ] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [x] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [x] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate.\r\n- [x] I've added tests for new code.\r\n- [x] I accept that @willmcgugan may be pedantic in the code review.",
+  "kaggle_resolve_rate": 0.667,
+  "files": 85,
+  "bytes": 1025790
+ },
+ {
+  "id": "rich_3454",
+  "repo": "rich",
+  "fix": "rich/highlighter.py",
+  "tests": [
+   "tests/test_highlighter.py"
+  ],
+  "new_tests": [],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_highlighter.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "Fix [BUG] @ breaks highlighting in hyperlink #3327\n\n## Type of changes\r\n\r\n- [x] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [x] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [ ] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [ ] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate.\r\n- [x] I've added tests for new code.\r\n- [x] I accept that @willmcgugan may be pedantic in the code review.\r\n\r\n## Description\r\nFixed the bug [#3327](https://github.com/Textualize/rich/issues/3327).\r\n\r\nChanges -\r\n1. Added '@' in rich.highlighter:ReprHighlighter url regex pattern.\r\n2. Added a test case in test_highlighter for the url with '@'.\r\n\r\n## Note\r\nPoetry installed black v22.12.0 and its formatting differs a bit from the latest version v24.8.0. Hence I've formatted with the prior to keep it consistent.",
+  "kaggle_resolve_rate": 0.667,
+  "files": 85,
+  "bytes": 1011757
+ },
+ {
+  "id": "rich_3067",
+  "repo": "rich",
+  "fix": "rich/highlighter.py",
+  "tests": [
+   "tests/test_highlighter.py"
+  ],
+  "new_tests": [],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_highlighter.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "Allow tilde in URL (fixes #3057)\n\nThis PR fixes #3057.\r\n\r\n## Type of changes\r\n\r\n- [X] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [x] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [x] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [X] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate.\r\n- [x] I've added tests for new code.\r\n- [X] I accept that @willmcgugan may be pedantic in the code review.\r\n\r\n## Description\r\n\r\nPlease describe your changes here. If this fixes a bug, please link to the issue, if possible.",
+  "kaggle_resolve_rate": 0.667,
+  "files": 85,
+  "bytes": 1001408
+ },
+ {
+  "id": "rich_4077",
+  "repo": "rich",
+  "fix": "rich/file_proxy.py",
+  "tests": [
+   "tests/test_file_proxy.py"
+  ],
+  "new_tests": [
+   "test_isatty"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_file_proxy.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "proxy isatty\n\nFixes https://github.com/Textualize/rich/issues/4041",
+  "kaggle_resolve_rate": 0.333,
+  "files": 107,
+  "bytes": 1304033
+ },
+ {
+  "id": "rich_3882",
+  "repo": "rich",
+  "fix": "rich/prompt.py",
+  "tests": [
+   "tests/test_prompt.py"
+  ],
+  "new_tests": [
+   "test_prompt_confirm_markup"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_prompt.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "Fix raw markup printed on prompt errors sometimes\n\n## Type of changes\r\n\r\n- [x] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [ ] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [x] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [ ] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate (see note about typos above).\r\n- [x] I've added tests for new code.\r\n- [x] I accept that @willmcgugan may be pedantic in the code review.\r\n\r\n## Description\r\n\r\nPromptBase.on_validate_error() should explicitly ask for markup in case the console passed to it has markup disabled globally.\r\n\r\nFixes #3881.",
+  "kaggle_resolve_rate": 0.333,
+  "files": 85,
+  "bytes": 1021061
+ },
+ {
+  "id": "rich_3043",
+  "repo": "rich",
+  "fix": "rich/_export_format.py",
+  "tests": [
+   "tests/test_console.py"
+  ],
+  "new_tests": [],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_console.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py",
+  "pythonpath": ".",
+  "statement": "Fix the HTML export template\n\nThis PR fixes the HTML export template, addressing the issue raised in #3021\r\n\r\nIn doing so there's also an update to the pre-commit configuration (without it I wasn't able to commit the change -- the update is stolen from the same config file in Textual).",
+  "kaggle_resolve_rate": 0.333,
+  "files": 84,
+  "bytes": 988072
+ },
+ {
+  "id": "rich_2943",
+  "repo": "rich",
+  "fix": "rich/style.py",
+  "tests": [
+   "tests/test_style.py"
+  ],
+  "new_tests": [
+   "test_clear_meta_and_links_clears_hash"
+  ],
+  "visible": "python3 -m pytest -q -p no:cacheprovider tests/test_style.py",
+  "hidden": "python3 -m pytest -q -p no:cacheprovider tests/test_text.py tests/test_segment.py tests/test_console.py",
+  "pythonpath": ".",
+  "statement": "Clear hashed cache when clearing meta.\n\nThis fixes #2942.\r\n\r\n## Type of changes\r\n\r\n- [x] Bug fix\r\n- [ ] New feature\r\n- [ ] Documentation / docstrings\r\n- [ ] Tests\r\n- [ ] Other\r\n\r\n## Checklist\r\n\r\n- [x] I've run the latest [black](https://github.com/psf/black) with default args on new code.\r\n- [x] I've updated CHANGELOG.md and CONTRIBUTORS.md where appropriate.\r\n- [x] I've added tests for new code.\r\n- [x] I accept that @willmcgugan may be pedantic in the code review.",
+  "kaggle_resolve_rate": 0.333,
+  "files": 85,
+  "bytes": 1003071
+ }
+]

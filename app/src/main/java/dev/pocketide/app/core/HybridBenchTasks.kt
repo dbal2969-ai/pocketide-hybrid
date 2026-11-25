@@ -15,6 +15,9 @@ object HybridBenchTasks {
         val ended: String,
         /** 1.5.185: settings app_settings knows that changed during the task ("editorWrap: false → true"); none may change unapproved. */
         val settingsChanged: List<String> = emptyList(),
+        /** 1.5.186: the hidden check's exit code and output (null = none ran), run after the task with files the model never saw. */
+        val hiddenExit: Int? = null,
+        val hiddenOut: String = "",
     )
 
     class Task(
@@ -29,10 +32,20 @@ object HybridBenchTasks {
         val skill: String = "",
         /** Where the task starts: a project with its files (and an empty project when it has none), or the chat with no project. */
         val entry: Entry = Entry.PROJECT,
+        /** 1.5.186 (reliability suite): the starting project when it is not in the generated file maps. */
+        val startFiles: Map<String, String>? = null,
+        /** Files written after the task (never seen by the model) and the command that runs them; their result is Facts.hiddenExit. */
+        val hidden: Map<String, String> = emptyMap(),
+        val hiddenCommand: String? = null,
+        /** The reference fix: the runner checks on the phone that it passes before the model starts (a task unsound here is skipped). */
+        val solution: Map<String, String> = emptyMap(),
+        /** "dev" (tuned on), "held-out" (never tuned on) or "" for the other suites; and the track (Node, Python). */
+        val split: String = "",
+        val track: String = "",
         /** Null = passed, else why it did not. */
         val judge: (Facts) -> String?,
     ) {
-        val files: Map<String, String> get() = (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id] ?: HybridBenchGameFiles.FILES[id]
+        val files: Map<String, String> get() = startFiles ?: (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id] ?: HybridBenchGameFiles.FILES[id]
             ?: HybridBenchLocalFiles.FILES[id] ?: (if (id.startsWith("app")) APP_FILES else null)).orEmpty()
     }
 

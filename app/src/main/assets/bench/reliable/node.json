@@ -1,0 +1,381 @@
+[
+{
+"id": "r01-find-constant",
+"title": "Find which file sets a value",
+"skill": "Find and explain",
+"prompt": "Which file sets the starting gold? Change nothing; just tell me the file name.",
+"files": {
+"shop.js": "const { START_GOLD } = require('./economy.js');\nlet gold = START_GOLD;\nfunction buy(cost) { if (cost <= gold) gold -= cost; return gold; }\nmodule.exports = { buy };\n",
+"economy.js": "const START_GOLD = 250;\nconst TAX = 0.1;\nmodule.exports = { START_GOLD, TAX };\n",
+"hero.js": "const hero = { hp: 20, speed: 3 };\nmodule.exports = hero;\n",
+"map.js": "const SIZE = 32;\nmodule.exports = { SIZE };\n"
+},
+"solution": {},
+"hidden": "",
+"kind": "answer",
+"answer": "economy\\.js"
+},
+{
+"id": "r02-explain-return",
+"title": "Say what a call returns",
+"skill": "Find and explain",
+"prompt": "What does fee(200) return in bank.js? Change nothing; give the number.",
+"files": {
+"bank.js": "// The fee is 2% of the amount, but never less than 5.\nfunction fee(amount) {\n  return Math.max(5, amount * 0.02);\n}\nmodule.exports = { fee };\n"
+},
+"solution": {},
+"hidden": "",
+"kind": "answer",
+"answer": "(?<![\\d.])5(?![\\d.])"
+},
+{
+"id": "r03-which-test-fails",
+"title": "Report which check fails",
+"skill": "Find and explain",
+"prompt": "Run node test.js and tell me which check fails. Do not fix anything.",
+"files": {
+"text.js": "function shout(s) { return s.toUpperCase() + '!'; }\nfunction whisper(s) { return s.toLowerCase() + '...'; }\nmodule.exports = { shout, whisper };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst t = require('./text.js');\nneed(t.shout('hi') === 'HI!', 'shout');\nneed(t.whisper('Hi') === 'hi\u2026', 'whisper');\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {},
+"hidden": "",
+"kind": "answer",
+"answer": "(?i)whisper"
+},
+{
+"id": "r04-find-the-line",
+"title": "Find the line that causes a bug",
+"skill": "Find and explain",
+"prompt": "The cart total is wrong. Which function in cart.js causes it? Explain in one sentence and change nothing.",
+"files": {
+"cart.js": "function lineTotal(item) {\n  return item.price * item.qty;\n}\nfunction total(items) {\n  let sum = 0;\n  for (const it of items) sum += it.price;\n  return sum;\n}\nmodule.exports = { lineTotal, total };\n"
+},
+"solution": {},
+"hidden": "",
+"kind": "answer",
+"answer": "(?i)\\btotal\\b"
+},
+{
+"id": "r05-fix-comparison",
+"title": "Fix a comparison",
+"skill": "Fix one line",
+"prompt": "max.js returns the wrong answer when the largest number comes last. Fix it; node test.js should print ok.",
+"files": {
+"max.js": "function largest(list) {\n  let best = list[0];\n  for (let i = 1; i < list.length - 1; i++) {\n    if (list[i] > best) best = list[i];\n  }\n  return best;\n}\nmodule.exports = { largest };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { largest } = require('./max.js');\nneed(largest([1, 5, 9]) === 9, 'largest([1,5,9]) gave ' + largest([1, 5, 9]));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"max.js": "function largest(list) {\n  let best = list[0];\n  for (let i = 1; i < list.length; i++) {\n    if (list[i] > best) best = list[i];\n  }\n  return best;\n}\nmodule.exports = { largest };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { largest } = require('./max.js');\nneed(largest([9, 1, 2]) === 9, 'first');\nneed(largest([3, 8, 1]) === 8, 'middle');\nneed(largest([4]) === 4, 'one item');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r06-fix-wrong-variable",
+"title": "Fix a wrong variable",
+"skill": "Fix one line",
+"prompt": "area() in shapes.js gives the wrong area for rectangles. Fix it so node test.js prints ok.",
+"files": {
+"shapes.js": "function area(r) {\n  return r.width * r.width;\n}\nfunction perimeter(r) {\n  return 2 * (r.width + r.height);\n}\nmodule.exports = { area, perimeter };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { area } = require('./shapes.js');\nneed(area({ width: 3, height: 4 }) === 12, 'area gave ' + area({ width: 3, height: 4 }));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"shapes.js": "function area(r) {\n  return r.width * r.height;\n}\nfunction perimeter(r) {\n  return 2 * (r.width + r.height);\n}\nmodule.exports = { area, perimeter };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { area, perimeter } = require('./shapes.js');\nneed(area({ width: 2, height: 5 }) === 10, 'area');\nneed(perimeter({ width: 2, height: 5 }) === 14, 'perimeter changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r07-fix-string-number",
+"title": "Fix text added to a number",
+"skill": "Fix one line",
+"prompt": "nextLevel('3') should give 4, but it gives '31'. Fix level.js; node test.js should print ok.",
+"files": {
+"level.js": "// The level comes from a text box, so it arrives as text.\nfunction nextLevel(level) {\n  return level + 1;\n}\nmodule.exports = { nextLevel };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { nextLevel } = require('./level.js');\nneed(nextLevel('3') === 4, 'nextLevel(\\'3\\') gave ' + JSON.stringify(nextLevel('3')));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"level.js": "// The level comes from a text box, so it arrives as text.\nfunction nextLevel(level) {\n  return Number(level) + 1;\n}\nmodule.exports = { nextLevel };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { nextLevel } = require('./level.js');\nneed(nextLevel('9') === 10, '9');\nneed(nextLevel(2) === 3, 'a number still works');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r08-fix-missing-return",
+"title": "Fix a missing return",
+"skill": "Fix one line",
+"prompt": "average() in stats.js returns undefined. Fix it so node test.js prints ok.",
+"files": {
+"stats.js": "function average(nums) {\n  const sum = nums.reduce((a, b) => a + b, 0);\n  sum / nums.length;\n}\nmodule.exports = { average };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { average } = require('./stats.js');\nneed(average([2, 4]) === 3, 'average gave ' + average([2, 4]));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"stats.js": "function average(nums) {\n  const sum = nums.reduce((a, b) => a + b, 0);\n  return sum / nums.length;\n}\nmodule.exports = { average };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { average } = require('./stats.js');\nneed(average([1, 2, 3, 6]) === 3, 'four numbers');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r09-fix-last-item",
+"title": "Fix reading the last item",
+"skill": "Fix one line",
+"prompt": "last() in list.js returns undefined instead of the last item. Fix it; node test.js should print ok.",
+"files": {
+"list.js": "function first(a) { return a[0]; }\nfunction last(a) { return a[a.length]; }\nmodule.exports = { first, last };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { last } = require('./list.js');\nneed(last([1, 2, 3]) === 3, 'last gave ' + last([1, 2, 3]));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"list.js": "function first(a) { return a[0]; }\nfunction last(a) { return a[a.length - 1]; }\nmodule.exports = { first, last };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { first, last } = require('./list.js');\nneed(last(['x']) === 'x', 'one item');\nneed(first([7, 8]) === 7, 'first changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r10-fix-missing-default",
+"title": "Handle a missing value",
+"skill": "Fix one line",
+"prompt": "greet() in hello.js should say 'Hello, friend!' when no name is given. Fix it; node test.js should print ok.",
+"files": {
+"hello.js": "function greet(name) {\n  return 'Hello, ' + name + '!';\n}\nmodule.exports = { greet };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { greet } = require('./hello.js');\nneed(greet() === 'Hello, friend!', 'greet() gave ' + greet());\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"hello.js": "function greet(name = 'friend') {\n  return 'Hello, ' + name + '!';\n}\nmodule.exports = { greet };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { greet } = require('./hello.js');\nneed(greet('Bo') === 'Hello, Bo!', 'a name still works');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r11-add-method",
+"title": "Add a method to a class",
+"skill": "Add new code",
+"prompt": "Add a reset() method to the Counter class in counter.js that sets the count back to 0. node test.js should print ok.",
+"files": {
+"counter.js": "class Counter {\n  constructor() { this.count = 0; }\n  inc() { this.count++; return this.count; }\n}\nmodule.exports = { Counter };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { Counter } = require('./counter.js');\nconst c = new Counter();\nc.inc(); c.inc();\nneed(typeof c.reset === 'function', 'reset is missing');\nif (c.reset) { c.reset(); need(c.count === 0, 'count is ' + c.count); }\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"counter.js": "class Counter {\n  constructor() { this.count = 0; }\n  inc() { this.count++; return this.count; }\n  reset() { this.count = 0; }\n}\nmodule.exports = { Counter };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { Counter } = require('./counter.js');\nconst c = new Counter();\nneed(c.inc() === 1 && c.inc() === 2, 'inc changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r12-add-parameter",
+"title": "Add a parameter with a default",
+"skill": "Add new code",
+"prompt": "Let repeat() in repeat.js take a separator as a third argument, defaulting to ''. Old calls must still work. node test.js should print ok.",
+"files": {
+"repeat.js": "function repeat(word, times) {\n  return Array(times).fill(word).join('');\n}\nmodule.exports = { repeat };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { repeat } = require('./repeat.js');\nneed(repeat('ab', 3, '-') === 'ab-ab-ab', 'gave ' + repeat('ab', 3, '-'));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"repeat.js": "function repeat(word, times, sep = '') {\n  return Array(times).fill(word).join(sep);\n}\nmodule.exports = { repeat };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { repeat } = require('./repeat.js');\nneed(repeat('x', 3) === 'xxx', 'old calls changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r13-add-branch",
+"title": "Add a case for negative numbers",
+"skill": "Add new code",
+"prompt": "describe() in sign.js should return 'negative' for numbers below zero. Add that case; node test.js should print ok.",
+"files": {
+"sign.js": "function describe(n) {\n  if (n > 0) return 'positive';\n  return 'zero';\n}\nmodule.exports = { describe };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { describe } = require('./sign.js');\nneed(describe(-2) === 'negative', 'describe(-2) gave ' + describe(-2));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"sign.js": "function describe(n) {\n  if (n > 0) return 'positive';\n  if (n < 0) return 'negative';\n  return 'zero';\n}\nmodule.exports = { describe };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { describe } = require('./sign.js');\nneed(describe(3) === 'positive' && describe(0) === 'zero', 'other cases changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r14-add-list-item",
+"title": "Add an item to a list",
+"skill": "Add new code",
+"prompt": "Add 'grape' to the fruits list in menu.js, after 'pear'. node test.js should print ok.",
+"files": {
+"menu.js": "const fruits = [\n  'apple',\n  'pear',\n];\nmodule.exports = { fruits };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { fruits } = require('./menu.js');\nneed(fruits.join() === 'apple,pear,grape', 'fruits are ' + fruits.join());\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"menu.js": "const fruits = [\n  'apple',\n  'pear',\n  'grape',\n];\nmodule.exports = { fruits };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { fruits } = require('./menu.js');\nneed(fruits.length === 3, 'three fruits');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r15-add-validation",
+"title": "Add input checking",
+"skill": "Add new code",
+"prompt": "setAge() in person.js should throw an Error when the age is negative. Add that check; node test.js should print ok.",
+"files": {
+"person.js": "const person = { age: 0 };\nfunction setAge(a) {\n  person.age = a;\n}\nmodule.exports = { person, setAge };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { person, setAge } = require('./person.js');\nlet threw = false;\ntry { setAge(-1); } catch (e) { threw = e instanceof Error; }\nneed(threw, 'setAge(-1) did not throw');\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"person.js": "const person = { age: 0 };\nfunction setAge(a) {\n  if (a < 0) throw new Error('age cannot be negative');\n  person.age = a;\n}\nmodule.exports = { person, setAge };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { person, setAge } = require('./person.js');\nsetAge(30);\nneed(person.age === 30, 'a good age is no longer set');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r16-add-export",
+"title": "Add and export a function",
+"skill": "Add new code",
+"prompt": "Add a function isEven(n) to numbers.js and export it next to isOdd. node test.js should print ok.",
+"files": {
+"numbers.js": "function isOdd(n) {\n  return n % 2 === 1;\n}\nmodule.exports = { isOdd };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst m = require('./numbers.js');\nneed(typeof m.isEven === 'function' && m.isEven(4) && !m.isEven(3), 'isEven is missing or wrong');\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"numbers.js": "function isOdd(n) {\n  return n % 2 === 1;\n}\nfunction isEven(n) {\n  return n % 2 === 0;\n}\nmodule.exports = { isOdd, isEven };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst m = require('./numbers.js');\nneed(m.isOdd(3) && !m.isOdd(4), 'isOdd changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r17-new-module",
+"title": "Create a module",
+"skill": "New file",
+"prompt": "Create temp.js exporting toF(c), which converts Celsius to Fahrenheit. node test.js should print ok.",
+"files": {
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nlet t = {};\ntry { t = require('./temp.js'); } catch (e) { need(false, 'temp.js is missing'); }\nneed(t.toF && t.toF(100) === 212, 'toF(100) gave ' + (t.toF && t.toF(100)));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"temp.js": "function toF(c) {\n  return c * 9 / 5 + 32;\n}\nmodule.exports = { toF };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { toF } = require('./temp.js');\nneed(toF(0) === 32, 'toF(0)');\nneed(toF(-40) === -40, 'toF(-40)');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r18-new-json",
+"title": "Create a data file",
+"skill": "New file",
+"prompt": "Create levels.json: a JSON array of three levels, each with name and enemies, where the enemies are 2, 4 and 6. node test.js should print ok.",
+"files": {
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nlet l = [];\ntry { l = JSON.parse(require('fs').readFileSync(__dirname + '/levels.json', 'utf8')); } catch (e) { need(false, 'levels.json missing or not JSON: ' + e.message); }\nneed(Array.isArray(l) && l.length === 3, 'need three levels');\nneed(l.map(x => x.enemies).join() === '2,4,6', 'enemies are ' + l.map(x => x.enemies).join());\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"levels.json": "[\n  { \"name\": \"One\", \"enemies\": 2 },\n  { \"name\": \"Two\", \"enemies\": 4 },\n  { \"name\": \"Three\", \"enemies\": 6 }\n]\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst l = JSON.parse(require('fs').readFileSync(__dirname + '/levels.json', 'utf8'));\nneed(l.every(x => typeof x.name === 'string' && x.name.length > 0), 'every level has a name');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r19-move-function",
+"title": "Move a function to another file",
+"skill": "Two files",
+"prompt": "Move formatMoney from app.js into a new file money.js, export it there, and make app.js use it from money.js. node test.js should print ok.",
+"files": {
+"app.js": "function formatMoney(n) {\n  return '$' + n.toFixed(2);\n}\nfunction receipt(total) {\n  return 'Total: ' + formatMoney(total);\n}\nmodule.exports = { receipt };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nlet m = {};\ntry { m = require('./money.js'); } catch (e) { need(false, 'money.js is missing'); }\nneed(m.formatMoney && m.formatMoney(3) === '$3.00', 'money.js should export formatMoney');\nconst { receipt } = require('./app.js');\nneed(receipt(2.5) === 'Total: $2.50', 'receipt gave ' + receipt(2.5));\nneed(!/function formatMoney/.test(require('fs').readFileSync(__dirname + '/app.js', 'utf8')), 'app.js still defines formatMoney');\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"money.js": "function formatMoney(n) {\n  return '$' + n.toFixed(2);\n}\nmodule.exports = { formatMoney };\n",
+"app.js": "const { formatMoney } = require('./money.js');\nfunction receipt(total) {\n  return 'Total: ' + formatMoney(total);\n}\nmodule.exports = { receipt };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { receipt } = require('./app.js');\nneed(receipt(10) === 'Total: $10.00', 'receipt(10)');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r20-rename-three-files",
+"title": "Rename a setting in three files",
+"skill": "Two files",
+"prompt": "Rename the setting MAX_HP to MAX_HEALTH everywhere (config.js, player.js and hud.js). node test.js should print ok.",
+"files": {
+"config.js": "const MAX_HP = 10;\nmodule.exports = { MAX_HP };\n",
+"player.js": "const { MAX_HP } = require('./config.js');\nconst player = { hp: MAX_HP };\nmodule.exports = { player };\n",
+"hud.js": "const { MAX_HP } = require('./config.js');\nfunction bar(hp) { return hp + '/' + MAX_HP; }\nmodule.exports = { bar };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst fs = require('fs');\nconst all = ['config.js', 'player.js', 'hud.js'].map(f => fs.readFileSync(__dirname + '/' + f, 'utf8')).join('\\n');\nneed(!/MAX_HP\\b/.test(all), 'MAX_HP is still used');\nneed(require('./config.js').MAX_HEALTH === 10, 'config.js should export MAX_HEALTH');\nneed(require('./hud.js').bar(4) === '4/10', 'bar gave ' + require('./hud.js').bar(4));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"config.js": "const MAX_HEALTH = 10;\nmodule.exports = { MAX_HEALTH };\n",
+"player.js": "const { MAX_HEALTH } = require('./config.js');\nconst player = { hp: MAX_HEALTH };\nmodule.exports = { player };\n",
+"hud.js": "const { MAX_HEALTH } = require('./config.js');\nfunction bar(hp) { return hp + '/' + MAX_HEALTH; }\nmodule.exports = { bar };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { player } = require('./player.js');\nneed(player.hp === 10, 'player starts with ' + player.hp);\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r21-html-and-css",
+"title": "Add a class in HTML and its style",
+"skill": "Two files",
+"prompt": "Give the Start button in index.html the class big, and add a .big rule to style.css with font-size: 24px. node test.js should print ok.",
+"files": {
+"index.html": "<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" href=\"style.css\"></head>\n<body>\n  <button id=\"start\">Start</button>\n  <button id=\"help\">Help</button>\n</body>\n</html>\n",
+"style.css": "body {\n  font-family: sans-serif;\n}\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst fs = require('fs');\nconst html = fs.readFileSync(__dirname + '/index.html', 'utf8');\nconst css = fs.readFileSync(__dirname + '/style.css', 'utf8');\nneed(/<button[^>]*id=\"start\"[^>]*class=\"[^\"]*\\bbig\\b|<button[^>]*class=\"[^\"]*\\bbig\\b[^>]*id=\"start\"/.test(html), 'the Start button needs class big');\nneed(/\\.big\\s*\\{[^}]*font-size:\\s*24px/.test(css), 'style.css needs .big { font-size: 24px }');\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"index.html": "<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" href=\"style.css\"></head>\n<body>\n  <button id=\"start\" class=\"big\">Start</button>\n  <button id=\"help\">Help</button>\n</body>\n</html>\n",
+"style.css": "body {\n  font-family: sans-serif;\n}\n.big {\n  font-size: 24px;\n}\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst fs = require('fs');\nconst html = fs.readFileSync(__dirname + '/index.html', 'utf8');\nneed(/id=\"help\"/.test(html) && !/id=\"help\"[^>]*big/.test(html), 'the Help button changed');\nneed(/font-family:\\s*sans-serif/.test(fs.readFileSync(__dirname + '/style.css', 'utf8')), 'the body rule changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r22-stale-quote",
+"title": "Edit from a quote that differs",
+"skill": "Robustness",
+"prompt": "In speed.js change `const SPEED = 5;` to 8. node test.js should print ok.",
+"files": {
+"speed.js": "const SPEED = 5; // tiles per second\nconst TURBO = 2;\nmodule.exports = { SPEED, TURBO };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst s = require('./speed.js');\nneed(s.SPEED === 8, 'SPEED is ' + s.SPEED);\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"speed.js": "const SPEED = 8; // tiles per second\nconst TURBO = 2;\nmodule.exports = { SPEED, TURBO };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst s = require('./speed.js');\nneed(s.TURBO === 2, 'TURBO changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r23-long-file",
+"title": "Fix a bug far down a long file",
+"skill": "Robustness",
+"prompt": "helpers.js is long. helper40 should return x plus 40, but it does not. Fix only that; node test.js should print ok.",
+"files": {
+"helpers.js": "function helper1(x) {\n  // helper 1: returns x plus 1\n  return x + 1;\n}\n\nfunction helper2(x) {\n  // helper 2: returns x plus 2\n  return x + 2;\n}\n\nfunction helper3(x) {\n  // helper 3: returns x plus 3\n  return x + 3;\n}\n\nfunction helper4(x) {\n  // helper 4: returns x plus 4\n  return x + 4;\n}\n\nfunction helper5(x) {\n  // helper 5: returns x plus 5\n  return x + 5;\n}\n\nfunction helper6(x) {\n  // helper 6: returns x plus 6\n  return x + 6;\n}\n\nfunction helper7(x) {\n  // helper 7: returns x plus 7\n  return x + 7;\n}\n\nfunction helper8(x) {\n  // helper 8: returns x plus 8\n  return x + 8;\n}\n\nfunction helper9(x) {\n  // helper 9: returns x plus 9\n  return x + 9;\n}\n\nfunction helper10(x) {\n  // helper 10: returns x plus 10\n  return x + 10;\n}\n\nfunction helper11(x) {\n  // helper 11: returns x plus 11\n  return x + 11;\n}\n\nfunction helper12(x) {\n  // helper 12: returns x plus 12\n  return x + 12;\n}\n\nfunction helper13(x) {\n  // helper 13: returns x plus 13\n  return x + 13;\n}\n\nfunction helper14(x) {\n  // helper 14: returns x plus 14\n  return x + 14;\n}\n\nfunction helper15(x) {\n  // helper 15: returns x plus 15\n  return x + 15;\n}\n\nfunction helper16(x) {\n  // helper 16: returns x plus 16\n  return x + 16;\n}\n\nfunction helper17(x) {\n  // helper 17: returns x plus 17\n  return x + 17;\n}\n\nfunction helper18(x) {\n  // helper 18: returns x plus 18\n  return x + 18;\n}\n\nfunction helper19(x) {\n  // helper 19: returns x plus 19\n  return x + 19;\n}\n\nfunction helper20(x) {\n  // helper 20: returns x plus 20\n  return x + 20;\n}\n\nfunction helper21(x) {\n  // helper 21: returns x plus 21\n  return x + 21;\n}\n\nfunction helper22(x) {\n  // helper 22: returns x plus 22\n  return x + 22;\n}\n\nfunction helper23(x) {\n  // helper 23: returns x plus 23\n  return x + 23;\n}\n\nfunction helper24(x) {\n  // helper 24: returns x plus 24\n  return x + 24;\n}\n\nfunction helper25(x) {\n  // helper 25: returns x plus 25\n  return x + 25;\n}\n\nfunction helper26(x) {\n  // helper 26: returns x plus 26\n  return x + 26;\n}\n\nfunction helper27(x) {\n  // helper 27: returns x plus 27\n  return x + 27;\n}\n\nfunction helper28(x) {\n  // helper 28: returns x plus 28\n  return x + 28;\n}\n\nfunction helper29(x) {\n  // helper 29: returns x plus 29\n  return x + 29;\n}\n\nfunction helper30(x) {\n  // helper 30: returns x plus 30\n  return x + 30;\n}\n\nfunction helper31(x) {\n  // helper 31: returns x plus 31\n  return x + 31;\n}\n\nfunction helper32(x) {\n  // helper 32: returns x plus 32\n  return x + 32;\n}\n\nfunction helper33(x) {\n  // helper 33: returns x plus 33\n  return x + 33;\n}\n\nfunction helper34(x) {\n  // helper 34: returns x plus 34\n  return x + 34;\n}\n\nfunction helper35(x) {\n  // helper 35: returns x plus 35\n  return x + 35;\n}\n\nfunction helper36(x) {\n  // helper 36: returns x plus 36\n  return x + 36;\n}\n\nfunction helper37(x) {\n  // helper 37: returns x plus 37\n  return x + 37;\n}\n\nfunction helper38(x) {\n  // helper 38: returns x plus 38\n  return x + 38;\n}\n\nfunction helper39(x) {\n  // helper 39: returns x plus 39\n  return x + 39;\n}\n\nfunction helper40(x) {\n  // helper 40: returns x plus 40\n  return x - 40;\n}\n\nfunction helper41(x) {\n  // helper 41: returns x plus 41\n  return x + 41;\n}\n\nfunction helper42(x) {\n  // helper 42: returns x plus 42\n  return x + 42;\n}\n\nfunction helper43(x) {\n  // helper 43: returns x plus 43\n  return x + 43;\n}\n\nfunction helper44(x) {\n  // helper 44: returns x plus 44\n  return x + 44;\n}\n\nfunction helper45(x) {\n  // helper 45: returns x plus 45\n  return x + 45;\n}\n\nmodule.exports = { helper1, helper2, helper3, helper4, helper5, helper6, helper7, helper8, helper9, helper10, helper11, helper12, helper13, helper14, helper15, helper16, helper17, helper18, helper19, helper20, helper21, helper22, helper23, helper24, helper25, helper26, helper27, helper28, helper29, helper30, helper31, helper32, helper33, helper34, helper35, helper36, helper37, helper38, helper39, helper40, helper41, helper42, helper43, helper44, helper45 };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst h = require('./helpers.js');\nneed(h.helper40(1) === 41, 'helper40(1) gave ' + h.helper40(1));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {
+"helpers.js": "function helper1(x) {\n  // helper 1: returns x plus 1\n  return x + 1;\n}\n\nfunction helper2(x) {\n  // helper 2: returns x plus 2\n  return x + 2;\n}\n\nfunction helper3(x) {\n  // helper 3: returns x plus 3\n  return x + 3;\n}\n\nfunction helper4(x) {\n  // helper 4: returns x plus 4\n  return x + 4;\n}\n\nfunction helper5(x) {\n  // helper 5: returns x plus 5\n  return x + 5;\n}\n\nfunction helper6(x) {\n  // helper 6: returns x plus 6\n  return x + 6;\n}\n\nfunction helper7(x) {\n  // helper 7: returns x plus 7\n  return x + 7;\n}\n\nfunction helper8(x) {\n  // helper 8: returns x plus 8\n  return x + 8;\n}\n\nfunction helper9(x) {\n  // helper 9: returns x plus 9\n  return x + 9;\n}\n\nfunction helper10(x) {\n  // helper 10: returns x plus 10\n  return x + 10;\n}\n\nfunction helper11(x) {\n  // helper 11: returns x plus 11\n  return x + 11;\n}\n\nfunction helper12(x) {\n  // helper 12: returns x plus 12\n  return x + 12;\n}\n\nfunction helper13(x) {\n  // helper 13: returns x plus 13\n  return x + 13;\n}\n\nfunction helper14(x) {\n  // helper 14: returns x plus 14\n  return x + 14;\n}\n\nfunction helper15(x) {\n  // helper 15: returns x plus 15\n  return x + 15;\n}\n\nfunction helper16(x) {\n  // helper 16: returns x plus 16\n  return x + 16;\n}\n\nfunction helper17(x) {\n  // helper 17: returns x plus 17\n  return x + 17;\n}\n\nfunction helper18(x) {\n  // helper 18: returns x plus 18\n  return x + 18;\n}\n\nfunction helper19(x) {\n  // helper 19: returns x plus 19\n  return x + 19;\n}\n\nfunction helper20(x) {\n  // helper 20: returns x plus 20\n  return x + 20;\n}\n\nfunction helper21(x) {\n  // helper 21: returns x plus 21\n  return x + 21;\n}\n\nfunction helper22(x) {\n  // helper 22: returns x plus 22\n  return x + 22;\n}\n\nfunction helper23(x) {\n  // helper 23: returns x plus 23\n  return x + 23;\n}\n\nfunction helper24(x) {\n  // helper 24: returns x plus 24\n  return x + 24;\n}\n\nfunction helper25(x) {\n  // helper 25: returns x plus 25\n  return x + 25;\n}\n\nfunction helper26(x) {\n  // helper 26: returns x plus 26\n  return x + 26;\n}\n\nfunction helper27(x) {\n  // helper 27: returns x plus 27\n  return x + 27;\n}\n\nfunction helper28(x) {\n  // helper 28: returns x plus 28\n  return x + 28;\n}\n\nfunction helper29(x) {\n  // helper 29: returns x plus 29\n  return x + 29;\n}\n\nfunction helper30(x) {\n  // helper 30: returns x plus 30\n  return x + 30;\n}\n\nfunction helper31(x) {\n  // helper 31: returns x plus 31\n  return x + 31;\n}\n\nfunction helper32(x) {\n  // helper 32: returns x plus 32\n  return x + 32;\n}\n\nfunction helper33(x) {\n  // helper 33: returns x plus 33\n  return x + 33;\n}\n\nfunction helper34(x) {\n  // helper 34: returns x plus 34\n  return x + 34;\n}\n\nfunction helper35(x) {\n  // helper 35: returns x plus 35\n  return x + 35;\n}\n\nfunction helper36(x) {\n  // helper 36: returns x plus 36\n  return x + 36;\n}\n\nfunction helper37(x) {\n  // helper 37: returns x plus 37\n  return x + 37;\n}\n\nfunction helper38(x) {\n  // helper 38: returns x plus 38\n  return x + 38;\n}\n\nfunction helper39(x) {\n  // helper 39: returns x plus 39\n  return x + 39;\n}\n\nfunction helper40(x) {\n  // helper 40: returns x plus 40\n  return x + 40;\n}\n\nfunction helper41(x) {\n  // helper 41: returns x plus 41\n  return x + 41;\n}\n\nfunction helper42(x) {\n  // helper 42: returns x plus 42\n  return x + 42;\n}\n\nfunction helper43(x) {\n  // helper 43: returns x plus 43\n  return x + 43;\n}\n\nfunction helper44(x) {\n  // helper 44: returns x plus 44\n  return x + 44;\n}\n\nfunction helper45(x) {\n  // helper 45: returns x plus 45\n  return x + 45;\n}\n\nmodule.exports = { helper1, helper2, helper3, helper4, helper5, helper6, helper7, helper8, helper9, helper10, helper11, helper12, helper13, helper14, helper15, helper16, helper17, helper18, helper19, helper20, helper21, helper22, helper23, helper24, helper25, helper26, helper27, helper28, helper29, helper30, helper31, helper32, helper33, helper34, helper35, helper36, helper37, helper38, helper39, helper40, helper41, helper42, helper43, helper44, helper45 };\n"
+},
+"hidden": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst h = require('./helpers.js');\nfor (let i = 1; i <= 45; i++) need(h['helper' + i](0) === i, 'helper' + i + ' changed');\nif (bad) process.exit(1);\nconsole.log('ok');\n",
+"kind": "fix",
+"answer": null
+},
+{
+"id": "r24-report-only",
+"title": "Report, even when there is a bug",
+"skill": "Robustness",
+"prompt": "Run node test.js and tell me whether it passes. Only report; do not change any file, even if something is wrong.",
+"files": {
+"discount.js": "function discount(price) {\n  return price * 0.9 + 1;\n}\nmodule.exports = { discount };\n",
+"test.js": "let bad = 0;\nfunction need(c, msg) { if (!c) { console.error(msg); bad++; } }\nconst { discount } = require('./discount.js');\nneed(discount(100) === 90, 'discount(100) gave ' + discount(100));\nif (bad) process.exit(1);\nconsole.log('ok');\n"
+},
+"solution": {},
+"hidden": "",
+"kind": "answer",
+"answer": "(?i)(fail|does not pass|doesn't pass|did not pass|not pass|error|91)"
+}
+]

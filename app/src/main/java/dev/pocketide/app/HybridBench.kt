@@ -37,6 +37,7 @@ object HybridBench {
         LOCAL("hybrid-local", "Hybrid AI benchmark (local model)"),
         SCRATCH("hybrid-scratch", "Hybrid AI benchmark (from scratch)"),
         APP("hybrid-app", "Hybrid AI benchmark (in-app questions)"),
+        RELIABLE("hybrid-reliable", "On-device reliability benchmark (Gemini Nano)"),
     }
 
     /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
@@ -48,13 +49,28 @@ object HybridBench {
     }
 
     /** [helping]: run in Cascade with Hybrid AI as the draft model helping the strong model (see HybridBenchTasks.strongProblem). */
-    fun start(act: MainActivity, suite: Suite = Suite.STANDARD, helping: Boolean = false) {
+    /** [runs] and [python]: the reliability suite's runs per task and whether it includes the Python track (ReliableBench). */
+    fun start(act: MainActivity, suite: Suite = Suite.STANDARD, helping: Boolean = false, runs: Int = 1, python: Boolean = true) {
         if (running) return
         running = true
-        Run(act, suite, helping).begin()
+        Run(act, suite, helping, runs, python).begin()
     }
 
-    private class Run(val act: MainActivity, val kind: Suite, val helping: Boolean) {
+    /** The reliability suite's tasks: the local suite (dev), the held-out Node tasks and the Python track, from the assets. */
+    fun reliableTasks(act: android.content.Context, python: Boolean): List<HybridBenchTasks.Task> {
+        val rb = dev.pocketide.app.core.ReliableBench
+        val node = rb.nodeTasks(act.assets.open("bench/reliable/node.json").bufferedReader().readText())
+        val py = if (!python) emptyList() else rb.pythonTasks(act.assets.open("bench/reliable/python.json").bufferedReader().readText()) { id ->
+            val m = LinkedHashMap<String, String>()
+            java.util.zip.ZipInputStream(act.assets.open("bench/reliable/python/$id.zip")).use { z ->
+                while (true) { val e = z.nextEntry ?: break; if (!e.isDirectory) m[e.name] = z.readBytes().toString(Charsets.UTF_8) }
+            }
+            m
+        }
+        return rb.devTasks() + node + py
+    }
+
+    private class Run(val act: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true) {
         val main = Handler(Looper.getMainLooper())
         val settings = AppSettings(act)
         val before = Triple(settings.provider, settings.workflow, settings.agent)
@@ -68,8 +84,13 @@ object HybridBench {
         val suite = kind.id
         val out = File(act.filesDir, "bench-results/$suite-$stamp").apply { mkdirs() }
         val results = ArrayList<HybridBenchTasks.Result>()
-        val tasks = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL
-            Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.APP -> HybridBenchTasks.APP; Suite.STANDARD -> HybridBenchTasks.ALL }
+        val tasks: MutableList<HybridBenchTasks.Task> = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL
+            Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.APP -> HybridBenchTasks.APP; Suite.STANDARD -> HybridBenchTasks.ALL
+            Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(act, python), runs) }.toMutableList()
+        /** Reliability suite: tasks whose reference fix does not pass on this phone (its packages differ), left out of the scores. */
+        val unsound = LinkedHashMap<String, String>()
+        val checked = HashSet<String>()
+        var pythonNote = ""
         /** Gemini Nano's exchanges in the current task (HybridAgent.recorder), saved as nano.jsonl. */
         val nanoLog = StringBuilder()
         var i = 0
@@ -93,7 +114,66 @@ object HybridBench {
             act.benchChat().runForChecks("node --version") { code, text ->
                 main.post {
                     if (code != 0) finish("Node is not available. Start Linux in the Terminal tab and install Node (apk add nodejs), then run the benchmark again. ($text)".take(300))
+                    else if (kind == Suite.RELIABLE && tasks.any { it.track == "Python" }) pythonReady()
                     else next()
+                }
+            }
+        }
+
+        /**
+         * The Python track needs Python, pytest and the packages rich and requests use, in PocketIDE's Linux. They are installed once
+         * (apk); when that fails (no connection), the track is left out and the report says why.
+         */
+        fun pythonReady() {
+            val rb = dev.pocketide.app.core.ReliableBench
+            toast("Reliability benchmark: checking Python for the real-code track…")
+            act.benchChat().runForChecks(rb.PY_CHECK) { code, _ ->
+                main.post {
+                    if (code == 0) { next(); return@post }
+                    toast("Installing Python and pytest in Linux (once)…")
+                    act.benchChat().runForChecks(rb.PY_INSTALL) { _, out ->
+                        act.benchChat().runForChecks(rb.PY_CHECK) { code2, _ ->
+                            main.post {
+                                if (code2 != 0) {
+                                    pythonNote = "The Python track was left out: Python and its packages could not be installed (" + out.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160) + ")."
+                                    tasks.removeAll { it.track == "Python" }
+                                }
+                                next()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Before a task with a reference fix first runs, the fix is tried on this phone: written over the starting files, the check and
+         * the hidden check must pass (a Python package version can differ from the one the task was made with). Then the starting
+         * files are put back. A task whose fix fails here is left out of the scores.
+         */
+        fun soundHere(t: HybridBenchTasks.Task, root: File, then: () -> Unit) {
+            val base = dev.pocketide.app.core.ReliableBench.baseId(t.id)
+            if (t.solution.isEmpty() || t.command == null || base in checked || base in unsound) { then(); return }
+            checked.add(base)
+            for ((p, text) in t.solution) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
+            for ((p, text) in t.hidden) File(root, p).writeText(text)
+            fun reset() {
+                for (p in t.solution.keys + t.hidden.keys) if (!t.files.containsKey(p)) File(root, p).delete()
+                for ((p, text) in t.files) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
+                root.walkTopDown().filter { it.isDirectory && it.name == "__pycache__" }.toList().forEach { it.deleteRecursively() }
+            }
+            act.benchSwitch(root.name)
+            act.benchChat().runForChecks(t.command) { code, out ->
+                val ok = code == 0 && (t.track == "Python" || out.lines().any { it.trim() == "ok" })
+                val hid = t.hiddenCommand
+                if (!ok || hid == null) main.post {
+                    if (!ok) unsound[base] = "the reference fix fails here: " + out.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(140)
+                    reset(); then()
+                } else act.benchChat().runForChecks(hid) { code2, out2 ->
+                    main.post {
+                        if (code2 != 0) unsound[base] = "the reference fix fails the hidden check here: " + out2.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(140)
+                        reset(); then()
+                    }
                 }
             }
         }
@@ -107,9 +187,18 @@ object HybridBench {
             val t = tasks[i]
             toast("Hybrid benchmark ${i + 1} of ${tasks.size}: ${t.title}")
             if (t.entry == HybridBenchTasks.Entry.CHAT) { fromChat(t); return }
-            val name = Projects.create(act, "bench $stamp ${t.id}", dev.pocketide.app.core.Templates.EMPTY)
+            val name = Projects.create(act, "bench $stamp ${t.id.replace('#', '-')}", dev.pocketide.app.core.Templates.EMPTY)
             val root = File(Projects.root(act), name)
             for ((p, text) in t.files) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
+            if (kind == Suite.RELIABLE && dev.pocketide.app.core.ReliableBench.baseId(t.id) !in checked && t.solution.isNotEmpty()) {
+                soundHere(t, root) { if (dev.pocketide.app.core.ReliableBench.baseId(t.id) in unsound) { i++; main.postDelayed({ next() }, 500) } else startTask(t, name, root) }
+                return
+            }
+            if (dev.pocketide.app.core.ReliableBench.baseId(t.id) in unsound) { i++; main.postDelayed({ next() }, 500); return }
+            startTask(t, name, root)
+        }
+
+        fun startTask(t: HybridBenchTasks.Task, name: String, root: File) {
             HybridScreen.setMode(act, if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
             settingsBefore = settingsNow()
             val t0 = System.currentTimeMillis()
@@ -195,7 +284,8 @@ object HybridBench {
             val record = { code: Int?, text: String ->
                 val now = settingsNow()
                 val changedSettings = if (settingsBefore.isEmpty()) emptyList() else now.keys.filter { now[it] != settingsBefore[it] }.map { "$it: ${settingsBefore[it]} → ${now[it]}" }
-                val facts = HybridBenchTasks.Facts(files, t.files, code, text, transcript, ended, changedSettings)
+                val facts = HybridBenchTasks.Facts(files, t.files, code, text, transcript, ended, changedSettings, lastHidden.first, lastHidden.second)
+                lastHidden = null to ""
                 val why = try { t.judge(facts) } catch (e: Exception) { "the check failed: ${e.message}" }
                 results.add(HybridBenchTasks.Result(t, why == null, why.orEmpty(), HybridBenchTasks.counts(transcript),
                     (System.currentTimeMillis() - t0) / 1000, ended))
@@ -210,13 +300,28 @@ object HybridBench {
                 main.postDelayed({ next() }, 3000)
             }
             val cmd = t.command
-            if (cmd == null) record(null, "")
-            else act.benchChat().runForChecks(cmd) { code, text -> main.post { record(code, text) } }
+            if (cmd == null && t.hiddenCommand == null) record(null, "")
+            else if (cmd == null) hidden(t, root) { hc, ht -> lastHidden = hc to ht; record(null, "") }
+            else act.benchChat().runForChecks(cmd) { code, text -> main.post { if (t.hiddenCommand == null) record(code, text) else hidden(t, root) { hc, ht -> lastHidden = hc to ht; record(code, text) } } }
+        }
+
+        /** The last hidden check's result, read by record() (1.5.186). */
+        var lastHidden: Pair<Int?, String> = null to ""
+
+        /** Writes the task's hidden files, runs its hidden command, then removes them again. */
+        fun hidden(t: HybridBenchTasks.Task, root: File, done: (Int?, String) -> Unit) {
+            for ((p, text) in t.hidden) File(root, p).writeText(text)
+            act.benchChat().runForChecks(t.hiddenCommand!!) { code, text ->
+                main.post {
+                    for (p in t.hidden.keys) File(root, p).delete()
+                    done(code, text)
+                }
+            }
         }
 
         /** The project's text files (small ones, outside hidden folders). */
         fun readTexts(root: File): Map<String, String> = root.walkTopDown()
-            .onEnter { it == root || !it.name.startsWith(".") && it.name != "node_modules" }
+            .onEnter { it == root || !it.name.startsWith(".") && it.name != "node_modules" && it.name != "__pycache__" }
             .filter { it.isFile && it.length() < 300_000 }
             .associate { it.relativeTo(root).invariantSeparatorsPath to (try { it.readText() } catch (e: Exception) { "" }) }
 
@@ -237,7 +342,10 @@ object HybridBench {
             val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
                 "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
                 (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
-            val report = HybridBenchTasks.report(results, about, problem, tasks.size, kind.title + if (helping) " · hybrid helping a strong model" else "")
+            val report = HybridBenchTasks.report(results, about, problem, tasks.size, kind.title + if (helping) " · hybrid helping a strong model" else "") +
+                (if (kind != Suite.RELIABLE) "" else dev.pocketide.app.core.ReliableBench.summary(results) +
+                    (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
+                    (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n"))
             File(out, "report.md").writeText(report)
             val where = try {
                 saveToDownloads("pocketide-$suite${if (helping) "-helping" else ""}-benchmark-$stamp.zip") { os -> zipDir(out, os) }

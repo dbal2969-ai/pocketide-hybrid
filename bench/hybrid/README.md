@@ -181,3 +181,28 @@ AI tab's menus) into `core/AppMapData.kt`. `app_help` searches that, Help & FAQ,
 cloud models, and names the words that match nothing in the app. `app_settings` reads settings and proposes changes through an
 Apply / No card; API keys, tokens and "Run commands from the assistant without asking" are never proposed. CI fails when the map
 is out of date.
+
+
+## On-device reliability benchmark (Gemini Nano alone)
+
+Models → Hybrid AI → **Reliability: quick** (each task once, about an hour) or **Reliability: full (3 runs)** (an evening). Every
+task runs in Private mode, so it uses no cloud quota. It is built with the method from the Kaggle Gemma 4 entry (PocketSWE):
+
+- **Splits.** The local suite's 20 tasks are the **dev** split: the app has been tuned on them since run 1125-0955. The 24 tasks in
+  `reliable/` (`make_reliable.py`) are **held out**: no app change may be made because of one of them, so their score is the
+  honest one.
+- **Python track.** Real code: 13 single-file fixes in Textualize/rich and psf/requests, from the competition's public task list
+  (`make_python.py`; `python/`). Kaggle ran these repo-scale, where Gemma 4 E2B (Nano Fast) solved 5 of 114 sound tasks and E4B
+  (Nano Full) 16. Here they are "located": the prompt names the file and the test command. The project holds only the package
+  and the tests the check needs. The app installs Python, pytest and the packages in Linux once (apk).
+- **Sound tasks.** Every check fails as given and passes with the reference fix (`check_hard.py reliable`; `make_python.py`
+  checks its own tasks). The phone also tries each reference fix before the model starts, and leaves out a task that its own
+  package versions break.
+- **Hidden checks.** After each task the app writes `hidden.js` (Node) or runs other test files (Python), which the model never
+  saw, so a hard-coded or damaging fix fails.
+- **Runs.** The full benchmark runs every task 3 times, round by round. The report gives pass@1 (the share of runs passed) and
+  pass^3 (tasks passed every time), by split, track and skill. It also lists the tasks that passed only sometimes, damage caught
+  by hidden checks, and runs that ended "done" but failed.
+
+`analyze.py` handles these zips too: `ANALYZE_PYTHON=<python with pytest and the packages> python3 bench/hybrid/analyze.py <zip>`
+reruns the Node and Python checks and the hidden ones here, task by task and run by run.

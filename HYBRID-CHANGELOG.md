@@ -55,6 +55,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | scratch 1125-1527 (from-scratch run 2) | `ea46a32` | app 1 of 10; analysis 1 clean | 6 of 90 | 8 tasks ended when every cloud tier hit its free per-minute limit; 17 of 20 Nano replies were whole pages cut off at the 1,024-token output limit | `5ac38af` |
 | app 1125-1555 (in-app questions run 2) | `ea46a32` | **app 10 of 14; analysis 10 clean** | 14 of 16 | app11 matched "OpenAI API Key" to the wrong tick box and Nano claimed a proposal; app05 Nano missed the top match; app04 not taken as about the app; app08 wording not accepted | `5ac38af` |
 | scratch 1125-1619 (from-scratch run 3) | `5ac38af` (labelled 1.5.183) | **0 of 10** | 67 of 70 | the day's free cloud quota was used up for every tier: nine requests ended even after waiting; with the cloud gone, Nano alone could not finish any app (pages that load a script.js never written, a calculator showing 0) | `4cb790a` |
+| standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | (next) |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -643,6 +644,46 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** HybridAgentLoopTest.withTheCloudOutOfQuotaNanoCarriesOn, ScratchRun1Test.run3_aDailyLimitWaitsUntilMidnightPacific.
   1,320 tests, 0 failures.
 - **Evidence:** pocketide-hybrid-scratch-benchmark-1125-1619 and its analysis.
+
+### (next) · 2026-11-25 18:40 · On-device reliability benchmark (Gemini Nano alone), with a real-code Python track from the Kaggle tasks; 1.5.186
+- **Why:** the owner asked for a comprehensive benchmark of the on-device model, "as reliable as we can make it", reusing the
+  benchmarks written for the Kaggle Gemma 4 competition. Today also showed that the shared free cloud quota runs out, so a benchmark
+  that needs no cloud can be run as often as needed.
+  - The Kaggle tasks are repo-scale Python issues graded with pytest in Docker, and Gemini Nano is the same model family. In the
+    Kaggle measurements, E2B (Nano Fast) solved 5 of 114 sound tasks and E4B (Nano Full) 16.
+  - The owner chose to reuse Kaggle's method and also build a real-code Python track.
+  - Standard run 1125-1718, made with the cloud out of quota: 5 of 8 on Nano Full alone. The note "the cloud models are out of their
+    free quota" appeared under all 97 steps.
+- **Change:**
+  - **New suite:** `ReliableBench`, "On-device reliability benchmark (Gemini Nano)", always in Private mode. It has three tracks:
+    - **dev:** the local suite's 20 tasks, which the app has been tuned on.
+    - **held-out:** 24 new Node tasks (`make_reliable.py`) across find and explain, single-line fixes, new code, new files,
+      multi-file changes and robustness (a stale quote, a 45-function file, report only).
+    - **Python:** 13 real single-file fixes from Textualize/rich and psf/requests, taken from the competition's public task list
+      and given "located" (`make_python.py`).
+  - **Sound tasks:** every task's check fails as given and passes with the reference fix (`check_hard.py`, `make_python.py`). The
+    phone also tries each reference fix before the model starts, and leaves out a task its own package versions break.
+  - **Hidden checks:** the model never sees them. Node tasks get `hidden.js`; Python tasks run other test files. Their results go to
+    `Facts.hiddenExit`.
+  - **Runs:** Quick runs each task once. Full runs each task 3 times, round by round. The report adds pass@1 and pass^3 by split,
+    track and skill, the tasks that passed only sometimes, damage caught by the hidden checks, and runs that ended "done" but
+    failed.
+  - **Python in Linux:** Python, pytest and the packages are installed once with apk. If that fails, the track is left out and the
+    report says why.
+  - **analyze.py** reruns the Node and Python checks (`ANALYZE_PYTHON`), takes each run's verdict from its own check.txt, and
+    labels the runs.
+  - **Other:** the cloud-out note is said once per request; `Task.judge` is now the last parameter (with `startFiles`, `hidden`,
+    `hiddenCommand`, `solution`, `split` and `track` before it); the version is 1.5.186-hybrid.
+- **Files:** core/ReliableBench.kt, core/HybridBenchTasks.kt, HybridBench.kt (`Suite.RELIABLE`, `reliableTasks`, `pythonReady`,
+  `soundHere`, `hidden`), HybridScreen.kt, HybridAgent.kt; app/src/main/assets/bench/reliable/ (node.json, python.json,
+  python/*.zip); bench/hybrid/make_reliable.py, make_python.py, reliable/, python/, analyze.py, README.md; app/build.gradle.kts.
+- **Tests:**
+  - ReliableBenchTest (4): the task data is whole, the judges, the Python tasks, and the repeats and summary arithmetic.
+  - check_hard.py: 20 of 20 held-out fix tasks are fair.
+  - make_python.py: 13 of 16 Kaggle tasks are sound; 3 were left out (two depend on the pygments version, one on a test helper).
+  - analyze.py was checked on a synthetic run.
+  - 1,324 unit tests, 0 failures.
+- **Evidence:** Kaggle task_features.csv and small_model_summary.csv (E2B 5 of 114, E4B 16 of 114); pocketide-hybrid-benchmark-1125-1718.
 
 ---
 

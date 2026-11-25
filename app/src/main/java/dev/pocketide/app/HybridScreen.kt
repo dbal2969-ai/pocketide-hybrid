@@ -241,6 +241,27 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "The in-app questions benchmark asks ${dev.pocketide.app.core.HybridBenchTasks.APP.size} questions about PocketIDE itself: " +
             "how-tos, troubleshooting, features that do not exist, and settings changes, which must come as a card to approve (the benchmark declines them all). About 15 to 30 minutes.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Run the in-app questions benchmark") { startBench(HybridBench.Suite.APP) })
+        // 1.5.186: the on-device reliability benchmark (ReliableBench): Gemini Nano alone, so it needs no cloud quota
+        benchCard.addView(Ui.text(ctx, "The on-device reliability benchmark runs Gemini Nano alone (Private mode, no cloud quota): the local suite's 20 tasks " +
+            "it is tuned on, 24 held-out tasks it never was, and real Python fixes from the rich and requests libraries, each checked by a test " +
+            "and a hidden check. Quick runs each task once (about an hour); Full runs each 3 times to measure how reliable it is (an evening).", 13f, Ui.MUTED))
+        fun startReliable(runs: Int) {
+            val m = activity as? MainActivity
+            when {
+                m == null -> toast("Open this from PocketIDE's main screen.")
+                HybridBench.running -> toast("The benchmark is already running.")
+                else -> {
+                    val py = CheckBox(ctx).also { it.text = "Include the Python track (installs Python and pytest in Linux once)"; it.isChecked = true }
+                    AlertDialog.Builder(ctx).setTitle("Run the on-device reliability benchmark (${if (runs == 1) "quick" else "full, $runs runs per task"})?")
+                        .setMessage("Gemini Nano runs every task alone in Private mode, so no cloud quota is used. Each task's reference fix is first " +
+                            "checked on this phone. The screen stays on; do not use the app or leave it while it runs. The results zip goes to Downloads/PocketIDE.")
+                        .setView(py)
+                        .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, HybridBench.Suite.RELIABLE, false, runs, py.isChecked) }
+                        .setNegativeButton("Cancel", null).show()
+                }
+            }
+        }
+        fs.buttonRow(benchCard, Ui.button(ctx, "Reliability: quick") { startReliable(1) }, Ui.button(ctx, "Reliability: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS) })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

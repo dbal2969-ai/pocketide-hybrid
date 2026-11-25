@@ -1,0 +1,5 @@
+[
+  { "name": "One", "enemies": 2 },
+  { "name": "Two", "enemies": 4 },
+  { "name": "Three", "enemies": 6 }
+]

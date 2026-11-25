@@ -11,7 +11,8 @@ Usage: python3 bench/hybrid/analyze.py <results.zip> [play scripts dir from Game
 import collections, html.parser, json, os, re, shutil, subprocess, sys, tempfile, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch", "(in-app questions)": "app"}
+SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch", "(in-app questions)": "app", "(Gemini Nano)": "reliable"}
+PYTHON = os.environ.get("ANALYZE_PYTHON", "python3")   # needs pytest, pygments, markdown-it-py, urllib3, idna, charset_normalizer, certifi
 APP_SRC = os.path.join(HERE, "..", "..", "app", "src", "main", "java", "dev", "pocketide", "app")
 
 
@@ -188,13 +189,22 @@ def main():
     for tid in sorted(d for d in os.listdir(work) if os.path.isdir(os.path.join(work, d, "files")) or os.path.exists(os.path.join(work, d, "transcript.txt"))):
         tdir = os.path.join(work, tid)
         final = read_tree(os.path.join(tdir, "files"))
-        orig = read_tree(os.path.join(suite_dir, "project")) if suite == "app" else read_tree(os.path.join(suite_dir, "tasks", tid))
-        sol_dir = os.path.join(suite_dir, "solutions", tid)
+        # the reliability suite: "r05-fix-comparison#2" is run 2 of a held-out task; l.. tasks are the local suite (dev), the rest Python
+        base = tid.split("#")[0]
+        if suite == "reliable":
+            suite_dir = os.path.join(HERE, "local" if re.match(r"l\d\d-", base) else "reliable" if re.match(r"r\d\d-", base) else "python")
+        orig = read_tree(os.path.join(suite_dir, "project")) if suite == "app" else read_tree(os.path.join(suite_dir, "tasks", base))
+        sol_dir = os.path.join(suite_dir, "solutions", base)
         ref = {**orig, **read_tree(sol_dir)} if os.path.isdir(sol_dir) else None
         tr = open(os.path.join(tdir, "transcript.txt")).read() if os.path.exists(os.path.join(tdir, "transcript.txt")) else ""
         tf = transcript_facts(tr); nf = nano_facts(os.path.join(tdir, "nano.jsonl"))
         short = tid.split("-")[0]
         app_verdict = verdicts.get(short) if len(verdicts) == len(rows) else None
+        # check.txt names the app's verdict for this very task folder (runs of one task share its short id)
+        chk_path = os.path.join(tdir, "check.txt")
+        if os.path.exists(chk_path):
+            m = re.search(r"(?m)^Result: (.*)$", open(chk_path).read())
+            if m: app_verdict = "✓ passed" if m.group(1).strip() == "passed" else "✗ failed"
         if app_verdict is None:
             k = len(summary); app_verdict = in_order[k] if k < len(in_order) else "?"
         problems, notes = [], []
@@ -232,7 +242,7 @@ def main():
                 problems.append("node test.js (original test) fails: " + (r.stderr or r.stdout).strip().splitlines()[-1][:140] if (r.stderr or r.stdout).strip() else "node test.js fails")
             shutil.rmtree(d, ignore_errors=True)
         # the hidden check: inputs the model never saw (a hard-coded answer passes the visible test but not this)
-        hid = os.path.join(suite_dir, "hidden", tid + ".js")
+        hid = os.path.join(suite_dir, "hidden", base + ".js")
         if os.path.exists(hid) and app_verdict.startswith("✓"):
             d = tempfile.mkdtemp()
             for p, s in final.items():
@@ -243,6 +253,22 @@ def main():
                 problems.append("hidden check fails (inputs the model never saw): " + "; ".join(l for l in (r.stderr or r.stdout).strip().splitlines() if "hidden check" in l or "Error" in l)[:200])
             else: notes.append("hidden check passes")
             shutil.rmtree(d, ignore_errors=True)
+        # the Python track: the visible tests (with the original test files) and the hidden pass-to-pass tests, run here with pytest
+        if suite == "reliable" and suite_dir.endswith("python"):
+            meta = {t["id"]: t for t in json.load(open(os.path.join(suite_dir, "python_tasks.json")))}.get(base)
+            if meta:
+                d = tempfile.mkdtemp()
+                for p, s2 in {**final, **{k: v for k, v in orig.items() if k.startswith("tests/")}}.items():
+                    fp = os.path.join(d, p); os.makedirs(os.path.dirname(fp), exist_ok=True); open(fp, "w").write(s2)
+                for label, cmd in (("visible tests", meta["visible"]), ("hidden tests (other behaviour)", meta.get("hidden", ""))):
+                    if not cmd: continue
+                    r = subprocess.run(cmd.replace("python3 -m", PYTHON + " -B -m"), cwd=d, shell=True, capture_output=True, text=True, timeout=300,
+                                       env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+                    last = (r.stdout.strip().splitlines() or [""])[-1][:160]
+                    (problems if r.returncode != 0 else notes).append(f"{label}: {'fail' if r.returncode else 'pass'} ({last})")
+                shutil.rmtree(d, ignore_errors=True)
+                fixed = [p for p in changed + added if not p.startswith("tests/")]
+                if fixed and meta["fix"] not in fixed: notes.append(f"changed {', '.join(fixed[:4])} instead of {meta['fix']}")
         # from scratch: the app played as a person would (scratch/checks.js), by what it is: snake, calculator, todo, tictactoe, tip
         if suite == "scratch":
             kind = tid.split("-")[1] if "-" in tid else ""
@@ -306,7 +332,7 @@ def main():
         bad_outcomes = [o for o in tf["outcomes"] if o.startswith("✗")]
         if bad_outcomes: notes.append("app outcome: " + " | ".join(bad_outcomes)[:200])
         my = "fail" if app_verdict.startswith("✗") else ("pass with problems" if problems else "clean pass")
-        summary.append((short, tid, app_verdict, my, problems))
+        summary.append((tid if "#" in tid else short, tid, app_verdict, my, problems))
         out += [f"## {tid}: {my} (app: {app_verdict})", ""]
         out.append(f"- Files: changed {', '.join(changed) or 'none'}; added {', '.join(added) or 'none'}; deleted {', '.join(removed) or 'none'}")
         out.append(f"- Steps: {tf['phone']} on the phone, {len(tf['cloud'])} in the cloud ({', '.join(f'{m} ×{n}' for m, n in collections.Counter(tf['cloud']).items()) or 'none'}); "

@@ -1,0 +1,114 @@
+package dev.pocketide.app.core
+
+/**
+ * The on-device reliability benchmark (1.5.186): Gemini Nano alone, in Private mode, so it costs no cloud quota and can run as often
+ * as needed. Built with the method used for the Kaggle Gemma 4 entry: every task is sound (its check fails as given and passes with
+ * the reference fix, proven on the phone before the model starts), carries a hidden check the model never sees, belongs to a
+ * development split (the local suite, used for tuning) or a held-out split (never tuned on), and is run several times, since one
+ * run of a sampling model is luck. Reported: pass@1 (the share of runs passed), pass^k (tasks passed in every run), and per skill,
+ * split and track.
+ *
+ * Three tracks: the local suite's 20 Node tasks (dev), 24 new Node tasks (held-out, bench/hybrid/make_reliable.py), and real
+ * Python fixes from Textualize/rich and psf/requests taken from Kaggle's competition tasks, given "located" (the file to fix and the
+ * test to run are named; bench/hybrid/make_python.py). The task data is in the app's assets (bench/reliable/).
+ */
+object ReliableBench {
+    /** Runs of each task in the full benchmark; the quick one runs each task once. */
+    const val RUNS = 3
+
+    /** Packages the Python track needs in PocketIDE's Linux (Alpine), and the command that checks they are there. */
+    const val PY_CHECK = "python3 -c \"import pytest, pygments, markdown_it, urllib3, idna, charset_normalizer, certifi; print('ok')\""
+    const val PY_INSTALL = "apk add --no-cache python3 py3-pytest py3-pygments py3-markdown-it-py py3-urllib3 py3-idna py3-charset-normalizer py3-certifi"
+
+    /** The answer of an "answer" task must match; a "fix" task's test and hidden check must pass. */
+    private fun judge(kind: String, answer: Regex?, python: Boolean): (HybridBenchTasks.Facts) -> String? = { f ->
+        val cloud = HybridBenchTasks.counts(f.transcript).cloud
+        when {
+            cloud > 0 -> "a step ran in the cloud in Private mode"
+            kind == "answer" -> when {
+                f.files.filterKeys { !it.startsWith(".") && !it.contains("__pycache__") } != f.original -> "files were changed; the task asked for no change"
+                answer != null && !answer.containsMatchIn(HybridBenchTasks.lastAnswer(f.transcript)) ->
+                    "the answer is not right: \"" + HybridBenchTasks.lastAnswer(f.transcript).take(140) + "\""
+                else -> null
+            }
+            python && f.commandExit != 0 -> "the tests fail: " + f.commandOut.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160)
+            !python && !HybridBenchTasks.commandOk(f) -> "node test.js failed: " + f.commandOut.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160)
+            f.hiddenExit != null && f.hiddenExit != 0 -> "the hidden check failed (other behaviour broke): " + f.hiddenOut.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160)
+            else -> null
+        }
+    }
+
+    private fun strMap(v: Any?): Map<String, String> = (MiniJson.obj(v) ?: emptyMap()).mapValues { it.value?.toString().orEmpty() }
+
+    /** The held-out Node tasks from node.json. */
+    fun nodeTasks(json: String): List<HybridBenchTasks.Task> = (MiniJson.list(MiniJson.parse(json)) ?: emptyList()).mapNotNull { MiniJson.obj(it) }.map { o ->
+        val kind = o["kind"]?.toString() ?: "fix"
+        val hidden = o["hidden"]?.toString().orEmpty()
+        val files = strMap(o["files"])
+        HybridBenchTasks.Task(o["id"].toString(), o["title"].toString(), o["prompt"].toString(),
+            command = if (files.containsKey("test.js")) "node test.js" else null, privateMode = true, skill = o["skill"].toString(),
+            judge = judge(kind, o["answer"]?.toString()?.takeIf { it.isNotBlank() && it != "null" }?.let { Regex(it) }, false),
+            startFiles = files, hidden = if (hidden.isEmpty()) emptyMap() else mapOf("hidden.js" to hidden),
+            hiddenCommand = if (hidden.isEmpty()) null else "node hidden.js", solution = strMap(o["solution"]), split = "held-out", track = "Node")
+    }
+
+    /**
+     * The Python tasks from python.json; [project] gives a task's starting files (its zip in the assets). The prompt names the file
+     * and the test, as in the "located" setting, and quotes the issue.
+     */
+    fun pythonTasks(json: String, project: (String) -> Map<String, String>): List<HybridBenchTasks.Task> =
+        (MiniJson.list(MiniJson.parse(json)) ?: emptyList()).mapNotNull { MiniJson.obj(it) }.map { o ->
+            val id = o["id"].toString()
+            val visible = o["visible"].toString().replace("python3 -m", "python3 -B -m")
+            val hiddenCmd = o["hidden"]?.toString().orEmpty().replace("python3 -m", "python3 -B -m")
+            val prompt = "Fix this issue in ${o["fix"]}. Then run `$visible`; it must pass.\n\nThe issue:\n" + o["statement"].toString().trim()
+            HybridBenchTasks.Task(id, "${o["repo"]}: fix ${o["fix"].toString().substringAfterLast('/')}", prompt, command = visible, privateMode = true,
+                skill = "Real code (${o["repo"]})", judge = judge("fix", null, true),
+                startFiles = project(id), hiddenCommand = hiddenCmd.ifBlank { null }, solution = strMap(o["solution"]),
+                split = "held-out", track = "Python")
+        }
+
+    /** The local suite as the development split. */
+    fun devTasks(): List<HybridBenchTasks.Task> = HybridBenchTasks.LOCAL.map { t ->
+        HybridBenchTasks.Task(t.id, t.title, t.prompt, t.command, true, t.skill, t.entry, split = "dev", track = "Node", judge = t.judge)
+    }
+
+    /** "r05-fix-comparison#2" → "r05-fix-comparison": a task's runs share its id before the #. */
+    fun baseId(id: String): String = id.substringBefore('#')
+
+    /** Each task [runs] times, run by run (all tasks once, then again), so a slow phone or a bad hour does not hit one task's runs together. */
+    fun repeated(tasks: List<HybridBenchTasks.Task>, runs: Int): List<HybridBenchTasks.Task> = (1..runs).flatMap { r ->
+        tasks.map { t -> if (runs == 1) t else HybridBenchTasks.Task("${t.id}#$r", t.title, t.prompt, t.command, t.privateMode, t.skill, t.entry,
+            t.startFiles ?: t.files, t.hidden, t.hiddenCommand, t.solution, t.split, t.track, t.judge) }
+    }
+
+    /** The report's reliability section: pass@1 and pass^k overall, by split, track and skill, and the tasks that passed only sometimes. */
+    fun summary(results: List<HybridBenchTasks.Result>): String = buildString {
+        val byTask = results.groupBy { baseId(it.task.id) }
+        val runs = byTask.values.maxOfOrNull { it.size } ?: 0
+        fun line(label: String, rs: List<HybridBenchTasks.Result>) {
+            val tasks = rs.groupBy { baseId(it.task.id) }
+            val all = tasks.count { (_, v) -> v.all { it.passed } }
+            val pct = if (rs.isEmpty()) 0 else rs.count { it.passed } * 100 / rs.size
+            append("| ").append(label).append(" | ").append(tasks.size).append(" | ").append(pct).append("% (").append(rs.count { it.passed }).append(" of ").append(rs.size)
+                .append(") | ").append(all).append(" of ").append(tasks.size).append(" |\n")
+        }
+        append("\n## Reliability\n\n")
+        append("pass@1 = the share of runs that passed; pass^").append(runs).append(" = tasks passed in every one of their ").append(runs).append(" runs.\n\n")
+        append("| Group | Tasks | pass@1 | pass^").append(runs).append(" |\n| --- | --- | --- | --- |\n")
+        line("All", results)
+        for ((k, v) in results.groupBy { it.task.split.ifBlank { "other" } }) line("Split: $k", v)
+        for ((k, v) in results.groupBy { it.task.track.ifBlank { "other" } }) line("Track: $k", v)
+        for ((k, v) in results.groupBy { it.task.skill.ifBlank { "other" } }) line(k, v)
+        val flaky = byTask.filter { (_, v) -> v.any { it.passed } && !v.all { it.passed } }
+        if (flaky.isNotEmpty()) {
+            append("\n**Passed only in some runs** (where Nano is unreliable):\n")
+            for ((k, v) in flaky) append("- ").append(k).append(": ").append(v.count { it.passed }).append(" of ").append(v.size).append(" · ")
+                .append(v.filter { !it.passed }.joinToString("; ") { it.why.take(90) }).append('\n')
+        }
+        val damage = results.count { it.why.startsWith("the hidden check failed") }
+        val claims = results.count { !it.passed && it.ended == "done" }
+        append("\nHidden checks that failed (the visible test passed but other behaviour broke): ").append(damage)
+            .append(" · runs that ended \"done\" but failed the check (a finish claimed too early): ").append(claims).append('\n')
+    }
+}
