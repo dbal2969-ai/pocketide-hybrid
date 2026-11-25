@@ -40,6 +40,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | 1124-2111 (run 5) | `e61aafe` | 8 of 8 | 25 of 57 | 01 done in 2 steps and 08 in 8 (were 7 and 19); 05 held on a Run/Skip card for `apk add` until the owner tapped Run, then ended "unfinished files: app.js" with the stand-in gone; 06 ended "stopped or failed" with no reason in the log | `fd54990` |
 | 1124-2131 (run 6) | `c59582a` | 7 of 8, no stalls, every task ended done | 33 of 55 | 03 done entirely on the phone (9 steps); 08 failed: Nano's email regex lost its backslashes (`/S+@S+.S+/`), then Nano edited test.js instead of the app; 06 still showed "Changed, not checked" for a notes file | `f8e624b` |
 | 1124-2147 (run 7) | `a943442` | 8 of 8, no stalls, every task ended done | 23 of 50 | 03 went to the cloud because PocketIDE was in the background (reason shown); 07 Nano's first reply was not an action, so the cloud took it; 08 passed in Private mode (7 steps); 01 Nano again swapped its passing fix back despite the note | `12178cb` |
+| hard 1124-2213 (hard run 1) | `a31830a` | 9 of 10 | 39 of 84 | every handoff gave its reason (failed edits, a reply that was not an action, the web); h08 Private mode passed in 3 steps; h07 ended before any step: one cloud call failed with the SDK's "Something unexpected happened."; the report's # column showed "h0" | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -263,6 +264,15 @@ the files after the run, `transcript.txt` and `check.txt`.
   HybridScreen.kt.
 - **Tests:** HybridBenchHardTest (5: files and ids, app copy matches the repository, every task fails as given and passes with its
   reference fix under Node, judges, research routing). 1,243 tests.
+
+### (next) · 2026-11-24 · Fixes from hard benchmark run 1 (9 of 10)
+- **Evidence:** hard run 1124-2213, task h07: `error: Something unexpected happened.` one second after the request started, no step
+  run. That text is the Firebase AI SDK's UnknownException, which wraps the real cause.
+- **Change:** a cloud call that fails in a way that may pass (anything but App Check, permissions, a disabled API, a bad request,
+  billing or a cancel) is tried once more after 2.5 s. Error messages now add the cause under the SDK's wrapper, for example
+  "(IOException: Connection reset by peer)". The report's task column shows the full number (h01 … h10, not h0).
+- **Files:** HybridAgent.kt (`transient`, retry in `cloud`), HybridAi.kt (`explain`), core/HybridBenchTasks.kt.
+- **Tests:** HybridAgentTest (2). 1,245 tests.
 
 ---
 

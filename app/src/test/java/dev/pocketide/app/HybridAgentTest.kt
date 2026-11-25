@@ -84,4 +84,19 @@ class HybridAgentTest {
         val resultText = c[2].parts.filterIsInstance<com.google.firebase.ai.type.TextPart>().joinToString { it.text }
         check(resultText.contains("[Result of read_file]") && resultText.contains("let x = 1")) { "the result as text: $resultText" }
     }
+
+    /** Hard benchmark run 1, h07: one cloud failure ("Something unexpected happened.") ended the task before a step ran. */
+    @Test fun aPassingCloudFailureIsTriedAgainButALastingOneIsNot() {
+        check(HybridAgent.transient(RuntimeException("Something unexpected happened.", java.io.IOException("Connection reset"))))
+        check(HybridAgent.transient(java.net.SocketTimeoutException("timeout")))
+        check(!HybridAgent.transient(RuntimeException("App Check token is invalid")))
+        check(!HybridAgent.transient(RuntimeException("x", RuntimeException("PERMISSION_DENIED: API has not been used"))))
+        check(!HybridAgent.transient(InterruptedException()))
+    }
+
+    @Test fun anUnknownErrorSaysWhatWasUnderneath() {
+        val m = HybridAi.explain(RuntimeException("Something unexpected happened.", java.io.IOException("Connection reset by peer")))
+        check(m == "Something unexpected happened. (IOException: Connection reset by peer)") { m }
+        check(HybridAi.explain(RuntimeException("plain")) == "plain")
+    }
 }

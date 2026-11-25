@@ -225,7 +225,9 @@ object HybridAi {
 
     /** A short, actionable message for the usual setup problems. */
     fun explain(e: Throwable): String {
-        val m = (e.message ?: e.javaClass.simpleName)
+        // 1.5.184: the SDK's UnknownException says only "Something unexpected happened."; the cause underneath is what helps
+        val root = generateSequence(e.cause) { it.cause }.take(5).lastOrNull { !it.message.isNullOrBlank() }
+        val m = (e.message ?: e.javaClass.simpleName) + (root?.let { " (" + it.javaClass.simpleName + ": " + it.message!!.take(200) + ")" } ?: "")
         return when {
             m.contains("App Check", true) || m.contains("attestation", true) ->
                 "App Check refused the request. In a debug build, add this phone's debug token in the Firebase console (App Check → Apps → Manage debug tokens). ($m)"

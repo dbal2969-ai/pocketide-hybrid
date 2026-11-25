@@ -117,7 +117,14 @@ object HybridAgent {
         testCloud?.let { f -> return Result(f(system, messages, tools), false, 0.5, "") }
         val t0 = System.nanoTime()
         val model = HybridAi.cloudToolModel(ctx, system, declarations(tools))
-        val r = HybridCloud.traced("hybrid_cloud") { runBlocking { model.generateContent(contents(messages)) } }
+        val ask = { HybridCloud.traced("hybrid_cloud") { runBlocking { model.generateContent(contents(messages)) } } }
+        // 1.5.184 (hard benchmark run 1, h07): one cloud call failed with the SDK's "Something unexpected happened." and the whole
+        // task ended before a step ran. A failure that may pass is tried once more after a short wait.
+        val r = try { ask() } catch (e: Exception) {
+            if (!transient(e)) throw e
+            Thread.sleep(RETRY_MS)
+            ask()
+        }
         return Result(turn(r), false, (System.nanoTime() - t0) / 1e9, "")
     }
 
@@ -143,6 +150,16 @@ object HybridAgent {
     // ---------------- phone: small local model mode ----------------
 
     const val FAIL_LIMIT = 2
+    @Volatile var RETRY_MS = 2500L
+
+    private val LASTING = Regex("""(?i)App Check|attestation|PERMISSION_DENIED|API has not been used|SERVICE_DISABLED|INVALID_ARGUMENT|API key|billing|not supported|unsupported|cancel""")
+
+    /** True when a cloud failure may pass if tried again (a dropped connection, a server error, the SDK's unknown error). */
+    fun transient(e: Throwable): Boolean {
+        val all = generateSequence(e) { it.cause }.take(6).joinToString(" | ") { it.javaClass.simpleName + ": " + it.message.orEmpty() }
+        if (e is InterruptedException || LASTING.containsMatchIn(all)) return false
+        return true
+    }
 
     /** Room for the newest tool result in Nano's prompt: what [limit] leaves after the instructions, the request and a little more. */
     fun resultRoom(docs: Boolean, messages: List<Map<String, Any?>>, limit: Int): Int {

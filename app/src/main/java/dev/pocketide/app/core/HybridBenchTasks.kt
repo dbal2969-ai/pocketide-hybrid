@@ -170,7 +170,7 @@ object HybridBenchTasks {
         if (phone + cloud > 0) append(" · steps on this phone: ").append(phone).append(" of ").append(phone + cloud)
         append("\n\n| # | Task | Result | Why not | On phone / in cloud | Handoffs | Time | Ended |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
         for (r in results) {
-            append("| ").append(r.task.id.take(2)).append(" | ").append(r.task.title).append(" | ").append(if (r.passed) "✓ passed" else "✗ failed")
+            append("| ").append(r.task.id.substringBefore('-')).append(" | ").append(r.task.title).append(" | ").append(if (r.passed) "✓ passed" else "✗ failed")
                 .append(" | ").append(r.why.replace("|", "/")).append(" | ").append(r.counts.phone).append(" / ").append(r.counts.cloud)
                 .append(" | ").append(r.counts.handoffs.joinToString("; ").replace("|", "/").ifEmpty { "none" })
                 .append(" | ").append(r.seconds / 60).append(" min ").append(r.seconds % 60).append(" s | ").append(r.ended).append(" |\n")
