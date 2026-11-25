@@ -330,7 +330,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Note for the owner:** the Spark plan's free quota for gemini-3.8-flash ran out during a benchmark; a long run will use
   Fast while Balanced cools down. That is the free tier's limit, not a fault.
 
-### (next) · 2026-11-25 · Game benchmark (five browser games, play-tested)
+### 717b4be · 2026-11-25 01:10 · Game benchmark (five browser games, play-tested)
 - **Why:** owner's request for a game creation benchmark. Games are where the owner's real runs went wrong (a Snake game whose
   snake moved but ignored the keys).
 - **Change:** `bench/hybrid/games`: gm01 Snake from a spec (GAME.md) with 6 play tests; gm02 a paddle game whose keys go to a canvas
