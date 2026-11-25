@@ -3,6 +3,13 @@
 Eight short tasks that test what hybrid AI must get right: real edits from Gemini Nano, handoffs to the cloud with the reason
 shown, private mode, long files and offline use. Each takes 2 to 5 minutes. Run them on a phone with Gemini Nano (Galaxy S24+).
 
+## Run it automatically (recommended)
+
+Models → Hybrid AI → **Run the hybrid benchmark**. PocketIDE runs all eight tasks by itself with the real agent and Gemini
+Nano, checks each one, and saves `pocketide-hybrid-benchmark-<date>.zip` to **Downloads/PocketIDE**: a report, and every task's
+files, chat log and check output. Keep the phone plugged in with PocketIDE open; it takes about 30 to 60 minutes. It needs Linux
+with Node (Terminal tab), and puts your settings and project back when it finishes. The steps below are for running a task by hand.
+
 ## Before you start
 
 - Settings: AI provider **Hybrid AI (Gemini Nano + cloud)**, workflow **Single model**.

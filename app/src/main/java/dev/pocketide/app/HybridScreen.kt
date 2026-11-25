@@ -28,7 +28,7 @@ object HybridScreen {
     fun mode(ctx: Context): HybridAi.Mode =
         HybridAi.Mode.entries.firstOrNull { it.name == ctx.getSharedPreferences(PREFS, 0).getString("mode", null) } ?: HybridCloud.remoteMode()
 
-    private fun setMode(ctx: Context, m: HybridAi.Mode) = ctx.getSharedPreferences(PREFS, 0).edit().putString("mode", m.name).apply()
+    fun setMode(ctx: Context, m: HybridAi.Mode) = ctx.getSharedPreferences(PREFS, 0).edit().putString("mode", m.name).apply()
 
     fun show(activity: Activity) {
         val ctx: Context = activity
@@ -174,6 +174,26 @@ object HybridScreen {
             }
         })
         tryCard.addView(answer); tryCard.addView(where)
+
+        // ---- Benchmark (HybridBench): eight tasks with the real agent and Gemini Nano, no one watching ----
+        fs.heading("Benchmark")
+        val benchCard = fs.card()
+        benchCard.addView(Ui.text(ctx, "Runs ${dev.pocketide.app.core.HybridBenchTasks.ALL.size} coding tasks with the real agent and Gemini Nano, checks each one, " +
+            "and saves a results zip to Downloads/PocketIDE. About 30 to 60 minutes: keep the phone plugged in with PocketIDE open. " +
+            "Needs Linux with Node (Terminal tab). Your settings and project are put back afterwards.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, if (HybridBench.running) "Benchmark running…" else "Run the hybrid benchmark", true) {
+            val m = activity as? MainActivity
+            when {
+                m == null -> toast("Open this from PocketIDE's main screen.")
+                HybridBench.running -> toast("The benchmark is already running.")
+                else -> AlertDialog.Builder(ctx).setTitle("Run the hybrid benchmark?")
+                    .setMessage("PocketIDE will make ${dev.pocketide.app.core.HybridBenchTasks.ALL.size} projects named \"bench …\", send each task to the agent " +
+                        "with Hybrid AI (Single model, On this phone first; Private for the last task), and check the results. The screen stays on. " +
+                        "Do not use the app while it runs. The results zip goes to Downloads/PocketIDE.")
+                    .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m) }
+                    .setNegativeButton("Cancel", null).show()
+            }
+        })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

@@ -2272,6 +2272,7 @@ class ChatPane(
                 used.input + used.output, exchangeSnaps.size, (System.currentTimeMillis() - exchangeT0) / 1000)
             dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event("request ended: ${if (ok) "done" else "stopped or failed"} · ${used.input + used.output} tokens · ${exchangeSnaps.size} files changed · ${buildTag()}"))
             dev.pocketide.app.core.ToolTrace.target = null
+            onExchangeEnded(ok)
         }
         if (exchangeSnaps.isNotEmpty()) {
             if (exchangeActive) showUndoChip(LinkedHashMap(exchangeSnaps))
@@ -4415,6 +4416,15 @@ class ChatPane(
         newChat()
         ask(text)
     }
+
+    /** Called when a request ends (true = done), after its log line; the hybrid benchmark (HybridBench) waits on it. */
+    var onExchangeEnded: (Boolean) -> Unit = {}
+
+    /** True while the assistant works: a model call is open or a step is running. */
+    fun busy(): Boolean = call != null || turnBusy
+
+    /** Stops at once (the hybrid benchmark's time limit). */
+    fun stopNow() = forceStop()
 
     fun ask(text: String) {
         val t = text.trim()

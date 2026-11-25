@@ -460,6 +460,22 @@ class MainActivity : Activity() {
      * A report about PocketIDE itself goes to its own project ("PocketIDE reports", made when first needed) and a new chat
      * there, so it never lands in the middle of the person's own work.
      */
+    // ---- the hybrid AI benchmark (HybridBench) drives the real chat screen through these ----
+    fun benchChat(): ChatPane = chat
+
+    /** Opens [project] and sends [prompt] in a new chat there, as a person would. */
+    fun benchAsk(project: String, prompt: String) {
+        editor.save()
+        if (Projects.key(this) != project) Projects.switchTo(this, project)
+        select(3)
+        chat.askInNewChat(prompt)
+    }
+
+    fun benchSwitch(project: String) {
+        editor.save()
+        if (Projects.key(this) != project) Projects.switchTo(this, project)
+    }
+
     private fun reportInOwnChat(report: String) {
         val wanted = "PocketIDE reports"
         val name = Projects.list(this).firstOrNull { it == wanted } ?: Projects.create(this, wanted, dev.pocketide.app.core.Templates.EMPTY)
