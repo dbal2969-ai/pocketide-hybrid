@@ -210,4 +210,40 @@ class HybridAgentLoopTest {
         assertFalse(r.text, r.text.contains("unfinished step"))
         assertTrue("no rounds spent asking for the plan again: $cloudCalls", cloudCalls <= 5)
     }
+
+    private val longProject = mapOf(
+        "inventory.js" to (1..300).joinToString("") { "function helper$it(items) {\n  // helper $it\n  return items.filter(it => String(it.sku).endsWith('${it % 10}')).length;\n}\n\n" } +
+            "function total(items) {\n  return items.reduce((s, it) => s + it.price * it.qty, 0);\n}\nmodule.exports = { total };\n",
+        "test.js" to "const { total } = require('./inventory.js');\nconst t = total([{ price: 2, quantity: 3 }]);\nif (t !== 6) { console.error('total gave ' + t); process.exit(1); }\nconsole.log('ok');\n")
+
+    /** Benchmark run 3, task 07: Nano saw only the first 2,000 characters of a long file and read it again and again. */
+    @Test fun aFileTooLongForThePhoneIsPassedOnWithTheReason() {
+        nano(action("read_file", "path" to "inventory.js"))
+        cloud(tools("edit_file", "path" to "inventory.js", "search" to "it.price * it.qty", "replace" to "it.price * it.quantity"),
+            tools("run_command", "command" to "node test.js"))
+        val o = AgentHarness(longProject, "total() in inventory.js returns NaN. Find why and fix it so node test.js prints ok", ModelGateway.NETWORK,
+            provider = "hybrid", modelName = "", timeoutSeconds = 60).run()
+        assertFalse("timed out", o.timedOut)
+        assertEquals("Nano read the file, then the cloud took over", 1, nanoPrompts)
+        assertTrue(shown(o), shown(o).contains("longer than my on-phone limit"))
+        assertTrue(o.file("inventory.js")!!.contains("it.price * it.quantity"))
+    }
+
+    @Test fun readingTheSameFileOverAndOverHandsTheRestToTheCloud() {
+        val read = action("read_file", "path" to "app.js")
+        nano(read, read, read, read)
+        cloud(tools("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            tools("run_command", "command" to "node test.js"))
+        val o = run("Fix add in app.js so the test passes")
+        assertFalse("timed out", o.timedOut)
+        assertEquals("one real read and two repeats, then the cloud", 3, nanoPrompts)
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+    }
+
+    @Test fun aMidSizedResultIsShownToNanoWhole() {
+        val big = (1..150).joinToString("") { "// note line $it about the add function and its callers\n" }
+        val msgs = listOf(mapOf<String, Any?>("role" to "user", "content" to "Fix add"), mapOf<String, Any?>("role" to "tool", "tool_call_id" to "x", "content" to big))
+        val p = HybridAgent.phonePrompt(false, msgs, 14000)!!
+        assertTrue("the whole ${big.length}-character result is in the prompt", p.contains("note line 150 "))
+    }
 }

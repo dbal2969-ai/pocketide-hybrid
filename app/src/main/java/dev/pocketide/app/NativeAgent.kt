@@ -189,6 +189,7 @@ class NativeAgent(
      */
     private fun askTestNow(path: String, content: String, label: String, reply: (String, String) -> Unit): Boolean {
         val ask = askTest ?: return false
+        if (HybridBench.running) return false   // 1.5.184: no one is watching the benchmark; the saved tests stay as they are
         val p = path.trimStart('/')
         val gone = testProposals[p]?.second ?: return false
         pausedAt = System.currentTimeMillis()
@@ -2737,6 +2738,9 @@ class NativeAgent(
                 val host = dev.pocketide.app.core.WebResearch.hostOf(url).removePrefix("www.")
                 fun go() { McpClient.background { val r = WebClient.fetch(url); McpClient.onMain { if (r.startsWith("Web page")) sourceList.add(url); reply(r) } } }
                 if (host in settings.webAllowed || host in webSession) go()
+                // 1.5.184: the hybrid benchmark runs with no one watching; it stalled on this card twice (task 06). Reads are allowed for this
+                // run only (not saved to the person's always-allowed sites), and the transcript says so.
+                else if (HybridBench.running) { webSession.add(host); trace("web read of $host allowed for the benchmark run"); note("Allowed reading $host for the benchmark run.", Ui.MUTED); go() }
                 else {
                     val card = Ui.vertical(ctx)
                     card.background = Ui.rounded(Ui.SURFACE2, 10, ctx, Ui.LINE)

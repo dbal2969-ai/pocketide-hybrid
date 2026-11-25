@@ -66,6 +66,11 @@ object HybridAgent {
         val ask = messages.lastOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty()
         val web = dev.pocketide.app.core.HybridRoute.needsCloud(ask)
         if (web != null && !only) return Phone(null, web)
+        // 1.5.184 (benchmark run 3, task 07): Nano saw 2,000 characters of a 22,000-character file, never reached total(), and
+        // read it four more times. The newest result now gets most of the limit; one longer than that goes to the cloud.
+        val newest = messages.lastOrNull()?.takeIf { it["role"] == "tool" }?.let { textOf(it["content"]) }.orEmpty()
+        if (newest.length > resultRoom(docs, messages, limit) && !only)
+            return Phone(null, "what I just read is longer than my on-phone limit (${newest.length} characters; the limit is $limit)")
         val prompt = phonePrompt(docs, messages, limit)
         if (prompt == null) {
             if (only) return Phone(Result(ToolTurn("This request is longer than the on-phone limit ($limit characters), and this mode never uses the cloud. " +
@@ -74,8 +79,16 @@ object HybridAgent {
         }
         val t0 = System.nanoTime()
         val reply = try { testPhone?.invoke(prompt) ?: HybridAi.onDeviceText(ctx, prompt) } catch (e: Exception) {
-            if (only) throw e
-            return Phone(null, "I could not run on this phone (${(e.message ?: e.javaClass.simpleName).take(80)})")
+            // 1.5.184 (run 3, task 08): Android does not let Gemini Nano run while the app is in the background. Private mode waits for
+            // PocketIDE to be on screen again and tries once more; the other modes say why and pass the step on.
+            val away = testPhone == null && !foreground(ctx)
+            if (away && only && waitForeground(ctx, 10 * 60_000L)) {
+                try { HybridAi.onDeviceText(ctx, prompt) } catch (e2: Exception) { throw e2 }
+            } else {
+                if (only) throw e
+                return Phone(null, if (away) "PocketIDE was in the background, where Android does not let Gemini Nano run"
+                    else "I could not run on this phone (${(e.message ?: e.javaClass.simpleName).take(80)})")
+            }
         }
         val secs = (System.nanoTime() - t0) / 1e9
         val (turn, why) = phoneTurn(reply, messages)
@@ -117,7 +130,30 @@ object HybridAgent {
     // ---------------- phone: small local model mode ----------------
 
     const val FAIL_LIMIT = 2
-    private val FAILED = Regex("""(?i)^\s*(NOT SAVED|Not saved|Not written|Edit not applied|Error\b|Could not|Failed|No such file|Unknown tool|Give something)""")
+
+    /** Room for the newest tool result in Nano's prompt: what [limit] leaves after the instructions, the request and a little more. */
+    fun resultRoom(docs: Boolean, messages: List<Map<String, Any?>>, limit: Int): Int {
+        val first = messages.firstNotNullOfOrNull { line(it) }.orEmpty()
+        return maxOf(2000, limit - head(docs).length - TAIL.length - first.length - 1500)
+    }
+
+    private fun head(docs: Boolean) = SmallLocal.system(Tools.smallCatalogue(docs)) + "\n\nThe conversation so far, oldest first:\n"
+    private const val TAIL = "\nYour reply, one JSON object:"
+
+    /** True while PocketIDE is the app on screen. */
+    fun foreground(ctx: Context): Boolean = try {
+        val info = android.app.ActivityManager.RunningAppProcessInfo()
+        android.app.ActivityManager.getMyMemoryState(info)
+        info.importance <= android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+    } catch (e: Exception) { true }
+
+    /** Waits (blocking) until PocketIDE is on screen again, up to [maxMs]. */
+    fun waitForeground(ctx: Context, maxMs: Long): Boolean {
+        val end = System.currentTimeMillis() + maxMs
+        while (System.currentTimeMillis() < end) { if (foreground(ctx)) return true; Thread.sleep(1000) }
+        return foreground(ctx)
+    }
+    private val FAILED = Regex("""(?i)^\s*(NOT SAVED|Not saved|Not written|Edit not applied|Error\b|Could not|Failed|No such file|Unknown tool|Give something|You already read this file)""")
 
     /**
      * How many of the last tool results in a row failed (refused or not applied writes, errors). The agent loop's own notes in
@@ -150,9 +186,11 @@ object HybridAgent {
 
     /** The conversation as small local model mode expects it; null when it does not fit in [limit] characters. */
     fun phonePrompt(docs: Boolean, messages: List<Map<String, Any?>>, limit: Int): String? {
-        val head = SmallLocal.system(Tools.smallCatalogue(docs)) + "\n\nThe conversation so far, oldest first:\n"
-        val tail = "\nYour reply, one JSON object:"
-        val lines = messages.mapNotNull { line(it) }
+        val head = head(docs)
+        val tail = TAIL
+        val lastTool = if (messages.lastOrNull()?.get("role") == "tool") messages.size - 1 else -1
+        val room = resultRoom(docs, messages, limit)
+        val lines = messages.mapIndexedNotNull { i, m -> line(m, if (i == lastTool) room else 2000) }
         if (lines.isEmpty()) return null
         val first = lines.first()
         var budget = limit - head.length - tail.length - first.length - 40
@@ -166,7 +204,7 @@ object HybridAgent {
         return head + first + (if (skipped > 0) "[$skipped earlier steps left out]\n" else "") + recent.joinToString("") + tail
     }
 
-    private fun line(m: Map<String, Any?>): String? {
+    private fun line(m: Map<String, Any?>, room: Int = 2000): String? {
         val text = textOf(m["content"])
         return when (m["role"]) {
             "user" -> if (text.isEmpty()) null else "PERSON: ${clip(text, 3000)}\n"
@@ -177,7 +215,7 @@ object HybridAgent {
                     "YOU: {\"tool\": \"answer\", \"tool_args\": {\"text\": ${MiniJson.write(clip(text, 1500))}}}\n" else ""
                 (said + acts).ifEmpty { null }
             }
-            "tool" -> "RESULT: ${clip(text, 2000)}\n"
+            "tool" -> "RESULT: ${clip(text, room)}\n"
             else -> null   // the system prompt is replaced by small local model mode's own
         }
     }
