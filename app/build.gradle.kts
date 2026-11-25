@@ -37,6 +37,13 @@ android {
         release {
             isMinifyEnabled = false
         }
+        debug {
+            // #BuildHybridAI judges' build: one App Check debug token, registered once in the Firebase console, so every judge's
+            // phone can reach the cloud model. Given at build time (-PjudgeAppCheckToken=… or JUDGE_APPCHECK_TOKEN), never in git.
+            // The App Check SDK reads R.string.firebase_app_check_debug_token and ignores it in release builds.
+            val judgeToken = (project.findProperty("judgeAppCheckToken") as String?) ?: System.getenv("JUDGE_APPCHECK_TOKEN") ?: ""
+            if (judgeToken.isNotBlank()) resValue("string", "firebase_app_check_debug_token", judgeToken.trim())
+        }
     }
 
     compileOptions {

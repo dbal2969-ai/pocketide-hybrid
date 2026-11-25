@@ -215,6 +215,9 @@ object HybridAi {
 
     /** App Check debug secret of this install (debug builds), to register in the Firebase console. */
     fun appCheckDebugSecret(ctx: Context): String? = try {
+        // a judges' build carries one token for every phone (R.string.firebase_app_check_debug_token, set at build time)
+        ctx.resources.getIdentifier("firebase_app_check_debug_token", "string", ctx.packageName).takeIf { it != 0 }
+            ?.let { ctx.getString(it) }?.takeIf { it.isNotBlank() }?.let { return it }
         val key = FirebaseApp.getInstance().persistenceKey
         ctx.getSharedPreferences("com.google.firebase.appcheck.debug.store.$key", Context.MODE_PRIVATE)
             .getString("com.google.firebase.appcheck.debug.DEBUG_SECRET", null)
