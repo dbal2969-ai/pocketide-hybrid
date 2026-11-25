@@ -158,4 +158,33 @@ class HybridAgentLoopTest {
         assertTrue(edit, edit.startsWith("NOT SAVED: this change deleted the definition of `selected`"))
         assertTrue("the file was put back", o.file("app.js")!!.startsWith("let selected = [];"))
     }
+
+    private val renameProject = mapOf(
+        "total.js" to "function calcTotal(items) {\n  return items.reduce((s, it) => s + it.price * it.qty, 0);\n}\nmodule.exports = { calcTotal };\n",
+        "test.js" to "const t = require('./total.js');\nif (!t.orderTotal || t.orderTotal([{ price: 2, qty: 3 }]) !== 6) { console.error('orderTotal is missing'); process.exit(1); }\nconsole.log('ok');\n")
+
+    @Test fun nanoRenamesWithAllOnThePhone() {
+        nano(action("edit_file", "path" to "total.js", "search" to "calcTotal", "replace" to "orderTotal", "all" to true),
+            action("run_command", "command" to "node test.js"))
+        cloud()
+        val o = AgentHarness(renameProject, "Rename calcTotal to orderTotal everywhere and keep node test.js passing", ModelGateway.NETWORK,
+            provider = "hybrid", modelName = "", timeoutSeconds = 60).run()
+        assertFalse("timed out", o.timedOut)
+        assertTrue(o.file("total.js")!!, !o.file("total.js")!!.contains("calcTotal"))
+        assertTrue(o.resultsOf("run_command").first().contains("ok"))
+        assertEquals(0, cloudCalls)
+    }
+
+    @Test fun repeatingAFailedStepHandsTheRestToTheCloud() {
+        val same = action("edit_file", "path" to "total.js", "search" to "calcTotal", "replace" to "orderTotal")
+        nano(same, action("read_file", "path" to "total.js"), same)
+        cloud(tools("edit_file", "path" to "total.js", "search" to "calcTotal", "replace" to "orderTotal", "all" to true),
+            tools("run_command", "command" to "node test.js"))
+        val o = AgentHarness(renameProject, "Rename calcTotal to orderTotal everywhere and keep node test.js passing", ModelGateway.NETWORK,
+            provider = "hybrid", modelName = "", timeoutSeconds = 60).run()
+        assertFalse("timed out", o.timedOut)
+        assertEquals("the repeated edit was not run; the cloud took over", 3, nanoPrompts)
+        assertTrue(shown(o), shown(o).contains("repeated a step that already failed"))
+        assertTrue(o.resultsOf("run_command").first().contains("ok"))
+    }
 }

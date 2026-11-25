@@ -4280,6 +4280,8 @@ class ChatPane(
     private fun offerEscalation(turn: Turn, text: String, r: NativeAgent.Result, used: dev.pocketide.app.core.Workflow.Slot?) {
         if (escalation.ended()) return
         if (!settings.agent || planning || planResearch || reviewOnly || r.rejected) return
+        // Hybrid AI in Single model mode: Gemini Nano already passes what it cannot do to the cloud model; no other model joins
+        if ((used?.provider ?: settings.provider) == "hybrid" && settings.workflow == dev.pocketide.app.core.Workflow.SINGLE) return
         val kind = if (text.startsWith(requestKindFor) && requestKindFor.isNotEmpty()) requestKind else dev.pocketide.app.core.Intent.of(text)
         val why = dev.pocketide.app.core.SecondTry.reason(kind == dev.pocketide.app.core.Intent.Kind.TASK, r.personStopped || stopFlag, r.error, r.cutShort, r.failedCheck, r.text) ?: return
         val working = used ?: dev.pocketide.app.core.Workflow.Slot(settings.provider, settings.model(settings.provider).ifBlank { Providers.byId(settings.provider).model })

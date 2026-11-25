@@ -21,7 +21,7 @@ object EditBlocks {
     private val UNFENCE_A = Regex("""(^|\n)([^\n`~]+\n)(`{3,}|~{3,})[\w+.-]*[ \t]*\n(<{5,9} *SEARCH[ \t]*\n[\s\S]*?\n>{5,9} *REPLACE[ \t]*)\n\3[ \t]*(?=\n|\z)""")
     private val UNFENCE_B = Regex("""(^|\n)(`{3,}|~{3,})[\w+.-]*[ \t]*\n((?:[^\n`~]+\n)?<{5,9} *SEARCH[ \t]*\n[\s\S]*?\n>{5,9} *REPLACE[ \t]*)\n\2[ \t]*(?=\n|\z)""")
     private val MANY_LINES = Regex("\n{3,}")
-    private const val MANY = "the SEARCH text matches more than once; include more surrounding lines"
+    private const val MANY = "the SEARCH text matches more than once; include more surrounding lines (with edit_file, or set all to true to replace every match, as for a rename)"
 
     private fun blkPath(line: String, known: Set<String>): String? {
         var c = line.trim().replace(PATH_TRIM, "").replace(PATH_PREFIX, "")
@@ -113,6 +113,12 @@ object EditBlocks {
      * then blank lines. Line-number prefixes copied from read_file are dropped first. When nothing matches, the error
      * shows the closest text with its line numbers, so the model can copy it instead of guessing again.
      */
+    /** Replaces every exact match of the search text (edit_file with all=true, a rename); one match works too. */
+    fun applyAll(cur: String, b: EditBlock): ApplyResult {
+        if (b.search.isEmpty() || countOcc(cur, b.search) == 0) return apply(cur, b)   // no exact match: the usual matching and its error
+        return ApplyResult(text = cur.replace(b.search, b.replace))
+    }
+
     fun apply(cur: String, b0: EditBlock): ApplyResult {
         // a file may really contain "12: " lines, so the text as sent is tried first
         val numbered = stripLineNumbers(b0.search) != b0.search && (b0.search.isEmpty() || countOcc(cur, b0.search) == 0)

@@ -38,8 +38,9 @@ object Tools {
             mapOf("path" to s("Path relative to the project root"), "content" to s("The complete new contents")), listOf("path", "content")),
         Def("delete_file", "Delete a file from the project (it can be restored with Undo). Use it to remove a file the change makes unused, or one the person asks to remove; " +
             "do not empty a file or leave a stub instead.", mapOf("path" to s("Path relative to the project root")), listOf("path")),
-        Def("edit_file", "Replace one exact piece of an existing file. search must match the current text exactly once; copy it from read_file output without the line numbers. If it fails, the error shows the closest lines; then copy from those, or use edit_lines.",
-            mapOf("path" to s("Path relative to the project root"), "search" to s("Exact existing text"), "replace" to s("Replacement text")), listOf("path", "search", "replace")),
+        Def("edit_file", "Replace one exact piece of an existing file. search must match the current text exactly once; copy it from read_file output without the line numbers. If it fails, the error shows the closest lines; then copy from those, or use edit_lines. To replace every match (a rename), set all to true.",
+            mapOf("path" to s("Path relative to the project root"), "search" to s("Exact existing text"), "replace" to s("Replacement text"),
+                "all" to mapOf("type" to "boolean", "description" to "true = replace every match of search, as for a rename (default false: exactly one match)")), listOf("path", "search", "replace")),
         Def("multi_edit", "Make several exact edits in one call, in order, in one or more existing files. Each edit works like edit_file (search must match exactly once). Use it instead of many edit_file calls when you already know all the changes; one failing edit does not stop the rest.",
             mapOf("edits" to mapOf("type" to "array", "description" to "The edits, in order (at most 12)", "items" to mapOf("type" to "object",
                 "properties" to mapOf("path" to s("Path relative to the project root"), "search" to s("Exact existing text"), "replace" to s("Replacement text")),

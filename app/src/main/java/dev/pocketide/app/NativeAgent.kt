@@ -725,6 +725,13 @@ class NativeAgent(
     }
 
     private var advisorUsed = 0
+
+    /** Web searches in a row that came back empty (the free search is rate-limited): after a few, the model is told to stop. */
+    private var emptySearches = 0
+    private val SEARCH_ELSE = "Searching again may not help right now. Read a page you know with web_fetch (for example " +
+        "https://www.npmjs.com/package/<name> or https://github.com/<owner>/<repo>), or go on with what you know and say what you could not check."
+    private val NO_SEARCH = "Web search is not answering right now (4 empty results in a row), so it is off for the rest of this request. " +
+        "Use web_fetch on a page you know, or finish the work with what you know and say what you could not check."
     /** Retries after a too-long error, and how much smaller than the estimate the history is kept since. */
     private var fitRetries = 0
     private var squeeze = 1.0
@@ -2334,7 +2341,9 @@ class NativeAgent(
                 val rawSearch = g("search")
                 // a search escaped the same way is decoded only when the decoded text is really in the file
                 val search = dev.pocketide.app.core.OverEscaped.decode(rawSearch).takeIf { it != rawSearch && rawSearch !in cur && it in cur } ?: rawSearch
-                val res = EditBlocks.apply(cur, EditBlock(p, search, if (escaped) dev.pocketide.app.core.OverEscaped.decode(rawReplace) else rawReplace))
+                val block = EditBlock(p, search, if (escaped) dev.pocketide.app.core.OverEscaped.decode(rawReplace) else rawReplace)
+                val every = a["all"] == true || a["all"]?.toString()?.trim()?.lowercase() == "true"
+                val res = if (every) EditBlocks.applyAll(cur, block) else EditBlocks.apply(cur, block)
                 val escNote = if (escaped || search != rawSearch) dev.pocketide.app.core.OverEscaped.NOTE else ""
                 val newText = res.text
                 if (newText == null) { reply("Edit not applied to $p: ${res.error ?: "the search text was not found"}. Read the file again and copy the text exactly.", "$label (failed)"); return }
@@ -2670,7 +2679,17 @@ class NativeAgent(
                 // models often name the argument after another search tool (pattern, q)
                 val q = g("query").ifBlank { g("q") }.ifBlank { g("pattern") }.ifBlank { g("search") }.trim()
                 if (q.isEmpty()) { reply("Give something to search for: web_search needs query."); return }
-                McpClient.background { val r = WebClient.search(q, settings.braveKey); McpClient.onMain { reply(r) } }
+                if (emptySearches >= 4) { reply(NO_SEARCH); return }
+                McpClient.background {
+                    val r = WebClient.search(q, settings.braveKey)
+                    McpClient.onMain {
+                        // a benchmark run searched ten more times after the free search stopped answering, and never wrote the file
+                        if (r.startsWith(dev.pocketide.app.core.WebResearch.NO_RESULTS_HELP.take(30))) {
+                            emptySearches++
+                            reply(if (emptySearches >= 4) NO_SEARCH else if (emptySearches >= 2) "$r\n$SEARCH_ELSE" else r)
+                        } else { emptySearches = 0; reply(r) }
+                    }
+                }
             }
             "sql_query" -> {
                 val path = g("path").trim().removePrefix("./")

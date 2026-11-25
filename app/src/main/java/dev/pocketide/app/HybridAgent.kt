@@ -79,6 +79,8 @@ object HybridAgent {
         }
         val secs = (System.nanoTime() - t0) / 1e9
         val (turn, why) = phoneTurn(reply, messages)
+        val again = turn?.calls?.firstOrNull()?.takeIf { repeatsFailure(it, messages) }
+        if (again != null && !only) return Phone(null, "Gemini Nano repeated a step that already failed (${again.name})")
         if (turn != null) return Phone(Result(turn, true, secs, ""), "")
         if (only) return Phone(Result(ToolTurn(reply.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")
         return Phone(null, "Gemini Nano $why")
@@ -128,6 +130,15 @@ object HybridAgent {
             if (m["role"] == "tool") { if (FAILED.containsMatchIn(textOf(m["content"]))) n++ else return n }
         }
         return n
+    }
+
+    /** True when [call] is the same tool with the same arguments as an earlier call in this request whose result was a failure. */
+    fun repeatsFailure(call: ToolCall, messages: List<Map<String, Any?>>): Boolean {
+        val failed = messages.filter { it["role"] == "tool" && FAILED.containsMatchIn(textOf(it["content"])) }.mapNotNull { it["tool_call_id"] as? String }.toSet()
+        if (failed.isEmpty()) return false
+        val want = args(call.arguments)
+        return messages.filter { it["role"] == "assistant" }.flatMap { (it["tool_calls"] as? List<*>).orEmpty().mapNotNull { tc -> callOf(tc) } }
+            .any { it.id in failed && it.name == call.name && args(it.args) == want }
     }
 
     private fun lastFailure(messages: List<Map<String, Any?>>): String =

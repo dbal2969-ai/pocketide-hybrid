@@ -60,4 +60,21 @@ class HybridRouteTest {
         val msg = dev.pocketide.app.core.UndefinedNames.removedRefusal("app.js", gone)
         check(msg.startsWith("NOT SAVED") && msg.contains("`selectedRecipeIds` at line 2") && msg.contains("put back")) { msg }
     }
+
+    @Test fun replaceAllRenamesEveryMatch() {
+        val cur = "function calcTotal(items) {}\nmodule.exports = { calcTotal };\n"
+        val one = dev.pocketide.app.core.EditBlocks.apply(cur, dev.pocketide.app.core.EditBlock("t.js", "calcTotal", "orderTotal"))
+        check(one.error!!.contains("set all to true")) { one.error!! }
+        val all = dev.pocketide.app.core.EditBlocks.applyAll(cur, dev.pocketide.app.core.EditBlock("t.js", "calcTotal", "orderTotal"))
+        check(all.text == "function orderTotal(items) {}\nmodule.exports = { orderTotal };\n") { all.text.orEmpty() }
+    }
+
+    @Test fun aStepThatAlreadyFailedIsSpotted() {
+        val call = mapOf("id" to "c1", "type" to "function", "function" to mapOf("name" to "edit_file", "arguments" to "{\"path\":\"t.js\",\"search\":\"a\",\"replace\":\"b\"}"))
+        val msgs = listOf(mapOf<String, Any?>("role" to "user", "content" to "Rename"),
+            mapOf<String, Any?>("role" to "assistant", "content" to "", "tool_calls" to listOf(call)),
+            mapOf<String, Any?>("role" to "tool", "tool_call_id" to "c1", "content" to "Edit not applied to t.js: the SEARCH text matches more than once"))
+        check(HybridAgent.repeatsFailure(dev.pocketide.app.core.ToolCall("x", "edit_file", "{\"search\":\"a\",\"path\":\"t.js\",\"replace\":\"b\"}"), msgs)) { "same call, other key order" }
+        check(!HybridAgent.repeatsFailure(dev.pocketide.app.core.ToolCall("x", "edit_file", "{\"path\":\"t.js\",\"search\":\"a\",\"replace\":\"b\",\"all\":true}"), msgs)) { "a changed call is a new try" }
+    }
 }
