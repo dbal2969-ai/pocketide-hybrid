@@ -175,6 +175,7 @@ class NativeAgent(
 
     /** The play-test guard: a weakening change becomes a proposal the person can allow, and the model is told to carry on. */
     private fun testGate(path: String, prior: String?, content: String, request: String): String? {
+        dev.pocketide.app.core.Scope.checkRefusal(path, prior, content, request)?.let { return it }
         dev.pocketide.app.core.Scope.testRefusal(path, prior, content, request) ?: return null
         val gone = dev.pocketide.app.core.Scope.gone(prior ?: "", content)
         testProposals[path.trimStart('/')] = content to gone
@@ -255,7 +256,7 @@ class NativeAgent(
      */
     private fun verdict(r: Result): dev.pocketide.app.core.Outcome.Verdict? {
         // a question, a report, research, or a run that answered with a finding (PremiseCheck) has no task verdict
-        if (question || reportOnly || researchRequest || readOnly() || finding != null) return null
+        if (question || reportOnly || researchRequest || readOnly() || finding != null || docsOnly()) return null
         val after = proofChecks.filter { it.runtime && it.round >= writeMark }
         val passed = after.lastOrNull { it.ok == true }?.what.orEmpty()
         val failed = dev.pocketide.app.core.Proof.lastFailed(proofChecks, writeMark)?.what.orEmpty()

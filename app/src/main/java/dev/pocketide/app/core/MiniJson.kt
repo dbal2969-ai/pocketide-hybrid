@@ -92,7 +92,10 @@ object MiniJson {
                                 sb.append(s.substring(i, i + 4).toIntOrNull(16)?.toChar() ?: fail("bad unicode escape"))
                                 i += 4
                             }
-                            else -> sb.append(e)
+                            '"', '\\', '/' -> sb.append(e)
+                            // 1.5.184 (benchmark run 6, task 08): Gemini Nano wrote the regex \S+@\S+\.\S+ with single backslashes, which
+                            // is not valid JSON; dropping the backslash saved /S+@S+.S+/ and every good email was refused. Kept as written.
+                            else -> sb.append('\\').append(e)
                         }
                     }
                     else -> sb.append(c)

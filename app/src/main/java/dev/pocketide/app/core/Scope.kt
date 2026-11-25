@@ -67,6 +67,27 @@ object Scope {
      * Why a write to the play-test file is refused, or null. Adding tests and steps is always fine; removing or changing an
      * existing step is refused unless the request asks for the tests to change.
      */
+    private val RUNS = Regex("""\b(?:node|python3?|pytest|deno\s+run|bun|ruby|php|bash|sh)\s+([\w./-]+)""", I)
+
+    /** The test files the request says to run as its check ("so node test.js prints ok"). */
+    fun namedChecks(request: String): Set<String> =
+        RUNS.findAll(request).map { it.groupValues[1].removePrefix("./") }.filter { Regex("""(?i)test|spec""").containsMatchIn(it) }.toSet()
+
+    /**
+     * 1.5.184 (benchmark run 6, task 08): asked to make signup reject bad emails "so node test.js prints ok", Gemini Nano changed
+     * test.js instead of the app. The test the request names as its check is not rewritten: lines may be added, existing ones stay.
+     */
+    fun checkRefusal(path: String, prior: String?, content: String, request: String): String? {
+        val p = path.trimStart('/').removePrefix("./")
+        if (prior == null || p !in namedChecks(request)) return null
+        val rest = RUNS.replace(request, " ")
+        if (asksToChangeTests(rest)) return null
+        val gone = gone(prior, content).filter { it.isNotEmpty() }
+        if (gone.isEmpty()) return null
+        return "Not written: $p is the check the person asked to pass, and this would remove or change ${gone.size} of its line${if (gone.size == 1) "" else "s"} (" +
+            gone.take(2).joinToString("; ") { "\"" + it.take(60) + "\"" } + "). A failing test is a finding about the app: change the app so $p passes as it is."
+    }
+
     fun testRefusal(path: String, prior: String?, content: String, request: String): String? {
         if (path.trimStart('/') != PlayTests.FILE || prior == null || asksToChangeTests(request)) return null
         val gone = gone(prior, content)

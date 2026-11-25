@@ -105,6 +105,10 @@ object HybridBench {
 
         fun after(t: HybridBenchTasks.Task, name: String, root: File, t0: Long, ended: String) {
             val files = readTexts(root)
+            // 1.5.184 (run 6, task 08): the model changed test.js. The check always runs the task's own test, put back if it changed.
+            val tampered = dev.pocketide.app.core.Scope.namedChecks(t.prompt).filter { p -> t.files[p] != null && files[p] != t.files[p] }
+            for (p in tampered) try { File(root, p).writeText(t.files.getValue(p)) } catch (e: Exception) { }
+            val tamperNote = if (tampered.isEmpty()) "" else "The model changed ${tampered.joinToString(", ")}; the task's own version was put back before the check.\n"
             val transcript = transcripts(name, t0)
             val record = { code: Int?, text: String ->
                 val facts = HybridBenchTasks.Facts(files, t.files, code, text, transcript, ended)
@@ -115,7 +119,7 @@ object HybridBench {
                     val dir = File(out, t.id).apply { mkdirs() }
                     for ((p, s) in files) File(dir, "files/$p").apply { parentFile?.mkdirs(); writeText(s) }
                     File(dir, "transcript.txt").writeText(transcript)
-                    File(dir, "check.txt").writeText((t.command?.let { "$ $it\nexit $code\n$text\n\n" } ?: "") + "Result: " + (why ?: "passed") + "\n")
+                    File(dir, "check.txt").writeText(tamperNote + (t.command?.let { "$ $it\nexit $code\n$text\n\n" } ?: "") + "Result: " + (why ?: "passed") + "\n")
                 } catch (e: Exception) { /* the report still has the result */ }
                 i++
                 main.postDelayed({ next() }, 3000)
