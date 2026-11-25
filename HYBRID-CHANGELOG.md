@@ -37,7 +37,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | 1124-2004 (run 2) | `ed08bdb` | 8 of 8 | 29 of 54 | 05 and 06 passed their checks but ended "stopped or failed": a leftover "Placeholder" comment; plan steps of a notes-only task held open for a check | `affd564` |
 | 1124-2028 (run 3) | `ed08bdb` (old APK) | 6 of 8 | 24 of 47 | 06 stalled on the "Let the assistant read npmjs.com?" card; 07 Nano saw only 2,000 characters of a 22,000-character file; 08 stopped when the app left the screen | `feb7289` |
 | 1124-2048 (run 4) | `feb7289` | 8 of 8, all ended done | 39 of 68 | 01 Nano un-did its passing fix; 08 Private mode repeated a refused edit five times | `e61aafe` |
-| 1124-2111 (run 5) | `e61aafe` | 8 of 8 | 25 of 57 | 01 done in 2 steps and 08 in 8 (were 7 and 19); 05 held on a Run/Skip card for `apk add` until the owner tapped Run, then ended "unfinished files: app.js" with the stand-in gone; 06 ended "stopped or failed" with no reason in the log | `(next)` |
+| 1124-2111 (run 5) | `e61aafe` | 8 of 8 | 25 of 57 | 01 done in 2 steps and 08 in 8 (were 7 and 19); 05 held on a Run/Skip card for `apk add` until the owner tapped Run, then ended "unfinished files: app.js" with the stand-in gone; 06 ended "stopped or failed" with no reason in the log | `fd54990` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -219,7 +219,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   by default and adjustable, not 4,000).
 - **Files:** HYBRID-CHANGELOG.md, .github/workflows/changelog.yml, scripts/check-changelog.sh, CONTRIBUTING-AGENTS.md, HACKATHON.md.
 
-### (next) · 2026-11-24 · Fixes from benchmark run 5 (8 of 8)
+### fd54990 · 2026-11-24 21:40 · Fixes from benchmark run 5 (8 of 8)
 - **Evidence:** run 1124-2111 and the owner's screenshot of the held Run/Skip card (task 05).
 - **Change:** during the benchmark, a command that always needs the person's OK (here `apk add`, which uses the network) is
   skipped instead of waiting, the model is told it was skipped, and the chat log notes it. Files marked unfinished are checked
