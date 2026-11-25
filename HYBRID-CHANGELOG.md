@@ -507,7 +507,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** ChatHomeNanoTest (2), HybridAgentLoopTest.inTheChatHomeNanoIsToldThereIsNoProject. 1,308 tests, 0 failures.
 - **Evidence:** owner's screenshot, from-scratch run (s06 to-do list from the chat), 2026-11-25 12:42.
 
-### (next) · 2026-11-25 13:05 · Chat home: see, move or delete the files left in it
+### ce51e65 · 2026-11-25 13:05 · Chat home: see, move or delete the files left in it
 - **Why:** the owner says an early build from the chat (before or at the start of the hackathon) wrote a game into the chat with
   no project. They undid most of it because it stopped PocketIDE from switching tabs properly, and stray files may still be
   there. That fits the to-do run where Nano took the chat for "a local isometric RPG".
