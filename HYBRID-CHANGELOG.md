@@ -444,7 +444,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   core/Tools.kt, HybridAgent.kt (insert_lines), NativeAgent.kt (rename check, warnings).
 - **Tests:** LocalRun3Test (5). 1,294 tests. Re-analysis with the hidden checks: local run 3 is 16 clean passes, not 18.
 
-### (next) · 2026-11-25 · From-scratch benchmark: empty project and the chat with no project
+### 3a8cd77 · 2026-11-25 13:20 · From-scratch benchmark: empty project and the chat with no project
 - **Why:** owner's question: had PocketIDE been tested making a project from scratch, in an empty project or from the chat outside
   a project? It had not: every task so far started from prepared files.
 - **Change:** a from-scratch suite of ten tasks: a phone snake game, a calculator, a to-do list, tic-tac-toe against the computer and
