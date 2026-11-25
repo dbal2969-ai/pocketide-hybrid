@@ -211,7 +211,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   once more, told what failed (it had sent the same refused edit five times).
 - **Files:** HybridAgent.kt. **Tests:** HybridAgentLoopTest (passing-check note, Private-mode retry). 1,228 tests.
 
-### (this commit) · 2026-11-24 · Change record
+### fa1bd82 · 2026-11-24 21:20 · Change record
 - **Why:** owner's request: keep detailed records of every change since the hackathon started.
 - **Change:** this file; a CI check that a change to the app, tests, benchmark or build also updates it; the rule added to
   `CONTRIBUTING-AGENTS.md`; `HACKATHON.md` points here and its routing row is corrected (the on-phone limit is 14,000 characters
