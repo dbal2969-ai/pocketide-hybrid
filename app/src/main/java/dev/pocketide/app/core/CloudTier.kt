@@ -78,6 +78,16 @@ object CloudTier {
      * below, one above (from-scratch run 1125-1218: Balanced's quota ran out, Fast was then out of quota or busy, and four requests
      * died although Best had never been tried). Never one in [tried] (this step) or [skip] (cooling down or unavailable).
      */
+    /** True when [msg] names a daily limit (Google's quota ids say PerDay); a wait of a minute does not refill those. */
+    fun daily(msg: String): Boolean = Regex("""(?i)per ?day|requests_per_day|daily""").containsMatchIn(msg)
+
+    /** When the cloud counts as out after every tier failed on quota: until midnight Pacific for a daily limit, else 15 minutes. */
+    fun outUntil(msg: String, now: Long = System.currentTimeMillis()): Long {
+        if (!daily(msg)) return now + 15 * 60_000L
+        val z = java.time.ZoneId.of("America/Los_Angeles")
+        return java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(now), z).toLocalDate().plusDays(1).atStartOfDay(z).toInstant().toEpochMilli()
+    }
+
     /** How long to wait for a free limit to refill: the error's own "retry in 23s" / retryDelay, else 30 s; 5 to 60 s. */
     fun retryAfterMs(msg: String): Long {
         val s = Regex("""(?i)retry(?: in|Delay\W*)\s*([0-9]+(?:\.[0-9]+)?)\s*s""").find(msg)?.groupValues?.get(1)?.toDoubleOrNull()

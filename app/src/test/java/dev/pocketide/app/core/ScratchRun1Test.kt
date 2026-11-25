@@ -34,4 +34,13 @@ class ScratchRun1Test {
         assertEquals(30_000L, CloudTier.retryAfterMs("You exceeded your current quota, please check your plan and billing details."))
         assertEquals(60_000L, CloudTier.retryAfterMs("retryDelay\": \"300s"))
     }
+
+    @Test fun run3_aDailyLimitWaitsUntilMidnightPacific() {
+        assertTrue(CloudTier.daily("Quota exceeded for quota id: GenerateRequestsPerDayPerProjectPerModel-FreeTier"))
+        assertTrue(!CloudTier.daily("Quota exceeded for metric: generate_content_free_tier_requests. Please retry in 30s."))
+        val now = java.time.ZonedDateTime.of(2026, 11, 25, 16, 30, 0, 0, java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+        val until = java.time.Instant.ofEpochMilli(CloudTier.outUntil("PerDay", now)).atZone(java.time.ZoneId.of("America/New_York"))
+        assertEquals(3, until.hour); assertEquals(26, until.dayOfMonth)
+        assertEquals(now + 15 * 60_000L, CloudTier.outUntil("per minute", now))
+    }
 }

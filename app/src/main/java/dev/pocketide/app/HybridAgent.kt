@@ -50,6 +50,11 @@ object HybridAgent {
     private const val HANDOFF_MARK = "⚡ Gemini Nano (on this phone): I'm passing this to"
     private const val FALLBACK_MARK = " instead. Why: "
 
+    /** Thrown when every cloud tier is out of free quota even after waiting (HybridAi.cloudOutUntil is set). */
+    class CloudOut(msg: String) : Exception(msg)
+
+    const val CLOUD_OUT_NOTE = "The cloud models are out of their free quota for now, so Gemini Nano carries on alone on the phone."
+
     /** The model name of a step PocketIDE took itself, with no model call ([appFirst]); HybridScreen.label names it. */
     const val APP_STEP = "PocketIDE itself"
 
@@ -83,8 +88,9 @@ object HybridAgent {
             if (c.name == "app_help") "PocketIDE looked up its own help and settings first." else "PocketIDE proposed the setting change first.", APP_STEP), "") }
         val p = phoneStep(ctx, messages, docs)
         val r = p.result ?: return p
-        if (HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE || online(ctx)) return p
-        return Phone(Result(r.turn, r.onDevice, r.seconds, listOf(r.note, "No internet connection, so this stayed on the phone.").filter { it.isNotBlank() }.joinToString(" "), r.model), p.reason, p.stay, p.strongFailed)
+        if (HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE || (online(ctx) && !HybridAi.cloudOut())) return p
+        val why = if (!online(ctx)) "No internet connection, so this stayed on the phone." else CLOUD_OUT_NOTE
+        return Phone(Result(r.turn, r.onDevice, r.seconds, listOf(r.note, why).filter { it.isNotBlank() }.joinToString(" "), r.model), p.reason, p.stay, p.strongFailed)
     }
 
     private fun phoneStep(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
@@ -92,7 +98,8 @@ object HybridAgent {
         if (mode == HybridAi.Mode.PREFER_IN_CLOUD) return Phone(null, "")
         // 1.5.184 (the owner's touch-controls run): with no connection, Nano handed off after two failed edits and the request died on
         // "android_getaddrinfo failed". Offline, nothing can be passed on, so Nano carries on as in Private mode.
-        val offline = !online(ctx)
+        // 1.5.185: with every cloud tier out of free quota, Nano carries on alone as it does offline
+        val offline = !online(ctx) || HybridAi.cloudOut()
         // once a step of this request was passed on, the rest of it stays with that model (Nano would only start over)
         val said = messages.filter { it["role"] == "assistant" }.map { (it["content"] as? String).orEmpty() }
         if (mode == HybridAi.Mode.PREFER_ON_DEVICE && !offline && said.any { it.contains(HANDOFF_MARK) })
@@ -223,7 +230,10 @@ object HybridAgent {
                         } else {
                             // 1.5.185 (from-scratch run 1125-1527: 9 of 10 tasks ended on this): every tier was out at once. The free
                             // limits are mostly per minute, so the step waits for them to refill and asks the first tier again, twice at most
-                            if (quotaWaits >= 2) throw e
+                            if (quotaWaits >= 2 || dev.pocketide.app.core.CloudTier.daily(msg)) {
+                                HybridAi.cloudOutUntil = dev.pocketide.app.core.CloudTier.outUntil(msg)
+                                throw CloudOut(msg)
+                            }
                             quotaWaits++
                             val wait = dev.pocketide.app.core.CloudTier.retryAfterMs(msg)
                             Thread.sleep(wait)

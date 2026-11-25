@@ -41,7 +41,7 @@ class HybridAgentLoopTest {
         ctx.getSharedPreferences("hybrid_ai", 0).edit().clear().putString("mode", HybridAi.Mode.PREFER_ON_DEVICE.name).commit()
     }
 
-    @After fun tearDown() { HybridAgent.testPhone = null; HybridAgent.testCloud = null; HybridAgent.testOnline = null; HybridAgent.recorder = null }
+    @After fun tearDown() { HybridAi.cloudOutUntil = 0L; HybridAgent.testPhone = null; HybridAgent.testCloud = null; HybridAgent.testOnline = null; HybridAgent.recorder = null }
 
     private fun nano(vararg replies: String) {
         val q = ArrayDeque(replies.toList())
@@ -280,6 +280,19 @@ class HybridAgentLoopTest {
             mapOf<String, Any?>("role" to "user", "content" to "Make a to-do list app"))
         val p = HybridAgent.phonePrompt(false, msgs, 14000)!!
         assertTrue(p.contains(dev.pocketide.app.core.Design.KIT_MARK) && p.contains("remove the samples"))
+    }
+
+    @Test fun withTheCloudOutOfQuotaNanoCarriesOn() {
+        // 1.5.185 (from-scratch run 1125-1619): every request whose step went to the cloud ended on the day's quota
+        var n = 0
+        HybridAgent.testPhone = { _ -> n++; if (n == 1) "I cannot do this whole request." else if (n == 2)
+            """{"reason":"start small","tool":"write_file","tool_args":{"path":"index.html","content":"<p>hi</p>\n"}}"""
+            else """{"reason":"done","tool":"answer","tool_args":{"text":"Wrote index.html."}}""" }
+        HybridAgent.testCloud = { _, _, _ -> cloudCalls++; HybridAi.cloudOutUntil = System.currentTimeMillis() + 60_000; throw HybridAgent.CloudOut("You exceeded your current quota") }
+        val o = run("Write index.html with a hello paragraph")
+        assertFalse("timed out", o.timedOut)
+        assertTrue(o.names.toString(), o.names.contains("write_file"))
+        assertEquals(1, cloudCalls)
     }
 
     @Test fun appFirstOnlyForTheAppAndOnlyFirst() {

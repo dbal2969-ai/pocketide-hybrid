@@ -55,6 +55,13 @@ object HybridAi {
     /** Tiers whose quota ran out, with the time they may be tried again (CloudTier.quota). */
     val coolUntil: MutableMap<dev.pocketide.app.core.CloudTier.Tier, Long> = java.util.concurrent.ConcurrentHashMap()
 
+    /**
+     * 1.5.185 (from-scratch run 1125-1619: 9 of 10 tasks ended on quota errors that lasted the whole evening): when every cloud tier is
+     * out of its free quota even after waiting, the cloud counts as out until this time, and Gemini Nano carries on alone meanwhile.
+     */
+    @Volatile var cloudOutUntil: Long = 0L
+    fun cloudOut(): Boolean = System.currentTimeMillis() < cloudOutUntil
+
     /** Tiers not to use now: unusable for the session, or cooling down after their quota ran out. */
     fun skipNow(): Set<dev.pocketide.app.core.CloudTier.Tier> {
         val now = System.currentTimeMillis()

@@ -297,7 +297,15 @@ object ModelClient {
                                 link(call, inner, done)
                                 return@execute
                             }
-                            emit(hybrid { HybridAgent.cloud(hctx, system, messages, toolList) }, handoff, ph.reason)
+                            try { emit(hybrid { HybridAgent.cloud(hctx, system, messages, toolList) }, handoff, ph.reason) }
+                            catch (e: Problem) {
+                                // 1.5.185: every cloud tier is out of free quota; in phone-first mode Nano takes the step back instead of the
+                                // request ending (from-scratch run 1125-1619); cloud-first has no Nano step to fall back to
+                                if (!HybridAi.cloudOut() || HybridScreen.mode(hctx) == HybridAi.Mode.PREFER_IN_CLOUD) throw e
+                                val again = hybrid { HybridAgent.phone(hctx, messages, docs) }
+                                val r = again.result ?: throw e
+                                emit(r, listOf(handoff, HybridAgent.CLOUD_OUT_NOTE).filter { it.isNotBlank() }.joinToString("\n\n"), ph.reason)
+                            }
                         }
                     } else {
                         val r = hybridChat(system, messages.map { ((it["role"] as? String) ?: "user") to (it["content"]?.toString() ?: "") })
