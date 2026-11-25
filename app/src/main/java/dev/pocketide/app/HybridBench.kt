@@ -36,6 +36,7 @@ object HybridBench {
         STANDARD("hybrid", "Hybrid AI benchmark"), HARD("hybrid-hard", "Hybrid AI benchmark (hard)"), GAMES("hybrid-games", "Hybrid AI benchmark (games)"),
         LOCAL("hybrid-local", "Hybrid AI benchmark (local model)"),
         SCRATCH("hybrid-scratch", "Hybrid AI benchmark (from scratch)"),
+        APP("hybrid-app", "Hybrid AI benchmark (in-app questions)"),
     }
 
     /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
@@ -68,7 +69,7 @@ object HybridBench {
         val out = File(act.filesDir, "bench-results/$suite-$stamp").apply { mkdirs() }
         val results = ArrayList<HybridBenchTasks.Result>()
         val tasks = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL
-            Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.STANDARD -> HybridBenchTasks.ALL }
+            Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.APP -> HybridBenchTasks.APP; Suite.STANDARD -> HybridBenchTasks.ALL }
         /** Gemini Nano's exchanges in the current task (HybridAgent.recorder), saved as nano.jsonl. */
         val nanoLog = StringBuilder()
         var i = 0
@@ -87,6 +88,7 @@ object HybridBench {
             }
             settings.agent = true
             settings.mode = "agent"   // Agent mode: the chat box's mode and the agent switch, as the Agent chip sets them
+            if (kind == Suite.APP) { next(); return }   // questions about the app run no commands
             toast("Hybrid benchmark: checking that Node is ready…")
             act.benchChat().runForChecks("node --version") { code, text ->
                 main.post {
@@ -95,6 +97,10 @@ object HybridBench {
                 }
             }
         }
+
+        // 1.5.185: the settings app_settings can change, read before each task and compared after it (no change may happen unapproved)
+        fun settingsNow(): Map<String, String?> = dev.pocketide.app.core.AppSettingsTool.known.associate { it.setting!! to AppSettingsBridge.value(act, settings, it.setting) }
+        var settingsBefore: Map<String, String?> = emptyMap()
 
         fun next() {
             if (i >= tasks.size) { finish(null); return }
@@ -105,6 +111,7 @@ object HybridBench {
             val root = File(Projects.root(act), name)
             for ((p, text) in t.files) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
             HybridScreen.setMode(act, if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
+            settingsBefore = settingsNow()
             val t0 = System.currentTimeMillis()
             synchronized(nanoLog) { nanoLog.setLength(0) }
             HybridAgent.recorder = { line -> synchronized(nanoLog) { nanoLog.append(line).append('\n') } }
@@ -142,6 +149,7 @@ object HybridBench {
          */
         fun fromChat(t: HybridBenchTasks.Task) {
             HybridScreen.setMode(act, if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
+            settingsBefore = settingsNow()
             val t0 = System.currentTimeMillis()
             synchronized(nanoLog) { nanoLog.setLength(0) }
             HybridAgent.recorder = { line -> synchronized(nanoLog) { nanoLog.append(line).append('\n') } }
@@ -185,7 +193,9 @@ object HybridBench {
             val tamperNote = if (tampered.isEmpty()) "" else "The model changed ${tampered.joinToString(", ")}; the task's own version was put back before the check.\n"
             val transcript = (extra + name).joinToString("\n\n") { transcripts(it, t0) }
             val record = { code: Int?, text: String ->
-                val facts = HybridBenchTasks.Facts(files, t.files, code, text, transcript, ended)
+                val now = settingsNow()
+                val changedSettings = if (settingsBefore.isEmpty()) emptyList() else now.keys.filter { now[it] != settingsBefore[it] }.map { "$it: ${settingsBefore[it]} → ${now[it]}" }
+                val facts = HybridBenchTasks.Facts(files, t.files, code, text, transcript, ended, changedSettings)
                 val why = try { t.judge(facts) } catch (e: Exception) { "the check failed: ${e.message}" }
                 results.add(HybridBenchTasks.Result(t, why == null, why.orEmpty(), HybridBenchTasks.counts(transcript),
                     (System.currentTimeMillis() - t0) / 1000, ended))
@@ -194,7 +204,7 @@ object HybridBench {
                     for ((p, s) in files) File(dir, "files/$p").apply { parentFile?.mkdirs(); writeText(s) }
                     File(dir, "transcript.txt").writeText(transcript)
                     synchronized(nanoLog) { if (nanoLog.isNotEmpty()) File(dir, "nano.jsonl").writeText(nanoLog.toString()) }
-                    File(dir, "check.txt").writeText(tamperNote + (t.command?.let { "$ $it\nexit $code\n$text\n\n" } ?: "") + "Result: " + (why ?: "passed") + "\n")
+                    File(dir, "check.txt").writeText(tamperNote + (if (changedSettings.isEmpty()) "" else "Settings changed during the task: " + changedSettings.joinToString("; ") + "\n") + (t.command?.let { "$ $it\nexit $code\n$text\n\n" } ?: "") + "Result: " + (why ?: "passed") + "\n")
                 } catch (e: Exception) { /* the report still has the result */ }
                 i++
                 main.postDelayed({ next() }, 3000)

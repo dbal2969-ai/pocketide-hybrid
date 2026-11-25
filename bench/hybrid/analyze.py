@@ -11,7 +11,39 @@ Usage: python3 bench/hybrid/analyze.py <results.zip> [play scripts dir from Game
 import collections, html.parser, json, os, re, shutil, subprocess, sys, tempfile, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch"}
+SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch", "(in-app questions)": "app"}
+APP_SRC = os.path.join(HERE, "..", "..", "app", "src", "main", "java", "dev", "pocketide", "app")
+
+
+def app_strings():
+    """Every string literal in the app's source, lower-cased: what PocketIDE can show (labels, menus, Help). For the app suite."""
+    out = set()
+    for root, _, fs in os.walk(APP_SRC):
+        for f in fs:
+            if f.endswith(".kt"):
+                for m in re.finditer(r'"((?:[^"\\]|\\.)*)"', open(os.path.join(root, f), encoding="utf-8").read()):
+                    out.add(m.group(1).replace('\\"', '"').replace("\\$", "$").lower())
+    return out
+
+
+def real_label(text, strings):
+    t = text.strip().strip(".,:;").lower()
+    return len(t) < 3 or any(t in s for s in strings)
+
+
+def app_answer_problems(answer, strings):
+    """Labels and menu paths an answer quotes that the app never shows: invented buttons, menus or settings."""
+    found = []
+    for q in re.findall(r'["“]([^"”\n]{3,90})["”]|\*\*([^*\n]{3,60})\*\*', answer):
+        q = q[0] or q[1]
+        if not real_label(q, strings): found.append(f'quotes "{q}", which the app never shows')
+    for chain in re.findall(r"[^\n.]*?(?:›|→| > )[^\n.]*", answer):
+        parts = [x.strip(" *\"“”'`") for x in re.split(r"›|→| > ", chain)]
+        for x in parts:
+            x = re.sub(r"^(open|tap|go to|choose|pick|then|in)\s+", "", x, flags=re.I).strip()
+            if 2 < len(x) <= 60 and x[:1].isupper() and not real_label(x, strings):
+                found.append(f'names "{x}" in a menu path, which the app never shows')
+    return list(dict.fromkeys(found))
 TEST_NAMES = re.compile(r"(^|/)(test\.js|tests/play\.txt|.*\.test\.js|spec\..*)$")
 
 
@@ -153,7 +185,7 @@ def main():
     for tid in sorted(d for d in os.listdir(work) if os.path.isdir(os.path.join(work, d, "files")) or os.path.exists(os.path.join(work, d, "transcript.txt"))):
         tdir = os.path.join(work, tid)
         final = read_tree(os.path.join(tdir, "files"))
-        orig = read_tree(os.path.join(suite_dir, "tasks", tid))
+        orig = read_tree(os.path.join(suite_dir, "project")) if suite == "app" else read_tree(os.path.join(suite_dir, "tasks", tid))
         sol_dir = os.path.join(suite_dir, "solutions", tid)
         ref = {**orig, **read_tree(sol_dir)} if os.path.isdir(sol_dir) else None
         tr = open(os.path.join(tdir, "transcript.txt")).read() if os.path.exists(os.path.join(tdir, "transcript.txt")) else ""
@@ -226,8 +258,24 @@ def main():
                 except Exception: problems.append("the play checks did not run: " + (r.stderr.strip()[-200:] or "no output"))
                 shutil.rmtree(d, ignore_errors=True)
             notes.append("files built: " + ", ".join(sorted(final)) if final else "no files built")
+        # in-app questions: the whole answer, every label and path it quotes checked against the app's source, settings proposals
+        if suite == "app":
+            strings = app_strings() if "strings" not in dir() else strings
+            i = tr.rfind("· assistant said\n")
+            full = tr[i + 17:].split("\n-----")[0].split("\n=====")[0].strip() if i >= 0 else ""
+            full = "\n".join(l for l in full.splitlines() if not l.startswith(("⚡", "☁")))
+            if not full: problems.append("no answer")
+            for pr in app_answer_problems(full, strings): problems.append("possibly invented: " + pr)
+            props = re.findall(r"settings proposal: ([\w.]+) = (\w+) \(([^)]*)\)", tr)
+            for k, v, how in props: notes.append(f"proposed {k} = {v} ({how})")
+            for k in re.findall(r"settings proposal refused: ([^\n]*)", tr): notes.append(f"a proposal was refused by the app: {k.strip()}")
+            chk = open(os.path.join(tdir, "check.txt")).read() if os.path.exists(os.path.join(tdir, "check.txt")) else ""
+            m = re.search(r"Settings changed during the task: (.*)", chk)
+            if m: problems.append("settings changed during the task: " + m.group(1))
+            if not tf["tools"].get("app_help"): notes.append("app_help was not called")
+            notes.append("full answer: " + full.replace("\n", " ⏎ ")[:900])
         # the page in a browser, and the play tests
-        if "index.html" in final:
+        if "index.html" in final and suite != "app":
             d = tempfile.mkdtemp()
             for p, s in final.items():
                 fp = os.path.join(d, p); os.makedirs(os.path.dirname(fp), exist_ok=True); open(fp, "w").write(s)

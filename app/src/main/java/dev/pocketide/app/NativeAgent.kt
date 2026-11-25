@@ -430,7 +430,7 @@ class NativeAgent(
     private fun requestReminder(r: String) = dev.pocketide.app.core.RequestReminder.text(r)
 
     /** The tool list for the text format, built once (the tools do not change during a run). */
-    private val catalogue: String by lazy { if (small) Tools.smallCatalogue(docs) else Tools.textCatalogue(docs) }
+    private val catalogue: String by lazy { if (small) Tools.smallCatalogue(docs, dev.pocketide.app.core.SmallLocal.forApp(request)) else Tools.textCatalogue(docs) }
     /** 1.5.177: a local model of 8B or fewer runs in small local model mode (core/SmallLocal): one JSON action per reply, six tools. */
     private val small: Boolean by lazy {
         val pid = settings.provider
@@ -451,12 +451,17 @@ class NativeAgent(
     private var smallEdited = false
     private val smallReadPaths = LinkedHashSet<String>()
     private var smallTarget: String? = null
+    private var smallLooked = false
+    private var smallProposed = false
+    private val smallAboutApp by lazy { dev.pocketide.app.core.AppHelp.aboutApp(request) }
+    private val smallSetting by lazy { dev.pocketide.app.core.AppHelp.settingRequest(request)?.setting }
     private fun smallState(results: List<Pair<ToolCall, String>>): dev.pocketide.app.core.SmallLocal.State {
         for ((c, r) in results) {
             val path = (c.args()["path"] as? String)?.trim()?.removePrefix("./")
             if (c.name == "read_file" && !r.startsWith("Error")) { smallRead = true; if (path != null) { smallReadPaths.remove(path); smallReadPaths.add(path) } }
             if (c.name in setOf("edit_file", "write_file", "edit_lines") && !dev.pocketide.app.core.SmallTools.slipped(r) &&
                 !r.startsWith("Error") && !r.startsWith("Not written")) smallEdited = true
+            if (c.name == "app_help") smallLooked = true
             if (c.name in setOf("search", "list_files", "run_command"))
                 dev.pocketide.app.core.SmallLocal.pathsIn(r).firstOrNull { it !in smallReadPaths && store.exists(it) }?.let { smallTarget = it }
         }
@@ -465,7 +470,8 @@ class NativeAgent(
         val last = after.lastOrNull()
         return dev.pocketide.app.core.SmallLocal.State(question || reportOnly, smallRead, smallEdited || changed.isNotEmpty(),
             smallEdited && last != null, last?.ok == false, smallTarget, smallReadPaths.lastOrNull(),
-            smallReadPaths.lastOrNull()?.let { p -> store.read(p)?.let { dev.pocketide.app.core.Rewrite.lines(it) } } ?: 0)
+            smallReadPaths.lastOrNull()?.let { p -> store.read(p)?.let { dev.pocketide.app.core.Rewrite.lines(it) } } ?: 0,
+            smallAboutApp, smallLooked, smallSetting, smallProposed)
     }
     private var securityChecked = false
     private var reviewed = false
@@ -1155,6 +1161,39 @@ class NativeAgent(
     }
 
     private fun trace(event: String) { dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event(event)) }
+
+    /**
+     * 1.5.185: the card for an app_settings proposal. Nothing changes until the person taps Apply; during a benchmark the card
+     * declines itself, so a run never changes the phone's settings, and the decision is written to the chat's record.
+     */
+    private fun settingsCard(c: dev.pocketide.app.core.AppSettingsTool.Check.Ok, now: String, why: String) {
+        val tool = dev.pocketide.app.core.AppSettingsTool
+        val card = Ui.vertical(ctx)
+        card.background = Ui.rounded(Ui.SURFACE2, 10, ctx, Ui.ACCENT)
+        card.setPadding(Ui.dp(ctx, 12), Ui.dp(ctx, 10), Ui.dp(ctx, 12), Ui.dp(ctx, 10))
+        card.addView(Ui.text(ctx, "Change a setting?", 14f, Ui.ACCENT))
+        card.addView(Ui.text(ctx, c.item.label + "\n" + now + " → " + c.shown, 14f, Ui.TEXT))
+        card.addView(Ui.text(ctx, c.item.where + (if (why.isNotBlank()) "\n" + why.take(300) else ""), 12f, Ui.MUTED))
+        val status = Ui.text(ctx, "", 12f, Ui.MUTED)
+        if (HybridBench.running) {
+            status.text = "Declined automatically: a benchmark is running, so settings stay as they are."
+            trace(tool.record(c, "declined automatically: benchmark"))
+        } else {
+            val row = Ui.horizontal(ctx)
+            row.addView(Ui.button(ctx, "Apply", true) {
+                val err = AppSettingsBridge.apply(ctx, settings, c.item.setting!!, c.value)
+                row.visibility = View.GONE
+                status.text = err?.let { "Not changed: $it." } ?: "Applied: ${c.item.label} is ${c.shown}."
+                trace(tool.record(c, if (err == null) "applied by the person" else "failed: $err"))
+            })
+            row.addView(Ui.button(ctx, "No") { row.visibility = View.GONE; status.text = "Not changed."; trace(tool.record(c, "declined by the person")) },
+                Ui.lp(Ui.WRAP, Ui.WRAP).also { it.leftMargin = Ui.dp(ctx, 8) })
+            card.addView(row, Ui.lp(Ui.WRAP, Ui.WRAP).also { it.topMargin = Ui.dp(ctx, 8) })
+        }
+        card.addView(status)
+        box.addView(card, Ui.lp(Ui.MATCH, Ui.WRAP).also { it.topMargin = Ui.dp(ctx, 8) })
+        scrollDown()
+    }
     private var gameCheckedAt = -1
     /** writeMark when the saved play tests last all passed, and how often failures were sent back. */
     private var playMark = -1
@@ -2707,6 +2746,26 @@ class NativeAgent(
                 if (advisor == null) { reply("No advisor is set up. Continue on your own."); return }
                 if (advisorUsed >= advisor.maxCalls) { reply("The advisor limit for this request is reached. Continue on your own."); return }
                 consult(dev.pocketide.app.core.Advisor.Purpose.HELP) { adv -> reply(adv?.let { "Advisor: $it" } ?: "The advisor could not be reached. Continue on your own.", "Asked the advisor") }
+            }
+            // 1.5.185: the assistant's knowledge of the app (AppHelp) and the person's settings (AppSettingsTool)
+            "app_help" -> {
+                val q = g("query").ifBlank { g("question") }.ifBlank { g("text") }.ifBlank { request.take(160) }
+                reply(dev.pocketide.app.core.AppHelp.answer(q, if (small) 4 else 6, if (small) 1400 else 2400) { k ->
+                    AppSettingsBridge.value(ctx, settings, k)?.let { dev.pocketide.app.core.AppSettingsTool.shown(k, it) } })
+            }
+            dev.pocketide.app.core.AppSettingsTool.NAME -> {
+                val tool = dev.pocketide.app.core.AppSettingsTool
+                val read = { k: String -> AppSettingsBridge.value(ctx, settings, k) }
+                val key = g("key").ifBlank { g("name") }.ifBlank { g("setting") }
+                if (g("action").trim().lowercase() != "propose" && g("value").isBlank()) reply(tool.list(key, read))
+                else when (val chk = tool.check(key, g("value"))) {
+                    is dev.pocketide.app.core.AppSettingsTool.Check.No -> { trace("settings proposal refused: ${key.take(60)}"); reply(chk.why) }
+                    is dev.pocketide.app.core.AppSettingsTool.Check.Ok -> {
+                        val now = read(chk.item.setting!!)
+                        if (now == chk.value) reply("Already ${chk.shown}: nothing to change. Tell the person it is already set (${dev.pocketide.app.core.AppMap.path(chk.item)}).")
+                        else { smallProposed = true; settingsCard(chk, tool.shown(chk.item.setting, now), g("why")); reply(tool.proposed(chk, tool.shown(chk.item.setting, now))) }
+                    }
+                }
             }
             "web_search" -> {
                 // models often name the argument after another search tool (pattern, q)

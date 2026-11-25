@@ -30,6 +30,8 @@ object Intent {
         NO_CHANGE.containsMatchIn(text) && !Scope.asksForChange(NO_CHANGE.replace(text, " ")) ->
             if (Scope.reportOnly(NO_CHANGE.replace(text, " ")) || Regex("""(?i)^\s*(please\s+)?run\b""").containsMatchIn(text)) Kind.REPORT else Kind.QUESTION
         Habits.isQuestion(text) -> Kind.QUESTION
+        // 1.5.185: "Turn on word wrap in the editor" is about PocketIDE's own settings: no project file may change (app_settings proposes it)
+        AppHelp.settingRequest(text) != null -> Kind.QUESTION
         Scope.reportOnly(text) -> Kind.REPORT
         Requirements.asksForResearch(text) -> Kind.RESEARCH
         else -> Kind.TASK

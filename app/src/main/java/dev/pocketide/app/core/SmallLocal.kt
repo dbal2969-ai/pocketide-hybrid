@@ -19,7 +19,13 @@ object SmallLocal {
     /** Largest model, in billions of parameters, that gets this mode. */
     const val MAX_B = 8.5
 
-    val TOOLS = listOf("search", "list_files", "read_file", "write_file", "edit_lines", "edit_file", "run_command")
+    val TOOLS = listOf("search", "list_files", "read_file", "write_file", "edit_lines", "edit_file", "run_command", "app_help", "app_settings")
+
+    /** 1.5.185: offered only when the request is about PocketIDE itself ([forApp]). */
+    val APP_TOOLS = setOf("app_help", "app_settings")
+
+    /** Whether [request] gets the app tools: a question about the app, or a change to one of its settings. */
+    fun forApp(request: String): Boolean = AppHelp.aboutApp(request) || AppHelp.settingRequest(request) != null
 
     /** Files up to this many lines are rewritten whole in this mode (Rewrite.BIG_LINES); longer ones are edited by line range. */
     const val WHOLE_LINES = Rewrite.BIG_LINES
@@ -90,7 +96,9 @@ object SmallLocal {
                 "file to see what it expects, then fix the code. Never change the test, and never return a test's expected value " +
                 "directly (like return 5;): fix the real logic so every input works.\n" +
             "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +
-            "For a question, read what you need and answer; change nothing.\n\n" + tools
+            "For a question, read what you need and answer; change nothing.\n" +
+            (if (tools.contains("- app_help")) "About PocketIDE itself (settings, menus, errors): app_help first, answer from its result. Setting changes: app_settings propose.\n" else "") +
+            "\n" + tools
 
     /** The reply was not one JSON action (a server without JSON-schema output can let this through). */
     const val ASK = "Nothing ran: your last reply was not one JSON object. Reply with exactly one object with the keys " +
@@ -129,7 +137,9 @@ object SmallLocal {
      * hit, a listing), [lastRead]: the file read most recently. Both are paths that exist in the project.
      */
     class State(val question: Boolean, val read: Boolean, val edited: Boolean, val checked: Boolean, val checkFailed: Boolean,
-                val target: String? = null, val lastRead: String? = null, val lastReadLines: Int = 0)
+                val target: String? = null, val lastRead: String? = null, val lastReadLines: Int = 0,
+                /** 1.5.185: the request is about PocketIDE itself ([AppHelp.aboutApp]); [setting]: the setting it asks to change. */
+                val aboutApp: Boolean = false, val looked: Boolean = false, val setting: String? = null, val proposed: Boolean = false)
 
     /** A tool and its real argument values; never a placeholder (the 1.5B copied "exact lines from it" and "..." as values). */
     private fun act(tool: String, path: String? = null) = "tool \"$tool\"" + (path?.let { " with tool_args {\"path\": ${MiniJson.write(it)}" } ?: "")
@@ -139,6 +149,10 @@ object SmallLocal {
      * 1.5B repeated one failed search five times while the result named src/cart.js and this line only said "find the code".
      */
     fun next(s: State): String = "Next: " + when {
+        s.setting != null && !s.proposed -> "propose the change: tool \"app_settings\" with tool_args {\"action\": \"propose\", \"key\": ${MiniJson.write(s.setting)}, \"value\": the new value, \"why\": one sentence}."
+        s.setting != null -> "answer with tool \"$ANSWER\": say the change waits for the person to tap Apply on the card."
+        s.aboutApp && s.question && !s.looked -> "this is about PocketIDE itself: tool \"app_help\" with tool_args {\"query\": a few words from the question}."
+        s.aboutApp && s.question && !s.read -> "answer with tool \"$ANSWER\" from what app_help returned: quote the path and label exactly; if it found nothing, say PocketIDE does not have that."
         s.question && !s.read && s.target != null -> "read it: " + act("read_file", s.target) + "}."
         s.question && !s.read -> "find what answers the question (search for one word from it, or list_files), then read_file the file."
         s.question -> "answer from what you read: tool \"$ANSWER\" with your reply as tool_args text." + (s.target?.let { " Or read $it first if you must." } ?: "")

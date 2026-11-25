@@ -188,18 +188,18 @@ object AgentSelfTest {
         val b = Tools.body(false, "m", "SYS", listOf(Tools.userText(false, "hi")), true)
         val msgs = MiniJson.list(b["messages"])!!
         eq((MiniJson.obj(msgs[0])!!["role"]), "system", "openai body: system first")
-        eq(MiniJson.list(b["tools"])!!.size, 19, "openai body: the base tools plus game_assets, library_docs, http_request and sql_query")
+        eq(MiniJson.list(b["tools"])!!.size, 21, "openai body: the base tools plus game_assets, library_docs, http_request, sql_query, app_help and app_settings")
         val bd = Tools.body(false, "m", "SYS", listOf(Tools.userText(false, "hi")), true, true)
         val toolsD = MiniJson.list(bd["tools"])!!
-        eq(toolsD.size, 21, "openai body with documents: all tools")
-        val docFn = MiniJson.obj(MiniJson.obj(toolsD[toolsD.size - 6])!!["function"])!!
+        eq(toolsD.size, 23, "openai body with documents: all tools")
+        val docFn = MiniJson.obj(MiniJson.obj(toolsD[toolsD.size - 8])!!["function"])!!
         eq(docFn["name"], "doc_edit", "doc_edit tool is last")
         ok((docFn["description"] as String).contains("add_heading") && (docFn["description"] as String).contains("set_cell"), "doc_edit lists its actions")
         val docProps = MiniJson.obj(MiniJson.obj(docFn["parameters"])!!["properties"])!!
         ok(docProps.containsKey("position") && docProps.containsKey("cell") && MiniJson.obj(docProps["index"])!!["type"] == "integer" && MiniJson.obj(docProps["bold"])!!["type"] == "boolean", "doc_edit parameters, with typed numbers and booleans")
-        eq(MiniJson.list(Tools.anthropicTools(true))!!.size, 21, "anthropic tools with documents")
+        eq(MiniJson.list(Tools.anthropicTools(true))!!.size, 23, "anthropic tools with documents")
         Tools.webEnabled = true
-        eq(MiniJson.list(Tools.anthropicTools(false))!!.size, 21, "web tools add two")
+        eq(MiniJson.list(Tools.anthropicTools(false))!!.size, 23, "web tools add two")
         ok(Tools.NAMES.contains("web_search") && Tools.NAMES.contains("web_fetch"), "web tool names")
         eq(Tools.label(ToolCall("1", "doc_edit", "{\"path\":\"a.docx\",\"action\":\"add_heading\"}")), "Add heading in a.docx", "doc_edit chip label")
         val dact = AgentActions.find("ACTION: doc report.docx add_heading text=\"Test one\" position=top\nACTION: doc a.csv outline")

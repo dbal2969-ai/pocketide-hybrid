@@ -102,6 +102,18 @@ object Tools {
 
     private val ADVISOR_DEF = Def("advisor", Advisor.TOOL_DESC, emptyMap(), emptyList())
 
+    /** 1.5.185: the assistant's knowledge of PocketIDE itself (AppHelp) and the person's settings (AppSettingsTool). Offered in every mode. */
+    private val APP_DEFS = listOf(
+        Def("app_help", "Search PocketIDE's own settings, menus, buttons and Help & FAQ. Call it for any question about the app itself " +
+            "(where a setting is, what a button does, an error the app shows, what PocketIDE can do), then answer only from what it returns.",
+            mapOf("query" to s("A few words from the question, e.g. word wrap, 429 error, usage cost")), listOf("query")),
+        Def(AppSettingsTool.NAME, "Read the person's PocketIDE settings, or propose a change they approve with one tap. " +
+            "action get lists settings and their values; action propose shows the person a card and changes nothing until they tap Apply. Never for API keys or tokens.",
+            linkedMapOf("action" to s("get or propose"), "key" to s("The setting's name from get (e.g. editorWrap), or its label"),
+                "value" to s("For propose: true or false, or the choice (e.g. best, plan)"), "why" to s("For propose: one sentence the person sees")),
+            listOf("action"))
+    )
+
     /** True while an advisor model is set up for the current request. */
     @Volatile var advisorEnabled: Boolean = false
 
@@ -207,7 +219,7 @@ object Tools {
 
     private fun allDefs(docs: Boolean): List<Def> = allDefsUnfiltered(docs).let { all -> only?.let { o -> all.filter { it.name in o } } ?: all }
 
-    private fun allDefsUnfiltered(docs: Boolean): List<Def> = (if (docs) DEFS + DOC_DEFS else DEFS) + listOf(AUDIT_DEF) + (if (LspHook.enabled()) listOf(REFS_DEF) else emptyList()) + (if (webEnabled) WEB_DEFS else emptyList()) + (if (advisorEnabled) listOf(ADVISOR_DEF) else emptyList()) + (if (lookEnabled) listOf(LOOK_DEF, IMAGES_DEF) else emptyList()) + AddOns.defs() + (if (historyEnabled) listOf(HISTORY_DEF) else emptyList()) + listOf(ASSETS_DEF) + (if (patchEnabled) listOf(PATCH_DEF) else emptyList()) + (if (exploreEnabled) listOf(EXPLORE_DEF, REMEMBER_DEF) else emptyList()) + (if (reportEnabled) listOf(REPORT_DEF) else emptyList()) + listOf(LIBDOCS_DEF, HTTP_DEF, SQL_DEF) + (if (projectsEnabled) listOf(PROJECTS_DEF) else emptyList())
+    private fun allDefsUnfiltered(docs: Boolean): List<Def> = (if (docs) DEFS + DOC_DEFS else DEFS) + listOf(AUDIT_DEF) + (if (LspHook.enabled()) listOf(REFS_DEF) else emptyList()) + (if (webEnabled) WEB_DEFS else emptyList()) + (if (advisorEnabled) listOf(ADVISOR_DEF) else emptyList()) + (if (lookEnabled) listOf(LOOK_DEF, IMAGES_DEF) else emptyList()) + AddOns.defs() + (if (historyEnabled) listOf(HISTORY_DEF) else emptyList()) + listOf(ASSETS_DEF) + (if (patchEnabled) listOf(PATCH_DEF) else emptyList()) + (if (exploreEnabled) listOf(EXPLORE_DEF, REMEMBER_DEF) else emptyList()) + (if (reportEnabled) listOf(REPORT_DEF) else emptyList()) + listOf(LIBDOCS_DEF, HTTP_DEF, SQL_DEF) + APP_DEFS + (if (projectsEnabled) listOf(PROJECTS_DEF) else emptyList())
 
     /**
      * Rarely used tools, left out of the request until needed (1.5.79; the idea is Cline's on-demand tool docs). The model sees
@@ -399,6 +411,8 @@ object Tools {
             "http_request" -> "Sent ${g("method").ifBlank { "GET" }.uppercase()} ${g("url").take(50)}"
             "web_search" -> WebResearch.label("web_search", g("query"), "")
             "web_fetch" -> WebResearch.label("web_fetch", "", g("url"))
+            "app_help" -> "Looked up PocketIDE: ${g("query").take(40)}"
+            AppSettingsTool.NAME -> if (g("action").trim().lowercase() == "propose") "Proposed a setting: ${g("key").take(40)}" else "Read the settings"
             else -> Mcp.label(c.name)
         }
     }
@@ -423,14 +437,17 @@ object Tools {
 
     /** The tool list for the text format: every tool with its parameters (see TextTools.rules). */
     /** 1.5.177: the tools of small local model mode (SmallLocal.TOOLS), each with the first sentence of its description. */
-    fun smallCatalogue(docs: Boolean): String {
+    fun smallCatalogue(docs: Boolean, app: Boolean = false): String {
         val sb = StringBuilder("Tools:\n")
         val all = allDefs(docs)
         for (n in SmallLocal.TOOLS) {
+            // 1.5.185: the app tools only for a request about PocketIDE itself, so a coding task keeps Nano's room for results
+            if (!app && n in SmallLocal.APP_TOOLS) continue
             val d = all.firstOrNull { it.name == n } ?: continue
             // 1.5.184: edit_lines keeps its second sentence (how to insert); cut to the first, Gemini Nano never inserted with it
             val text = if (d.name == "edit_lines") d.description.split(". ").take(2).joinToString(". ").trimEnd('.') + "." else d.description.substringBefore(". ").trimEnd('.') + "."
-            sb.append(TextTools.describe(d.name, text, d.props, d.required))
+            // 1.5.185: app_settings without "why" (optional), to keep Nano's prompt short
+            sb.append(TextTools.describe(d.name, text, if (d.name == AppSettingsTool.NAME) d.props - "why" else d.props, d.required))
             // 1.5.184 (local run 3, l12): Nano used edit_lines start 4, end 4 to insert and replaced line 4 instead, four times
             if (d.name == "edit_lines") sb.append(TextTools.describe("insert_lines", "Insert new lines after line `after` (0 = at the top); nothing is removed.",
                 mapOf("path" to mapOf("type" to "string"), "after" to mapOf("type" to "integer"), "text" to mapOf("type" to "string")), listOf("path", "after", "text")))

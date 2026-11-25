@@ -25,3 +25,5 @@ jobs:
           else
             scripts/check-changelog.sh "${{ github.event.before }}" "${{ github.sha }}"
           fi
+      - name: Check the app map is up to date (scripts/gen_app_map.py)
+        run: python3 scripts/gen_app_map.py --check

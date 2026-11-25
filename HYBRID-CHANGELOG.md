@@ -459,6 +459,36 @@ the files after the run, `transcript.txt` and `check.txt`.
   (`benchChatHome`, `benchBuildFromChat`), HybridScreen.kt.
 - **Tests:** HybridBenchScratchTest (2).
 
+### (next) · 2026-11-25 14:30 · PocketIDE knows itself: app_help, app_settings and the in-app questions benchmark
+- **Why:** the owner asked whether the assistant knows it is inside PocketIDE and can answer in-app troubleshooting questions,
+  change settings with explicit permission, or walk a person through the exact steps, without hallucinating. It could not: the
+  prompt held one paragraph about the mode chip and told the model to say "I don't know"; Help & FAQ was never given to any model.
+- **Change:**
+  - `scripts/gen_app_map.py` reads every setting, menu item and button (with its exact label and the path to it) from the
+    screens' source into `core/AppMapData.kt` (138 items). CI and a unit test fail when the map is out of date or names a label
+    the source no longer has.
+  - New tool `app_help`, in every mode: it searches the map, Help & FAQ, slash commands, workflows, advisor modes and cloud models.
+    Words are weighted by how rare they are, with everyday words mapped to the app's own words (dark → light theme, spent →
+    usage & cost, voice → 🎤). It returns paths, labels and current values, and names the words that match nothing in the app
+    ("Not found anywhere in PocketIDE: "iphone", "ipa""), so a missing feature gets "PocketIDE does not have that" instead of
+    invented steps.
+  - New tool `app_settings`: `get` lists the settings with their values. `propose` shows an Apply / No card in the chat and
+    changes nothing until the person taps Apply; the tool result says so. It only covers tick boxes and choices (including
+    Private, the Full model, the cloud model and the chat mode). It never touches API keys, tokens, account details or text boxes,
+    and never "Run commands from the assistant without asking". During a benchmark every card declines itself, and each
+    decision is written to the chat record.
+  - The prompt tells the model to use the tools for questions about the app and to quote paths exactly. Gemini Nano gets the two
+    tools and a next-step hint only when the request is about the app, so coding tasks keep their room for results.
+  - A request such as "Turn on word wrap in the editor" is now taken as a question, so no project file changes.
+  - A new benchmark suite, In-app questions (14 tasks: how-to, troubleshooting, features that do not exist, settings changes, a
+    key it must refuse). The runner compares the settings before and after every task. analyze.py checks every quoted label
+    and menu path against the app's source.
+- **Files:** scripts/gen_app_map.py; core/AppMap.kt, AppMapData.kt (generated), AppHelp.kt, AppSettingsTool.kt, Tools.kt,
+  SmallLocal.kt, AppModes.kt, Intent.kt, HybridBenchTasks.kt (`APP`, `Facts.settingsChanged`); AppSettingsBridge.kt,
+  NativeAgent.kt (tool handlers, `settingsCard`), HybridAgent.kt, HybridBench.kt (`Suite.APP`, settings snapshot),
+  HybridScreen.kt; bench/hybrid/app/project/, analyze.py, README.md; .github/workflows/changelog.yml.
+- **Tests:** AppSelfKnowledgeTest (9). AgentTest's tool counts are updated for the two new tools. 1,305 tests, 0 failures.
+
 ---
 
 ## Outside the code

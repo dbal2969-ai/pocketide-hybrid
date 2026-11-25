@@ -283,10 +283,14 @@ object HybridAgent {
     /** Room for the newest tool result in Nano's prompt: what [limit] leaves after the instructions, the request and a little more. */
     fun resultRoom(docs: Boolean, messages: List<Map<String, Any?>>, limit: Int): Int {
         val first = messages.firstNotNullOfOrNull { line(it) }.orEmpty()
-        return maxOf(2000, limit - head(docs).length - TAIL.length - first.length - 1500)
+        return maxOf(2000, limit - head(docs, messages).length - TAIL.length - first.length - 1500)
     }
 
-    private fun head(docs: Boolean) = SmallLocal.system(Tools.smallCatalogue(docs)) + "\n\nThe conversation so far, oldest first:\n"
+    /** 1.5.185: the app tools are offered when the person's latest request is about PocketIDE itself (SmallLocal.forApp). */
+    private fun head(docs: Boolean, messages: List<Map<String, Any?>>): String {
+        val asked = messages.lastOrNull { it["role"] == "user" && textOf(it["content"]).isNotEmpty() }?.let { textOf(it["content"]) }.orEmpty()
+        return SmallLocal.system(Tools.smallCatalogue(docs, SmallLocal.forApp(asked))) + "\n\nThe conversation so far, oldest first:\n"
+    }
     private const val TAIL = "\nYour reply, one JSON object:"
 
     private val PASSED = Regex("""(?i)^\s*exit code 0\b""")
@@ -360,7 +364,7 @@ object HybridAgent {
 
     /** The conversation as small local model mode expects it; null when it does not fit in [limit] characters. */
     fun phonePrompt(docs: Boolean, messages: List<Map<String, Any?>>, limit: Int): String? {
-        val head = head(docs)
+        val head = head(docs, messages)
         val tail = TAIL
         val lastTool = if (messages.lastOrNull()?.get("role") == "tool") messages.size - 1 else -1
         val room = resultRoom(docs, messages, limit)

@@ -211,7 +211,7 @@ object HybridScreen {
             val hard = suite != HybridBench.Suite.STANDARD
             val m = activity as? MainActivity
             val n = when (suite) { HybridBench.Suite.HARD -> dev.pocketide.app.core.HybridBenchTasks.HARD.size; HybridBench.Suite.GAMES -> dev.pocketide.app.core.HybridBenchTasks.GAMES.size
-                HybridBench.Suite.LOCAL -> dev.pocketide.app.core.HybridBenchTasks.LOCAL.size; HybridBench.Suite.SCRATCH -> dev.pocketide.app.core.HybridBenchTasks.SCRATCH.size
+                HybridBench.Suite.LOCAL -> dev.pocketide.app.core.HybridBenchTasks.LOCAL.size; HybridBench.Suite.SCRATCH -> dev.pocketide.app.core.HybridBenchTasks.SCRATCH.size; HybridBench.Suite.APP -> dev.pocketide.app.core.HybridBenchTasks.APP.size
                 else -> dev.pocketide.app.core.HybridBenchTasks.ALL.size }
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
@@ -238,6 +238,9 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "The from-scratch benchmark asks for ${dev.pocketide.app.core.HybridBenchTasks.SCRATCH.size / 2} apps and games with no code to start " +
             "from, each twice: in an empty project, and in the chat with no project, then Build this as a project (its plan is approved for you). About 60 to 120 minutes.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Run the from-scratch benchmark") { startBench(HybridBench.Suite.SCRATCH) })
+        benchCard.addView(Ui.text(ctx, "The in-app questions benchmark asks ${dev.pocketide.app.core.HybridBenchTasks.APP.size} questions about PocketIDE itself: " +
+            "how-tos, troubleshooting, features that do not exist, and settings changes, which must come as a card to approve (the benchmark declines them all). About 15 to 30 minutes.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Run the in-app questions benchmark") { startBench(HybridBench.Suite.APP) })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

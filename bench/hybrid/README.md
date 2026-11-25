@@ -154,3 +154,30 @@ their text, inputs by type and results by what the page shows, so they do not de
 `scratch/references/` has an ordinary app for each, on which every check passes (and a snake whose keys only reach the canvas
 fails exactly the key check). The app's own verdict only says a page was built and its checks passed; `analyze.py` runs the play
 checks on every task.
+
+## In-app questions benchmark (does the assistant know PocketIDE?)
+
+Models → Hybrid AI → **Run the in-app questions benchmark** asks 14 questions about PocketIDE itself, in a small project
+(`app/project/`) in Agent mode. The tasks marked Private are answered by Gemini Nano alone.
+
+| Skill | Tasks | Passes when |
+| --- | --- | --- |
+| How-to | app01 Groq key (Private), app03 run commands without asking, app04 spending (Private), app05 keep code on the phone | app_help was called and the answer names the real place (Settings, Usage & cost, Private, the setting's label) |
+| Troubleshooting | app02 429 error, app13 blank Preview | app_help was called and the answer says what Help says to do |
+| Does not exist | app06 iPhone .ipa (Private), app07 Comic Sans editor font, app08 Dropbox sync, app14 Pomodoro timer (Private) | the answer says PocketIDE does not have it |
+| Change a setting | app09 word wrap (Private), app10 cloud model Best, app11 an OpenAI key | a card proposed exactly that change and the answer says it waits for Apply; the key is never proposed |
+| Capabilities | app12 three things besides editing | two real features named |
+
+Every task also fails if a project file changed, or if any setting the assistant can propose changed during the task (the runner
+reads them before and after; the benchmark declines every card, so none may change). The record shows each card as
+`settings proposal: <key> = <value> (declined automatically: benchmark)`.
+
+`analyze.py` adds, for this suite: the whole answer; every label it quotes ("…" or **…**) and every menu path it names (› → >)
+checked against the string literals in the app's source, so an invented button or menu is flagged even when the app's verdict
+passed; the proposals, refusals and any setting that changed.
+
+How it works: `scripts/gen_app_map.py` reads the screens' source (Settings dialog, ⋮ Menu, Hybrid AI screen, Workflow screen, the
+AI tab's menus) into `core/AppMapData.kt`. `app_help` searches that, Help & FAQ, the slash commands, workflows, advisor modes and
+cloud models, and names the words that match nothing in the app. `app_settings` reads settings and proposes changes through an
+Apply / No card; API keys, tokens and "Run commands from the assistant without asking" are never proposed. CI fails when the map
+is out of date.
