@@ -55,7 +55,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | scratch 1125-1527 (from-scratch run 2) | `ea46a32` | app 1 of 10; analysis 1 clean | 6 of 90 | 8 tasks ended when every cloud tier hit its free per-minute limit; 17 of 20 Nano replies were whole pages cut off at the 1,024-token output limit | `5ac38af` |
 | app 1125-1555 (in-app questions run 2) | `ea46a32` | **app 10 of 14; analysis 10 clean** | 14 of 16 | app11 matched "OpenAI API Key" to the wrong tick box and Nano claimed a proposal; app05 Nano missed the top match; app04 not taken as about the app; app08 wording not accepted | `5ac38af` |
 | scratch 1125-1619 (from-scratch run 3) | `5ac38af` (labelled 1.5.183) | **0 of 10** | 67 of 70 | the day's free cloud quota was used up for every tier: nine requests ended even after waiting; with the cloud gone, Nano alone could not finish any app (pages that load a script.js never written, a calculator showing 0) | `4cb790a` |
-| standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | (next) |
+| standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | `5d47c35` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -645,7 +645,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   1,320 tests, 0 failures.
 - **Evidence:** pocketide-hybrid-scratch-benchmark-1125-1619 and its analysis.
 
-### (next) · 2026-11-25 18:40 · On-device reliability benchmark (Gemini Nano alone), with a real-code Python track from the Kaggle tasks; 1.5.186
+### 5d47c35 · 2026-11-25 18:40 · On-device reliability benchmark (Gemini Nano alone), with a real-code Python track from the Kaggle tasks; 1.5.186
 - **Why:** the owner asked for a comprehensive benchmark of the on-device model, "as reliable as we can make it", reusing the
   benchmarks written for the Kaggle Gemma 4 competition. Today also showed that the shared free cloud quota runs out, so a benchmark
   that needs no cloud can be run as often as needed.
