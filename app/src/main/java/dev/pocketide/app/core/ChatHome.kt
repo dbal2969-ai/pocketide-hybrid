@@ -11,6 +11,9 @@ package dev.pocketide.app.core
 object ChatHome {
     const val LABEL = "Chat (no project)"
 
+    /** The start of [NOTE], by which HybridAgent knows a request comes from the Chat home. */
+    const val LABEL_NOTE = "This is a general chat with no project open."
+
     /** Added to the assistant's instructions in the Chat home. */
     const val NOTE = "\n\nThis is a general chat with no project open. Answer the person directly and fully, about anything, as a helpful " +
         "assistant would: explain, compare, write code or text in your reply, and use web search when it is available and the answer depends on " +
@@ -18,6 +21,23 @@ object ChatHome {
         "and folders from one project to another, make a branch and commit in a project. When they name a project (\"my empty-project-10\"), " +
         "find it with action list and do what they asked there; never say it is not possible. For building something new from this chat, " +
         "they can tap \"Build this\" to turn the conversation into a project."
+
+    /** The files of the Chat home's folder that [conversation] names (by path or file name), 1.5.185: the rest are not sent as context. */
+    fun named(files: List<ProjectFile>, conversation: String): List<ProjectFile> {
+        val c = conversation.lowercase()
+        return files.filter { f -> val p = f.path.lowercase(); c.contains(p) || (p.substringAfterLast('/').length >= 5 && c.contains(p.substringAfterLast('/'))) }
+    }
+
+    /**
+     * For Gemini Nano in the Chat home (1.5.185): small local model mode replaces the system prompt, so Nano never saw [NOTE], took
+     * the chat for a project and tried to write files, which the Chat home refuses. It gets this instead, and no tools that change files.
+     */
+    const val SMALL_NOTE = "This is a chat with NO project: nothing can be written or run here. Answer in your reply with tool \"answer\": " +
+        "explain, plan, or give short code in the text. If the person wants something built, say what it will have and tell them to tap " +
+        "the Chat chip, then Build this as a project."
+
+    /** The small-model tools that change files or run commands, left out in the Chat home. */
+    val SMALL_WRITES = setOf("write_file", "edit_lines", "edit_file", "run_command", "app_settings")
 
     /** True when [text] names one of [projects] (loosely: "empty project 10" names Empty-project-10), 1.5.168. */
     fun namesProject(text: String, projects: List<String>): Boolean {

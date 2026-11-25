@@ -289,7 +289,10 @@ object HybridAgent {
     /** 1.5.185: the app tools are offered when the person's latest request is about PocketIDE itself (SmallLocal.forApp). */
     private fun head(docs: Boolean, messages: List<Map<String, Any?>>): String {
         val asked = messages.lastOrNull { it["role"] == "user" && textOf(it["content"]).isNotEmpty() }?.let { textOf(it["content"]) }.orEmpty()
-        return SmallLocal.system(Tools.smallCatalogue(docs, SmallLocal.forApp(asked))) + "\n\nThe conversation so far, oldest first:\n"
+        // 1.5.185: the Chat home (no project) is known from its note in the system prompt, which Nano's own prompt replaces
+        val chatHome = messages.any { it["role"] == "system" && textOf(it["content"]).contains(dev.pocketide.app.core.ChatHome.LABEL_NOTE) }
+        return SmallLocal.system(Tools.smallCatalogue(docs, SmallLocal.forApp(asked), chatHome)) +
+            (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + "\n\nThe conversation so far, oldest first:\n"
     }
     private const val TAIL = "\nYour reply, one JSON object:"
 

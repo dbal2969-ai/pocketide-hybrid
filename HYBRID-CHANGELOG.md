@@ -489,6 +489,24 @@ the files after the run, `transcript.txt` and `check.txt`.
   HybridScreen.kt; bench/hybrid/app/project/, analyze.py, README.md; .github/workflows/changelog.yml.
 - **Tests:** AppSelfKnowledgeTest (9). AgentTest's tool counts are updated for the two new tools. 1,305 tests, 0 failures.
 
+### (next) · 2026-11-25 12:55 · Chat home: Gemini Nano knows there is no project, and leftover files are not sent as one
+- **Why:** owner's screenshot from the from-scratch benchmark (to-do list from the chat, before 103b58d). Nano replied "The
+  current project is for a local isometric RPG… I will start by creating a new file", tried to write todo.js, and was refused
+  ("Not done (read-only)"). There were two causes:
+  - Small-model mode replaces the system prompt, so the Chat home note ("no project open… tap Build this") only reached cloud
+    models. Nano got "You are a coding assistant working inside the person's project" and the write tools.
+  - Every file in the Chat home's hidden folder was sent as the project's context. The folder held files that are not a project,
+    and Nano took them for one.
+- **Change:**
+  - In the Chat home, small models (Nano and local servers) get a note that this chat has no project and nothing can be written,
+    so they answer in the reply and point to Build this as a project. Their tool list has no write, edit or run tools, and the
+    next-step hint says to answer.
+  - Only the Chat home files that the conversation names (an attachment, a file asked about) are sent as context.
+- **Files:** core/ChatHome.kt (`LABEL_NOTE`, `SMALL_NOTE`, `SMALL_WRITES`, `named`), core/Tools.kt (`smallCatalogue(chatHome)`),
+  core/SmallLocal.kt (`State.chatHome`), HybridAgent.kt (`head`), NativeAgent.kt, ChatPane.kt (Chat home context).
+- **Tests:** ChatHomeNanoTest (2), HybridAgentLoopTest.inTheChatHomeNanoIsToldThereIsNoProject. 1,308 tests, 0 failures.
+- **Evidence:** owner's screenshot, from-scratch run (s06 to-do list from the chat), 2026-11-25 12:42.
+
 ---
 
 ## Outside the code

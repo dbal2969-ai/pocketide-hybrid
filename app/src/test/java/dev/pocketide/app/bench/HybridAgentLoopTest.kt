@@ -247,6 +247,18 @@ class HybridAgentLoopTest {
         assertTrue("the whole ${big.length}-character result is in the prompt", p.contains("note line 150 "))
     }
 
+    @Test fun inTheChatHomeNanoIsToldThereIsNoProject() {
+        // 1.5.185: Nano's own prompt replaces the system prompt, so the Chat home note reached only cloud models
+        val msgs = listOf(mapOf<String, Any?>("role" to "system", "content" to "SYS" + dev.pocketide.app.core.ChatHome.NOTE),
+            mapOf<String, Any?>("role" to "user", "content" to "Make a to-do list app"))
+        val p = HybridAgent.phonePrompt(false, msgs, 14000)!!
+        assertTrue(p.contains(dev.pocketide.app.core.ChatHome.SMALL_NOTE))
+        assertFalse(p.contains("- write_file"))
+        val q = HybridAgent.phonePrompt(false, msgs.drop(1), 14000)!!
+        assertFalse(q.contains(dev.pocketide.app.core.ChatHome.SMALL_NOTE))
+        assertTrue(q.contains("- write_file"))
+    }
+
     @Test fun aPassingCheckAfterAChangeTellsNanoToAnswer() {
         val prompts = ArrayList<String>()
         val q = ArrayDeque(listOf(action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),

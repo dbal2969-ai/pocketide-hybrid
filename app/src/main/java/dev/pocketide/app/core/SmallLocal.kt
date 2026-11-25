@@ -139,7 +139,9 @@ object SmallLocal {
     class State(val question: Boolean, val read: Boolean, val edited: Boolean, val checked: Boolean, val checkFailed: Boolean,
                 val target: String? = null, val lastRead: String? = null, val lastReadLines: Int = 0,
                 /** 1.5.185: the request is about PocketIDE itself ([AppHelp.aboutApp]); [setting]: the setting it asks to change. */
-                val aboutApp: Boolean = false, val looked: Boolean = false, val setting: String? = null, val proposed: Boolean = false)
+                val aboutApp: Boolean = false, val looked: Boolean = false, val setting: String? = null, val proposed: Boolean = false,
+                /** The Chat home: no project, nothing can be written (ChatHome.SMALL_NOTE). */
+                val chatHome: Boolean = false)
 
     /** A tool and its real argument values; never a placeholder (the 1.5B copied "exact lines from it" and "..." as values). */
     private fun act(tool: String, path: String? = null) = "tool \"$tool\"" + (path?.let { " with tool_args {\"path\": ${MiniJson.write(it)}" } ?: "")
@@ -149,6 +151,7 @@ object SmallLocal {
      * 1.5B repeated one failed search five times while the result named src/cart.js and this line only said "find the code".
      */
     fun next(s: State): String = "Next: " + when {
+        s.chatHome -> "answer with tool \"$ANSWER\": this chat has no project, so nothing can be written here; to build it, the person taps Build this as a project."
         s.setting != null && !s.proposed -> "propose the change: tool \"app_settings\" with tool_args {\"action\": \"propose\", \"key\": ${MiniJson.write(s.setting)}, \"value\": the new value, \"why\": one sentence}."
         s.setting != null -> "answer with tool \"$ANSWER\": say the change waits for the person to tap Apply on the card."
         s.aboutApp && s.question && !s.looked -> "this is about PocketIDE itself: tool \"app_help\" with tool_args {\"query\": a few words from the question}."

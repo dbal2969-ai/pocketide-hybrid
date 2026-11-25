@@ -437,10 +437,11 @@ object Tools {
 
     /** The tool list for the text format: every tool with its parameters (see TextTools.rules). */
     /** 1.5.177: the tools of small local model mode (SmallLocal.TOOLS), each with the first sentence of its description. */
-    fun smallCatalogue(docs: Boolean, app: Boolean = false): String {
+    fun smallCatalogue(docs: Boolean, app: Boolean = false, chatHome: Boolean = false): String {
         val sb = StringBuilder("Tools:\n")
         val all = allDefs(docs)
         for (n in SmallLocal.TOOLS) {
+            if (chatHome && n in ChatHome.SMALL_WRITES) continue
             // 1.5.185: the app tools only for a request about PocketIDE itself, so a coding task keeps Nano's room for results
             if (!app && n in SmallLocal.APP_TOOLS) continue
             val d = all.firstOrNull { it.name == n } ?: continue
@@ -449,7 +450,7 @@ object Tools {
             // 1.5.185: app_settings without "why" (optional), to keep Nano's prompt short
             sb.append(TextTools.describe(d.name, text, if (d.name == AppSettingsTool.NAME) d.props - "why" else d.props, d.required))
             // 1.5.184 (local run 3, l12): Nano used edit_lines start 4, end 4 to insert and replaced line 4 instead, four times
-            if (d.name == "edit_lines") sb.append(TextTools.describe("insert_lines", "Insert new lines after line `after` (0 = at the top); nothing is removed.",
+            if (d.name == "edit_lines" && !chatHome) sb.append(TextTools.describe("insert_lines", "Insert new lines after line `after` (0 = at the top); nothing is removed.",
                 mapOf("path" to mapOf("type" to "string"), "after" to mapOf("type" to "integer"), "text" to mapOf("type" to "string")), listOf("path", "after", "text")))
         }
         sb.append("- answer: reply to the person (the work is done, or the request is a question).\n    - text (string, required)\n")

@@ -4038,7 +4038,11 @@ class ChatPane(
             // 1.5.164 (PremiseCheck, off until measured): what the request says has gone, searched for by the app before the first step
             val portNote = if (agent) try { portSourceNote(text) } catch (e: Throwable) { "" } else ""
             val premiseFacts = portNote + if (agent && settings.premiseCheck) try { dev.pocketide.app.core.PremiseCheck.probe(text, store.list()) { p -> if (store.isBinary(p)) null else store.read(p) }.orEmpty() } catch (e: Exception) { "" } else ""
-            val projectContext = ContextRanker.build(store.projectFiles(), open, text, if (limits().tight) limits().contextChars else 20000, false) + store.listNote().let { if (it.isEmpty()) "" else "\n$it\n" } + dev.pocketide.app.core.Progress.contextNote(store.read(dev.pocketide.app.core.Progress.FILE))
+            // 1.5.185 (from-scratch run, todo from the chat): the Chat home has no project, but its hidden folder can hold files (attachments,
+            // leftovers); sent as "the project", Gemini Nano took them for one ("The current project is for a local isometric RPG") and
+            // tried to change it. There, only files this chat names are sent.
+            val ctxFiles = if (Projects.isChat(ctx)) dev.pocketide.app.core.ChatHome.named(store.projectFiles(), text + "\n" + history.joinToString("\n") { it["content"].toString() }) else store.projectFiles()
+            val projectContext = (if (Projects.isChat(ctx) && ctxFiles.isEmpty()) "" else ContextRanker.build(ctxFiles, open, text, if (limits().tight) limits().contextChars else 20000, false)) + store.listNote().let { if (it.isEmpty()) "" else "\n$it\n" } + dev.pocketide.app.core.Progress.contextNote(store.read(dev.pocketide.app.core.Progress.FILE))
             post {
                 if (pending.cancelled) { setBusy(false); call = null; sendBtn.text = "Send"; stopWorking(); turn.body.text = "Stopped."; turn.body.visibility = View.VISIBLE; endExchange(false); return@post }
                 // 1.5.141 (Cursor parity): which instruction and rule files this request follows

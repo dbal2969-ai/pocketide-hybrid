@@ -430,7 +430,8 @@ class NativeAgent(
     private fun requestReminder(r: String) = dev.pocketide.app.core.RequestReminder.text(r)
 
     /** The tool list for the text format, built once (the tools do not change during a run). */
-    private val catalogue: String by lazy { if (small) Tools.smallCatalogue(docs, dev.pocketide.app.core.SmallLocal.forApp(request)) else Tools.textCatalogue(docs) }
+    private val chatHome: Boolean by lazy { try { Projects.isChat(ctx) } catch (e: Exception) { false } }
+    private val catalogue: String by lazy { if (small) Tools.smallCatalogue(docs, dev.pocketide.app.core.SmallLocal.forApp(request), chatHome) else Tools.textCatalogue(docs) }
     /** 1.5.177: a local model of 8B or fewer runs in small local model mode (core/SmallLocal): one JSON action per reply, six tools. */
     private val small: Boolean by lazy {
         val pid = settings.provider
@@ -471,7 +472,7 @@ class NativeAgent(
         return dev.pocketide.app.core.SmallLocal.State(question || reportOnly, smallRead, smallEdited || changed.isNotEmpty(),
             smallEdited && last != null, last?.ok == false, smallTarget, smallReadPaths.lastOrNull(),
             smallReadPaths.lastOrNull()?.let { p -> store.read(p)?.let { dev.pocketide.app.core.Rewrite.lines(it) } } ?: 0,
-            smallAboutApp, smallLooked, smallSetting, smallProposed)
+            smallAboutApp, smallLooked, smallSetting, smallProposed, chatHome)
     }
     private var securityChecked = false
     private var reviewed = false
@@ -685,7 +686,7 @@ class NativeAgent(
         val wasCheap = cheap != null
         var signal = false
         var over = false
-        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) else if (textTools) system + catalogue else system, messages, !textMode, object : NativeListener {
+        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") else if (textTools) system + catalogue else system, messages, !textMode, object : NativeListener {
             override fun onStatus(text: String) {
                 phase(text); if (text.contains("characters of reasoning")) signal = true
                 if (body.text.isEmpty() || body.text == "…" || body.text.startsWith("Thinking") || body.text.startsWith("Working") || body.text.startsWith("Waiting")) body.text = text
