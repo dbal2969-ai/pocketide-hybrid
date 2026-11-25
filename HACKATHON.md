@@ -6,6 +6,46 @@ This repository is the MIT edition of PocketIDE with **hybrid AI** added for the
 Gemini Nano** through **Firebase AI Logic**, and falls back to a **cloud Gemini model** when Nano is missing,
 the request is too long for it, or the person prefers the cloud.
 
+## Try it
+
+1. Install the APK from this repository's **Releases** page (the "judges' build"). It needs Android 8 or later; it is a debug
+   build, so allow installing from your browser or file manager.
+2. Open **Models → Hybrid AI**. The first time, "How hybrid AI works" explains the routing. Gemini Nano runs on phones that
+   support it through Android AICore (for example recent Pixel and Samsung Galaxy S phones; tested on a Galaxy S24+); every
+   other phone uses the cloud model automatically, and the screen says which.
+3. Ask something in **Try it**. The reply says where it ran: `⚡ Ran on this phone (Gemini Nano)` or `☁ Ran in the cloud`.
+4. To use it everywhere in PocketIDE, choose **Hybrid AI (Gemini Nano + cloud)** as the AI provider (Settings), then open a
+   project and use the AI tab: chat, or the agent, which edits files, runs commands and checks its work.
+5. Things to try: turn on airplane mode and ask again (Nano still answers); turn on **Private** (nothing leaves the phone); ask
+   for research ("research meal-planning apps on GitHub"): Nano says it is passing the request to the cloud, and why.
+
+## How it works
+
+```mermaid
+flowchart TD
+    A[Request: chat, agent step or quick assist] --> B{Where requests run}
+    B -->|Cloud first| C
+    B -->|Private: phone only| N
+    B -->|Phone first| R{Needs the web? Over the on-phone limit?<br/>Two failed steps in a row?}
+    R -->|no| N[Gemini Nano on the phone<br/>small local model mode: one JSON action]
+    R -->|yes| H[Nano says it is passing the request on, and why]
+    N --> V{A usable action?<br/>Not a refusal or a claimed edit<br/>that never happened?}
+    V -->|yes| T[Real tool call: PocketIDE runs it and checks it<br/>a broken edit is put back]
+    V -->|no| H
+    H --> S{Cascade or Critique workflow<br/>with a strong model?}
+    S -->|yes| X[The strong model; if it fails, the cloud model]
+    S -->|no| C[Cloud Gemini through Firebase AI Logic<br/>function calling with every PocketIDE tool]
+    T --> L[Reply labelled with where it ran and how long it took]
+    C --> L
+    X --> L
+    L --> F[(Firestore: where it ran, time, why it was passed on<br/>per anonymous user; never prompts or code)]
+```
+
+Firebase products used: **AI Logic** (hybrid inference, on-device Gemini Nano and cloud Gemini with function calling),
+**App Check**, **Remote Config** (cloud model, on-phone limit, default routing, a switch that turns the cloud off),
+**Authentication** (anonymous), **Firestore** (usage summary), **Crashlytics** and **Performance Monitoring** (traces
+`hybrid_phone`, `hybrid_chat`, `hybrid_cloud`).
+
 ## What was there before the hackathon
 
 The first commit (`Baseline: PocketIDE MIT edition 1.5.182…`) is the app exactly as it was before the submission period
@@ -30,6 +70,9 @@ The first commit (`Baseline: PocketIDE MIT edition 1.5.182…`) is the app exact
 | **Remote Config**: the cloud model, the default on-phone limit and routing mode, and a switch that turns the cloud off, without an app update | `HybridCloud.kt` |
 | **Authentication** (anonymous) and **Firestore**: a per-person record of where each request ran, how long it took and why Nano passed it on (never prompts or code), shown as "Your hybrid usage" | `HybridCloud.kt`, `core/HybridStats.kt` |
 | The agent also saves code written in `language:file.ext` fences, which small models often use | `core/ReplyParser.kt` |
+| Reliability from real runs on the phone: an edit that deletes a definition the file still uses is refused and put back; after two failed steps in a row Nano passes the rest of the request on; a passed-on request stays with the model it went to; when the strong model fails, the cloud model answers | `core/UndefinedNames.kt`, `NativeAgent.kt`, `HybridAgent.kt`, `ModelClient.kt` |
+| **Crashlytics** and **Performance Monitoring** (phone vs cloud request times); a **Private** switch and a first-run explanation on the Hybrid AI screen | `HybridCloud.kt`, `HybridScreen.kt` |
+| Judges' build: one App Check debug token for every phone, given at build time and never in git | `app/build.gradle.kts` |
 | Build: Firebase is applied only when `app/google-services.json` exists; CI writes it from the `GOOGLE_SERVICES_JSON` secret, so the config is not in git and the app still builds without it | `build.gradle.kts`, `app/build.gradle.kts`, `.github/workflows/build-apk.yml`, `.gitignore` |
 
 ## Why hybrid fits a phone IDE
@@ -65,6 +108,14 @@ The first commit (`Baseline: PocketIDE MIT edition 1.5.182…`) is the app exact
 
 On-device inference needs a phone that supports Gemini Nano through Android AICore (for example recent Pixel and Samsung
 Galaxy S flagships). Other phones use the cloud model automatically.
+
+## Testing
+
+`./gradlew testDebugUnitTest` runs 1,200+ JVM tests. The hybrid ones run PocketIDE's real agent loop headless (Robolectric) with
+scripted stand-ins for Gemini Nano and the cloud model (`app/src/test/.../bench/HybridAgentLoopTest.kt`): Nano doing a whole fix
+on the phone; prose code, a refusal, a claimed edit that never happened and a web request each passed on with the handoff line;
+two failed steps in a row; an edit that deletes a definition still in use; and the cloud-first mode. Real Gemini Nano was tested
+on a Galaxy S24+ (the benchmark runs that led to the reliability fixes above).
 
 ## Licence
 

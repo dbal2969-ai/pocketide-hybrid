@@ -1,5 +1,8 @@
 # PocketIDE (Kotlin)
 
+> **#BuildHybridAI 2026 entry:** this repository is PocketIDE with hybrid AI (Gemini Nano on the phone, a cloud Gemini model
+> through Firebase AI Logic when needed). See **[HACKATHON.md](HACKATHON.md)** for what was built, how it works, and how to try it.
+
 A phone-only AI code editor, written in Kotlin with no third-party libraries.
 
 - Code tab: editor with line numbers, syntax colours, auto-indent, undo/redo, find and replace, symbol keys. Images show as images.
