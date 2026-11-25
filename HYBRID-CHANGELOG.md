@@ -48,6 +48,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | games 1125-0233 (game run 1) | `717b4be` | **5 of 5**, all ended done | 19 of 56 | the play tests ran before the work was called done and sent gm03 and gm05 back once each; the page check asked for touch controls on the keyboard-only paddle game (gm02); Auto moved to Gemini 4 Hydrogen once ("the last 2 tool calls failed"). Balanced's free quota was still spent from the night's runs, so Fast answered 35 cloud steps and Hydrogen 2 | none needed |
 | hard helping 1125-0743 | `7bc42e7` | **10 of 10**, all ended done | 26 on the phone (the report did not count the strong model's steps) | first "Hybrid helps my strong model" run, with `kilo/recursive/flint-v1.0:free` as the strong model: every handoff went to it and every task passed; h08 Private stayed on the phone (13 steps). Nano asked for a tool named `membaca_file` (h07) | `316fd34` |
 | local 1125-0955 (local run 1) | `e379bb8` | **12 of 20** (Gemini Nano alone) | 115 of 115 | Find and explain 0 of 4, but Nano's answers were right ("rules.js"; "it passed"): "Change nothing" made the app take each as a task and end it "Nothing was changed", and final answers were not in the chat log. Nano's own failures: a search for a block's first line or a line's start with a whole new block or line as the replacement (l08 syntax error, l11 doubled keys); edit_lines 3–5 used to insert, deleting three cases (l13); a module without module.exports (l17); it tried to edit test.js (refused). 32 refused calls, 4 repeated reads, 0 unusable replies. l02's one Nano call took 548 s (the app was off screen) | `1ababce` |
+| local 1125-1040 (local run 2) | `1ababce` | **19 of 20** | 116 of 116 | every skill but one at 100%: Find and explain 4/4 (was 0/4), Add new code 6/6, New file 2/2, Two files 3/3; refused calls 32 → 12. Only l08 failed: told "label gave Unknown Name (30)", Nano added fallbacks twice and never read test.js to learn the property is `name` | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -407,6 +408,12 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** core/Intent.kt (`NO_CHANGE`), core/Scope.kt (`asksForChange`), NativeAgent.kt (final answer logged, edit_lines check),
   core/EditBlocks.kt (`covered`, `closing`, `linesLost`), core/SmallLocal.kt, test AgentHarness.kt.
 - **Tests:** LocalRunFixesTest (6), HybridAgentLoopTest (a change-nothing question answered on the phone succeeds). 1,288 tests.
+
+### (next) · 2026-11-25 · Nano reads a failing test before guessing (local run 2, 19 of 20)
+- **Evidence:** local run 1125-1040, l08: two guessed fixes, no read of test.js.
+- **Change:** Nano's instructions: "If a test fails and its message does not say why, read the test file to see what it expects,
+  then fix the code. Never change the test."
+- **Files:** core/SmallLocal.kt. **Tests:** LocalRunFixesTest (the instruction is there). 1,289 tests.
 
 ---
 

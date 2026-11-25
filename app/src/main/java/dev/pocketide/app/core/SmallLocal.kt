@@ -86,7 +86,8 @@ object SmallLocal {
                 "end = N, with N from read_file's line numbers; nothing has to be copied. To change existing lines, edit_file with search " +
                 "copied exactly from read_file's output (without the line numbers), whole lines, never \"...\". write_file for a new file; " +
                 "in a Node file, end it with module.exports = { … } naming what other files use.\n" +
-            "4. Check it: run_command to run the tests or the program.\n" +
+            "4. Check it: run_command to run the tests or the program. If a test fails and its message does not say why, read the test " +
+                "file to see what it expects, then fix the code. Never change the test.\n" +
             "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +
             "For a question, read what you need and answer; change nothing.\n\n" + tools
 

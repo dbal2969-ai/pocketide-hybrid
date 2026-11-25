@@ -50,4 +50,7 @@ class LocalRunFixesTest {
     }
 
     @Test fun nanoIsToldToExport() = assertTrue(SmallLocal.system(Tools.smallCatalogue(false)).contains("module.exports"))
+
+    /** Local run 2, l08: told only "label gave Unknown Name (30)", Nano guessed twice and never read test.js. */
+    @Test fun nanoIsToldToReadAFailingTest() = assertTrue(SmallLocal.system(Tools.smallCatalogue(false)).contains("read the test file to see what it expects"))
 }
