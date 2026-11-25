@@ -366,7 +366,7 @@ class NativeAgent(
      */
     private fun planGate(p: String, content: String): Pair<String, String>? {
         if (!dev.pocketide.app.core.PlanGate.isPlan(p)) return null
-        if (writeMark <= checkMark || (look == null && verifyPlan() == null)) return content to ""
+        if (writeMark <= checkMark || docsOnly() || (look == null && verifyPlan() == null)) return content to ""
         val (text, n) = dev.pocketide.app.core.PlanGate.reopenNew(current(p), content)
         return text to if (n == 0) "" else "\n$n newly ticked item${if (n == 1) "" else "s"} set back to open: no check has passed since the last code change. Run look_at_preview, and tick them once it says VERDICT: PASS."
     }
@@ -484,6 +484,10 @@ class NativeAgent(
     private var steeredSincePlan = false
     /** Steps the model marked done before any check ran after its last change; they become done when a check passes. */
     private val pendingDone = LinkedHashSet<String>()
+    private val DOC_EXT = setOf("md", "markdown", "txt", "rst", "adoc")
+
+    /** Every file this run changed is a note or document (Markdown, text): no test or preview can check it. */
+    private fun docsOnly(): Boolean = changed.isNotEmpty() && changed.all { it.substringAfterLast('.', "").lowercase() in DOC_EXT }
 
     /** A check passed after the last change: the steps waiting for one are done now. */
     private fun promoteChecked() {
@@ -1220,7 +1224,7 @@ class NativeAgent(
         }
         // Proof before "done": a summary that says it works, with nothing run after the last change that shows it, goes back once.
         // (When the app will look at the page itself below, that look is the check.)
-        if (agent && !nested && !proofAsked && changed.isNotEmpty() && round < maxRounds && wrapAt < 0 && canRunCommands() &&
+        if (agent && !nested && !proofAsked && changed.isNotEmpty() && !docsOnly() && round < maxRounds && wrapAt < 0 && canRunCommands() &&
             !(look != null && dev.pocketide.app.core.PageProbe.relevant(changed))) {
             val said = dev.pocketide.app.core.Proof.claims(text)
             if (said.isNotEmpty() && !dev.pocketide.app.core.Proof.runtimeSince(proofChecks, writeMark)) {
@@ -2650,7 +2654,8 @@ class NativeAgent(
                     return
                 }
                 // Only where a check is possible (a page to look at, or tests/checks to run); otherwise "done" is taken as given.
-                val unverified = agent && writeMark > checkMark && (look != null || verifyPlan() != null)
+                // 1.5.184: a run that only wrote notes (DATES.md from research) has nothing a check could show, so "done" is taken as given
+                val unverified = agent && writeMark > checkMark && !docsOnly() && (look != null || verifyPlan() != null)
                 val steps = raw.map { (t, st) -> if (st == "done" && unverified) t to "doing" else t to st }
                 for ((t, st) in raw) if (st == "done" && unverified) pendingDone.add(t) else pendingDone.remove(t)
                 lastSteps = steps

@@ -15,7 +15,14 @@ object StubCheck {
         if (ext !in CODE) return null
         if (content.isBlank()) return "the file is empty"
         val m = MARK.find(content) ?: return null
-        return "it contains a stand-in (\"${m.value.trim().take(40)}\")"
+        // 1.5.184: name the whole line and its number: Gemini Nano, told only "Placeholder", edited a different comment and the run ended unfinished
+        val start = content.lastIndexOf('\n', m.range.first) + 1
+        val end = content.indexOf('\n', m.range.first).let { if (it < 0) content.length else it }
+        val line = content.substring(start, end).trim().take(120)
+        val no = content.substring(0, start).count { it == '\n' } + 1
+        val tail = if (line.startsWith("//") || line.startsWith("#") || line.startsWith("/*") || line.startsWith("<!--"))
+            "; if the code under it already works, delete this comment line (edit_file with search set to exactly this line and replace empty)" else ""
+        return "line $no is a stand-in: `$line`$tail"
     }
 
     fun note(path: String, why: String): String =

@@ -187,4 +187,27 @@ class HybridAgentLoopTest {
         assertTrue(shown(o), shown(o).contains("repeated a step that already failed"))
         assertTrue(o.resultsOf("run_command").first().contains("ok"))
     }
+
+    private fun plan(vararg steps: Pair<String, String>) =
+        tools("update_plan", "steps" to steps.map { mapOf("text" to it.first, "status" to it.second) })
+
+    /** Benchmark run 2, task 06: the cloud wrote DATES.md and marked its plan done, but the steps were held open for a check
+     *  that a Markdown file cannot have, and the run ended "not finished" with the work done. */
+    @Test fun aNotesOnlyPlanIsDoneWhenTheModelSaysSo() {
+        val a = "Research the three most popular JavaScript date libraries"
+        val b = "Create DATES.md comparing size and licence"
+        nano()
+        cloud(plan(a to "todo", b to "todo"),
+            tools("write_file", "path" to "DATES.md", "content" to "# Date libraries\n\n| Library | Size | Licence |\n| --- | --- | --- |\n| date-fns | 18 kB | MIT |\n| Day.js | 2 kB | MIT |\n| Luxon | 23 kB | MIT |\n"),
+            plan(a to "done", b to "done"),
+            ToolTurn("DATES.md compares date-fns, Day.js and Luxon by size and licence.", emptyList(), "stop"))
+        val o = AgentHarness(app, "Research the three most popular JavaScript date libraries and write DATES.md comparing their size and licence",
+            ModelGateway.NETWORK, provider = "hybrid", modelName = "", timeoutSeconds = 60, verify = true).run()
+        assertFalse("timed out", o.timedOut)
+        assertTrue(o.file("DATES.md").orEmpty().contains("Luxon"))
+        val r = o.result!!
+        assertTrue(r.text, r.ok)
+        assertFalse(r.text, r.text.contains("unfinished step"))
+        assertTrue("no rounds spent asking for the plan again: $cloudCalls", cloudCalls <= 5)
+    }
 }

@@ -59,6 +59,8 @@ class AgentHarness(
      * than the phone has. LiveBench turns this on (POCKETIDE_BENCH_APP_TOOLS=0 turns it off); scripted tests leave it off.
      */
     private val appTools: Boolean = false,
+    /** The app's verify plan (tests or syntax checks) as on the phone; off by default so scripted tests stay quick (1.5.184). */
+    private val verify: Boolean = false,
     /** A second model that plans and reviews ("provider:model", POCKETIDE_BENCH_ADVISOR), as Settings → Advisor does; "" = none. */
     private val advisor: String = "",
     private val advisorMode: String = dev.pocketide.app.core.Advisor.AUTO,
@@ -269,7 +271,7 @@ class AgentHarness(
                 scrollDown = { },
                 docs = false,
                 docEdit = { _, _, _ -> "Documents are not available in the harness." },
-                verifyPlan = { null },
+                verifyPlan = { if (verify) dev.pocketide.app.core.Verify.plan(store.list(), { f -> store.read(f) }, null) else null },
                 // 1.5.139: as the app passes it (ChatPane); 1.5.138 left it out, so POCKETIDE_BENCH_HELPER reached only phase routing
                 explorerSlot = { settings.explorerSlot() },
                 meaning = meaning ?: embedSearch(settings),
