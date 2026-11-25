@@ -84,6 +84,11 @@ object CloudTier {
     /** True when an error is about the thinking setting (the request is sent again without it). */
     fun thinkingRefused(error: String): Boolean = THINKING.containsMatchIn(error) && Regex("""(?i)invalid|not supported|unsupported|unknown""").containsMatchIn(error)
 
+    private val BUSY = Regex("""(?i)high\s+demand|overloaded|try\s+again\s+later|\b503\b|\b429\b|RESOURCE_EXHAUSTED|rate\s+limit|quota|temporarily|UNAVAILABLE""")
+
+    /** True when the model is busy or rate-limited for now (it is not marked unusable; a lower tier answers this step). */
+    fun busy(error: String): Boolean = BUSY.containsMatchIn(error) && !Regex("""(?i)not\s+found|billing|Blaze""").containsMatchIn(error)
+
     /** True when the reply was cut off at its token limit (it is asked again with a larger one). */
     fun cutOff(error: String): Boolean = Regex("""(?i)MAX_TOKENS""").containsMatchIn(error)
 

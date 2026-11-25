@@ -64,4 +64,12 @@ class CloudTierTest {
         assertFalse(CloudTier.unavailable("thinking_level is not supported for this request"))
         assertTrue(CloudTier.unavailable("Model gemini-4-hydrogen is not found"))
     }
+
+    /** Hard run 4: Balanced was skipped for the whole session while Google's servers reported high demand. */
+    @Test fun aBusyModelIsNotUnusable() {
+        val e = "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+        assertTrue(CloudTier.busy(e)); assertFalse(CloudTier.unavailable(e))
+        assertTrue(CloudTier.busy("429 RESOURCE_EXHAUSTED: quota exceeded"))
+        assertFalse(CloudTier.busy("models/gemini-4-hydrogen is not found for API version v1beta"))
+    }
 }

@@ -120,6 +120,7 @@ object HybridAgent {
         var tier = pick.tier
         val decl = declarations(tools)
         var lastError: Exception? = null
+        var fellBack = ""
         // a tier this project cannot use is skipped for the session and the next one down answers; a refused thinking setting is dropped
         repeat(4) {
             val model = HybridAi.cloudToolModel(ctx, system, decl, tier)
@@ -132,7 +133,7 @@ object HybridAgent {
                     Thread.sleep(RETRY_MS)
                     ask()
                 }
-                val note = if (tier != pick.tier) "${pick.tier.label} (${pick.tier.model}) is not available to this project, so ${tier.label} answered." else ""
+                val note = if (tier != pick.tier) fellBack else ""
                 return withEscalation(Result(turn(r), false, (System.nanoTime() - t0) / 1e9, note, HybridAi.modelFor(tier)), pick.copy(tier = tier))
             } catch (e: Exception) {
                 lastError = e
@@ -141,9 +142,17 @@ object HybridAgent {
                     dev.pocketide.app.core.CloudTier.cutOff(msg) && !HybridAi.bigOutput -> HybridAi.bigOutput = true
                     HybridCloud.pinnedModel() != null -> throw e
                     dev.pocketide.app.core.CloudTier.thinkingRefused(msg) && tier !in HybridAi.noThinking -> HybridAi.noThinking.add(tier)
+                    // 1.5.184 (hard run 4): "high demand" is Google's servers, not the project; the next tier down answers this step only
+                    dev.pocketide.app.core.CloudTier.busy(msg) -> {
+                        val down = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
+                        fellBack = "${tier.label} (${tier.model}) was busy, so ${down.label} answered this step (${msg.take(120)})."
+                        tier = down
+                    }
                     dev.pocketide.app.core.CloudTier.unavailable(msg) -> {
                         HybridAi.skipTiers.add(tier)
-                        tier = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
+                        val down = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
+                        fellBack = "${tier.label} (${tier.model}) is not available to this project, so ${down.label} answers from now on (${msg.take(160)})."
+                        tier = down
                     }
                     else -> throw e
                 }
