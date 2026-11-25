@@ -471,6 +471,17 @@ class MainActivity : Activity() {
         chat.askInNewChat(prompt)
     }
 
+    /** The from-scratch benchmark: a new conversation in the chat with no project. */
+    fun benchChatHome(prompt: String) {
+        editor.save()
+        if (Projects.key(this) != Projects.CHAT) Projects.switchTo(this, Projects.CHAT)
+        select(3)
+        chat.askInNewChat(prompt)
+    }
+
+    /** The from-scratch benchmark: "Build this as a project" on the current chat, sending the build request. Returns the project. */
+    fun benchBuildFromChat(name: String): String = chat.buildAs(name, send = true)
+
     fun benchSwitch(project: String) {
         editor.save()
         if (Projects.key(this) != project) Projects.switchTo(this, project)

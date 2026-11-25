@@ -444,6 +444,21 @@ the files after the run, `transcript.txt` and `check.txt`.
   core/Tools.kt, HybridAgent.kt (insert_lines), NativeAgent.kt (rename check, warnings).
 - **Tests:** LocalRun3Test (5). 1,294 tests. Re-analysis with the hidden checks: local run 3 is 16 clean passes, not 18.
 
+### (next) · 2026-11-25 · From-scratch benchmark: empty project and the chat with no project
+- **Why:** owner's question: had PocketIDE been tested making a project from scratch, in an empty project or from the chat outside
+  a project? It had not: every task so far started from prepared files.
+- **Change:** a from-scratch suite of ten tasks: a phone snake game, a calculator, a to-do list, tic-tac-toe against the computer and
+  a tip calculator, each in an empty project (Agent mode) and from the chat with no project. For the chat the runner talks first,
+  then uses Build this as a project (ChatPane.buildAs, the same path as the button) and sends the build request; during the benchmark
+  the plan is approved as the person would, or the request runs without one when no plan comes back. `scratch/checks.js` plays each
+  app in Chromium at phone width (errors, 390 px fit, and what the prompt asked for, found by visible text rather than the model's
+  names); analyze.py runs it on every task. `scratch/references/` holds an ordinary app for each prompt that passes every check;
+  a snake with keys only on the canvas fails exactly the key check, and the owner's own snake was flagged for being 412 px wide.
+- **Files:** bench/hybrid/scratch/ (checks.js, references/), analyze.py, README.md; core/HybridBenchTasks.kt (`SCRATCH`, `Entry`),
+  HybridBench.kt (`fromChat`, `Suite.SCRATCH`), ChatPane.kt (`buildAs`, plan approval during the benchmark), MainActivity.kt
+  (`benchChatHome`, `benchBuildFromChat`), HybridScreen.kt.
+- **Tests:** HybridBenchScratchTest (2).
+
 ---
 
 ## Outside the code

@@ -134,3 +134,23 @@ opens index.html in Chromium (console errors, page errors, files that failed to 
 own play-test code, and reads the chat log and nano.jsonl (tools, refusals, attempts to change tests, handoffs, errors, endings).
 It writes `<zip>-analysis.md` with one of three verdicts per task: **clean pass**, **pass with problems**, or **fail**. Passes
 with problems are read by hand and fixed like failures.
+
+## From-scratch benchmark (no code to start from)
+
+Models → Hybrid AI → **Run the from-scratch benchmark** asks for five things a person might want, with nothing to start from, each
+twice: in an **empty project** (Agent mode), and in the **chat with no project**, where the prompt is discussed and then **Build this
+as a project** is used (Plan mode; the benchmark approves the plan as the person would, or runs without one if none comes back).
+
+| Prompt | Played in a browser (scratch/checks.js) |
+| --- | --- |
+| Snake game for a phone | board drawn; arrow keys reach the game without clicking first; touch or on-screen steering; score; it moves; a wall ends it; play again |
+| Calculator | 7 + 8 = 15, 6 × 7 = 42, 9 ÷ 3 = 3, 2 − 5 = −3, C clears |
+| To-do list | add, tick done, delete, kept after a reload |
+| Tic-tac-toe against the computer | 3 × 3 board; the computer answers a move; a finished game is announced; New game clears |
+| Tip calculator | a $100 bill at 15% shows $15 and $115 |
+
+Every app is also checked for errors on load and while playing, and for fitting a 390 px phone screen. The checks find buttons by
+their text, inputs by type and results by what the page shows, so they do not depend on the model's file or element names.
+`scratch/references/` has an ordinary app for each, on which every check passes (and a snake whose keys only reach the canvas
+fails exactly the key check). The app's own verdict only says a page was built and its checks passed; `analyze.py` runs the play
+checks on every task.

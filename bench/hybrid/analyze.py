@@ -11,7 +11,7 @@ Usage: python3 bench/hybrid/analyze.py <results.zip> [play scripts dir from Game
 import collections, html.parser, json, os, re, shutil, subprocess, sys, tempfile, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local"}
+SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch"}
 TEST_NAMES = re.compile(r"(^|/)(test\.js|tests/play\.txt|.*\.test\.js|spec\..*)$")
 
 
@@ -208,6 +208,24 @@ def main():
                 problems.append("hidden check fails (inputs the model never saw): " + "; ".join(l for l in (r.stderr or r.stdout).strip().splitlines() if "hidden check" in l or "Error" in l)[:200])
             else: notes.append("hidden check passes")
             shutil.rmtree(d, ignore_errors=True)
+        # from scratch: the app played as a person would (scratch/checks.js), by what it is: snake, calculator, todo, tictactoe, tip
+        if suite == "scratch":
+            kind = tid.split("-")[1] if "-" in tid else ""
+            if "index.html" not in final: problems.append("no index.html was built")
+            else:
+                d = tempfile.mkdtemp()
+                for p, s in final.items():
+                    fp = os.path.join(d, p); os.makedirs(os.path.dirname(fp), exist_ok=True); open(fp, "w").write(s)
+                r = subprocess.run(["node", os.path.join(HERE, "scratch", "checks.js"), d, kind], capture_output=True, text=True, timeout=600,
+                                   env={**os.environ, "NODE_PATH": subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip()})
+                try:
+                    cs = json.loads(r.stdout.strip().splitlines()[-1])["checks"]
+                    for c in cs:
+                        if not c["ok"]: problems.append(f"played: {c['name']} — no" + (f" ({c['detail']})" if c["detail"] else ""))
+                    notes.append(f"played in a browser: {sum(c['ok'] for c in cs)} of {len(cs)} checks pass")
+                except Exception: problems.append("the play checks did not run: " + (r.stderr.strip()[-200:] or "no output"))
+                shutil.rmtree(d, ignore_errors=True)
+            notes.append("files built: " + ", ".join(sorted(final)) if final else "no files built")
         # the page in a browser, and the play tests
         if "index.html" in final:
             d = tempfile.mkdtemp()

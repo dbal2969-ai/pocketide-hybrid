@@ -211,7 +211,8 @@ object HybridScreen {
             val hard = suite != HybridBench.Suite.STANDARD
             val m = activity as? MainActivity
             val n = when (suite) { HybridBench.Suite.HARD -> dev.pocketide.app.core.HybridBenchTasks.HARD.size; HybridBench.Suite.GAMES -> dev.pocketide.app.core.HybridBenchTasks.GAMES.size
-                HybridBench.Suite.LOCAL -> dev.pocketide.app.core.HybridBenchTasks.LOCAL.size; else -> dev.pocketide.app.core.HybridBenchTasks.ALL.size }
+                HybridBench.Suite.LOCAL -> dev.pocketide.app.core.HybridBenchTasks.LOCAL.size; HybridBench.Suite.SCRATCH -> dev.pocketide.app.core.HybridBenchTasks.SCRATCH.size
+                else -> dev.pocketide.app.core.HybridBenchTasks.ALL.size }
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
                 HybridBench.running -> toast("The benchmark is already running.")
@@ -234,6 +235,9 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "The local model benchmark has ${dev.pocketide.app.core.HybridBenchTasks.LOCAL.size} tiny tasks for Gemini Nano alone " +
             "(Private mode), grouped by skill, and saves every Nano prompt and reply, to tune how PocketIDE drives it. About 20 to 40 minutes; no internet needed.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Run the local model benchmark") { startBench(HybridBench.Suite.LOCAL) })
+        benchCard.addView(Ui.text(ctx, "The from-scratch benchmark asks for ${dev.pocketide.app.core.HybridBenchTasks.SCRATCH.size / 2} apps and games with no code to start " +
+            "from, each twice: in an empty project, and in the chat with no project, then Build this as a project (its plan is approved for you). About 60 to 120 minutes.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Run the from-scratch benchmark") { startBench(HybridBench.Suite.SCRATCH) })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

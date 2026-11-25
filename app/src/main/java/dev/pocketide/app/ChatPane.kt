@@ -1978,15 +1978,27 @@ class ChatPane(
         saveSession()
         val field = EditText(ctx).also { it.setText(dev.pocketide.app.core.ChatHome.projectName(session.title)); it.setSingleLine() }
         android.app.AlertDialog.Builder(ctx).setTitle("Name the new project").setView(field)
-            .setPositiveButton("Build") { _, _ ->
-                val copy = dev.pocketide.app.core.SecretMask.maskJson(session.toJson())
-                val name = Projects.create(ctx, field.text.toString().trim().ifBlank { "New project" }, dev.pocketide.app.core.Templates.EMPTY)
-                try { File(File(Projects.metaDir(ctx, name), "chats").also { it.mkdirs() }, session.id + ".json").writeText(copy) } catch (e: Exception) { }
-                modeBeforeBuild = Triple(name, settings.mode, settings.agent)
-                settings.mode = "plan"; settings.agent = true
-                Projects.switchTo(ctx, name)   // the app reloads the chat pane for the new project, which opens this (newest) chat
-                post { onShowChat(); openChatById(session.id); input.setText(dev.pocketide.app.core.ChatHome.BUILD_REQUEST); input.setSelection(input.text.length); refresh() }
-            }.setNegativeButton("Cancel", null).show()
+            .setPositiveButton("Build") { _, _ -> buildAs(field.text.toString(), send = false) }.setNegativeButton("Cancel", null).show()
+    }
+
+    /**
+     * Turns this chat into a new project named [name] and opens it in Plan mode with the build request: in the box for the person
+     * to send, or sent at once when [send] (the from-scratch benchmark, which drives the chat as a person would). Returns the name.
+     */
+    fun buildAs(name0: String, send: Boolean): String {
+        saveSession()
+        val copy = dev.pocketide.app.core.SecretMask.maskJson(session.toJson())
+        val name = Projects.create(ctx, name0.trim().ifBlank { "New project" }, dev.pocketide.app.core.Templates.EMPTY)
+        try { File(File(Projects.metaDir(ctx, name), "chats").also { it.mkdirs() }, session.id + ".json").writeText(copy) } catch (e: Exception) { }
+        modeBeforeBuild = Triple(name, settings.mode, settings.agent)
+        settings.mode = "plan"; settings.agent = true
+        Projects.switchTo(ctx, name)   // the app reloads the chat pane for the new project, which opens this (newest) chat
+        post {
+            onShowChat(); openChatById(session.id)
+            if (send) ask(dev.pocketide.app.core.ChatHome.BUILD_REQUEST)
+            else { input.setText(dev.pocketide.app.core.ChatHome.BUILD_REQUEST); input.setSelection(input.text.length); refresh() }
+        }
+        return name
     }
 
     private fun openSession(c: ChatSession) {
@@ -2719,10 +2731,22 @@ class ChatPane(
             turn.box.addView(Ui.button(ctx, "Run the request without a plan", true) { beginExchange(t); send(Plans.noPlan(t), 0, null, recordAs = null) },
                 Ui.lp(Ui.WRAP, Ui.WRAP).also { it.topMargin = Ui.dp(ctx, 6) })
             endExchange(true)
+            if (HybridBench.running) {   // no plan came back: the benchmark taps "Run the request without a plan", as the person would
+                dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event("benchmark: no plan came back; ran the request without one"))
+                post { beginExchange(t); send(Plans.noPlan(t), 0, null, recordAs = null) }
+            }
             return
         }
         turn.body.text = "Here is a plan with ${p.steps.size} steps."
         val t = planTask
+        // 1.5.184: the from-scratch benchmark approves the plan as the person would (tapping Approve), so the run goes on unattended
+        if (HybridBench.running) {
+            noteLast("Proposed a plan: " + p.title)
+            dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event("benchmark: approved the plan (${p.steps.size} steps): " + p.title))
+            endExchange(true)
+            post { runPlan(p, t) }
+            return
+        }
         val card = PlanCard(ctx, p,
             onApprove = { approved -> runPlan(approved, t) },
             onSkipPlan = { beginExchange(t); send(Plans.noPlan(t), 0, null, recordAs = null) },

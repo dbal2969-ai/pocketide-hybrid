@@ -25,6 +25,8 @@ object HybridBenchTasks {
         val privateMode: Boolean = false,
         /** The skill the task checks (the local suite groups its report by it). */
         val skill: String = "",
+        /** Where the task starts: a project with its files (and an empty project when it has none), or the chat with no project. */
+        val entry: Entry = Entry.PROJECT,
         /** Null = passed, else why it did not. */
         val judge: (Facts) -> String?,
     ) {
@@ -263,6 +265,35 @@ object HybridBenchTasks {
         Task("l19-html-and-js", "Change HTML and JS together", "Add a Reset button (id reset) to index.html, and a reset() function in app.js that sets count to 0, exported like add. node test.js must print ok", privateMode = true, skill = "Two files or a stale quote") { f -> code(f) },
         Task("l20-stale-snippet", "Edit from a quote that differs", "In timer.js, change the line `seconds: 60 // one minute` so the timer is 90 seconds. node test.js must print ok", privateMode = true, skill = "Two files or a stale quote") { f -> code(f) },
     )
+
+    enum class Entry { PROJECT, CHAT }
+
+    /**
+     * The from-scratch suite (1.5.184): five things a person might ask for with no code to start from, each asked twice: in an empty
+     * project in Agent mode, and in the chat with no project, then "Build this as a project" (Plan mode, the plan approved). The app's
+     * verdict only says a page was built and the app's checks passed; bench/hybrid/scratch/checks.js plays each one in a browser.
+     */
+    private val SCRATCH_PROMPTS = listOf(
+        Triple("snake", "Snake game", "Make a snake game I can play on my phone: arrow keys and swipes or on-screen buttons to steer, a score, and game over when the snake hits a wall or itself, with a way to play again."),
+        Triple("calculator", "Calculator", "Make a calculator app with buttons for the digits, + − × ÷, = and C, that shows the numbers and the result."),
+        Triple("todo", "To-do list", "Make a to-do list app: add items, tick them done, delete them, and keep the list when I reload the page."),
+        Triple("tictactoe", "Tic-tac-toe", "Make tic-tac-toe where I play X against the computer, which plays O right after my move. Show who won or that it is a draw, and a New game button."),
+        Triple("tip", "Tip calculator", "Make a tip calculator: I enter the bill and the tip percent, and it shows the tip and the total."),
+    )
+
+    val SCRATCH: List<Task> = SCRATCH_PROMPTS.mapIndexed { i, (id, title, prompt) ->
+        Task("s%02d-$id-empty".format(i * 2 + 1), "$title in an empty project", prompt, command = null, skill = "Empty project") { f -> built(f) }
+    } + SCRATCH_PROMPTS.mapIndexed { i, (id, title, prompt) ->
+        Task("s%02d-$id-chat".format(i * 2 + 2), "$title from the chat", prompt, command = null, skill = "From the chat", entry = Entry.CHAT) { f -> built(f) }
+    }
+
+    /** A from-scratch task passed (in the app's eyes) when a page was built and the app's checks passed; analyze.py plays it. */
+    private fun built(f: Facts): String? = when {
+        f.ended.startsWith("never built") -> "the chat never turned into a project"
+        f.files.keys.none { it.endsWith(".html") } -> "no page was built (no .html file)"
+        !f.transcript.contains("outcome: ✓") -> "the app's checks did not pass (no ✓ outcome)"
+        else -> null
+    }
 
     /** A game task passed when [code] changed, the play tests are as given, and the app's checks passed (the play tests run there). */
     private fun game(f: Facts, code: String): String? = when {

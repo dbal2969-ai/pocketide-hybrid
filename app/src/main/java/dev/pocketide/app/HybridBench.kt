@@ -35,6 +35,7 @@ object HybridBench {
     enum class Suite(val id: String, val title: String) {
         STANDARD("hybrid", "Hybrid AI benchmark"), HARD("hybrid-hard", "Hybrid AI benchmark (hard)"), GAMES("hybrid-games", "Hybrid AI benchmark (games)"),
         LOCAL("hybrid-local", "Hybrid AI benchmark (local model)"),
+        SCRATCH("hybrid-scratch", "Hybrid AI benchmark (from scratch)"),
     }
 
     /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
@@ -66,7 +67,8 @@ object HybridBench {
         val suite = kind.id
         val out = File(act.filesDir, "bench-results/$suite-$stamp").apply { mkdirs() }
         val results = ArrayList<HybridBenchTasks.Result>()
-        val tasks = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL; Suite.STANDARD -> HybridBenchTasks.ALL }
+        val tasks = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL
+            Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.STANDARD -> HybridBenchTasks.ALL }
         /** Gemini Nano's exchanges in the current task (HybridAgent.recorder), saved as nano.jsonl. */
         val nanoLog = StringBuilder()
         var i = 0
@@ -98,6 +100,7 @@ object HybridBench {
             if (i >= tasks.size) { finish(null); return }
             val t = tasks[i]
             toast("Hybrid benchmark ${i + 1} of ${tasks.size}: ${t.title}")
+            if (t.entry == HybridBenchTasks.Entry.CHAT) { fromChat(t); return }
             val name = Projects.create(act, "bench $stamp ${t.id}", dev.pocketide.app.core.Templates.EMPTY)
             val root = File(Projects.root(act), name)
             for ((p, text) in t.files) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
@@ -132,13 +135,55 @@ object HybridBench {
             main.postDelayed({ watch() }, 5000)
         }
 
-        fun after(t: HybridBenchTasks.Task, name: String, root: File, t0: Long, ended: String) {
+        /**
+         * A task that starts in the chat with no project (1.5.184): the prompt is discussed there, then "Build this as a project" makes
+         * the project and sends the build request in Plan mode; the plan is approved as the person would (ChatPane). The task is over
+         * when the assistant stays idle after the build.
+         */
+        fun fromChat(t: HybridBenchTasks.Task) {
+            HybridScreen.setMode(act, if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
+            val t0 = System.currentTimeMillis()
+            synchronized(nanoLog) { nanoLog.setLength(0) }
+            HybridAgent.recorder = { line -> synchronized(nanoLog) { nanoLog.append(line).append('\n') } }
+            val chat = act.benchChat()
+            var ended = "did not start"
+            var finished = false
+            var project = ""
+            fun done(how: String = ended) {
+                if (finished) return
+                finished = true
+                chat.onExchangeEnded = {}
+                if (project.isEmpty()) project = Projects.create(act, "bench $stamp ${t.id} (never built)", dev.pocketide.app.core.Templates.EMPTY)
+                after(t, project, File(Projects.root(act), project), t0, if (project.endsWith("(never built)")) "never built: $how" else how, extra = listOf(Projects.CHAT))
+            }
+            chat.onExchangeEnded = { ok ->
+                ended = if (ok) "done" else "stopped or failed"
+                main.postDelayed({
+                    if (finished || chat.busy()) return@postDelayed
+                    if (project.isEmpty()) project = act.benchBuildFromChat("bench $stamp ${t.id}")   // the talk is over: build it
+                    else done()
+                }, 8000)
+            }
+            act.benchChatHome(t.prompt)
+            fun watch() {
+                if (finished) return
+                val spent = System.currentTimeMillis() - t0
+                when {
+                    spent > TASK_LIMIT_MS * 2 -> { chat.stopNow(); main.postDelayed({ done("timed out after ${TASK_LIMIT_MS * 2 / 60_000} min") }, 6000) }
+                    spent > 90_000 && ended == "did not start" && !chat.busy() -> done()
+                    else -> main.postDelayed({ watch() }, 5000)
+                }
+            }
+            main.postDelayed({ watch() }, 5000)
+        }
+
+        fun after(t: HybridBenchTasks.Task, name: String, root: File, t0: Long, ended: String, extra: List<String> = emptyList()) {
             val files = readTexts(root)
             // 1.5.184 (run 6, task 08): the model changed test.js. The check always runs the task's own test, put back if it changed.
             val tampered = dev.pocketide.app.core.Scope.namedChecks(t.prompt).filter { p -> t.files[p] != null && files[p] != t.files[p] }
             for (p in tampered) try { File(root, p).writeText(t.files.getValue(p)) } catch (e: Exception) { }
             val tamperNote = if (tampered.isEmpty()) "" else "The model changed ${tampered.joinToString(", ")}; the task's own version was put back before the check.\n"
-            val transcript = transcripts(name, t0)
+            val transcript = (extra + name).joinToString("\n\n") { transcripts(it, t0) }
             val record = { code: Int?, text: String ->
                 val facts = HybridBenchTasks.Facts(files, t.files, code, text, transcript, ended)
                 val why = try { t.judge(facts) } catch (e: Exception) { "the check failed: ${e.message}" }
