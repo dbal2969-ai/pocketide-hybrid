@@ -117,3 +117,20 @@ every code task fails as given and passes with its reference fix; `to_kotlin.py 
 | Add new code | l10 a function · l11 a key control · l12 a touch control · l13 a switch case · l14 an object field · l15 one more line in a function |
 | New file | l16 a JSON file · l17 a module |
 | Two files or a stale quote | l18 rename across two files · l19 HTML and JS together · l20 a request that quotes the line slightly wrong |
+
+## Analysing a run (every task, pass or fail)
+
+The app's verdict is not the last word: every results zip is analysed with
+
+```
+POCKETIDE_DUMP_PLAY=/tmp/play ./gradlew testDebugUnitTest --tests '*GamePlayScriptDump*'   # once: the app's play-test scripts
+python3 bench/hybrid/analyze.py pocketide-hybrid-…-benchmark-….zip /tmp/play
+```
+
+For each task it compares the finished files with the starting project and the reference fix, reports names (functions, ids,
+files, selectors) the work lost that the reference keeps, checks the syntax of every changed JS, JSON and HTML file (and HTML
+structure: unclosed or doubled tags, scripts the page no longer loads), reruns the task's own test with the original test file,
+opens index.html in Chromium (console errors, page errors, files that failed to load) and replays every play test with the app's
+own play-test code, and reads the chat log and nano.jsonl (tools, refusals, attempts to change tests, handoffs, errors, endings).
+It writes `<zip>-analysis.md` with one of three verdicts per task: **clean pass**, **pass with problems**, or **fail**. Passes
+with problems are read by hand and fixed like failures.

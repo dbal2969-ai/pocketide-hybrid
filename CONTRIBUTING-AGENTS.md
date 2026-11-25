@@ -26,6 +26,9 @@ after 2 minutes, which is too short for this build, so it relies on the pull req
 0. **Change record (#BuildHybridAI).** Every commit that changes `app/`, `bench/`, the build files or the workflows adds an entry
    to `HYBRID-CHANGELOG.md` in the same commit: why, what changed, files, tests and the evidence (benchmark run or report).
    CI (`changelog.yml`) fails a push or pull request that skips it.
+0b. **Benchmark runs are analysed in full.** Every results zip goes through `bench/hybrid/analyze.py`: passes as well as failures,
+   the finished files (syntax, lost names, the page in a browser, the play tests replayed) and every step of the chat log and
+   nano.jsonl. The app's own verdict is never taken at its word. A pass with problems is treated like a failure.
 
 1. Work on a branch and open a pull request. **Never push to `main`, never merge, never run `release.sh`.** The owner reads every
    pull request and merges it.

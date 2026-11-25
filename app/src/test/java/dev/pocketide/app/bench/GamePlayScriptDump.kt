@@ -23,10 +23,15 @@ class GamePlayScriptDump {
         }
     }
 
+    /** Every suite's task folders that have play tests (the standard, hard and game suites), for analyze.py. */
+    private fun playTasks(): List<File> = listOf("tasks", "hard/tasks", "games/tasks", "local/tasks").flatMap { sub ->
+        (File(bench!!.parentFile, sub).listFiles() ?: emptyArray()).filter { File(it, PlayTests.FILE).isFile }
+    }.sorted()
+
     @Test fun dump() {
         val out = System.getenv("POCKETIDE_DUMP_PLAY")?.let(::File)
         assumeTrue(bench != null && out != null)
-        for (task in File(bench, "tasks").listFiles()!!.sorted()) {
+        for (task in playTasks()) {
             val dir = File(out, task.name).apply { mkdirs() }
             PlayTests.parse(File(task, PlayTests.FILE).readText()).forEachIndexed { i, t ->
                 File(dir, "%02d.js".format(i)).writeText("// ${t.name}\n" + PageSteps.script(PageSteps.parse(t.steps).steps))

@@ -415,6 +415,22 @@ the files after the run, `transcript.txt` and `check.txt`.
   then fix the code. Never change the test."
 - **Files:** core/SmallLocal.kt. **Tests:** LocalRunFixesTest (the instruction is there). 1,289 tests.
 
+### (next) · 2026-11-25 · Full analysis of every benchmark run (analyze.py)
+- **Why:** owner's instruction: analyse fails and passes, everything the model does, and the finished work, not the test summary
+  (the owner had seen a syntax error in a preview after a run graded all passed). A hand comparison of local run 2's passes found
+  l19 had "passed" with `<script src="app.js">` deleted and `</body>` written twice: its test only looked for the Reset button.
+- **Change:** `bench/hybrid/analyze.py` (with `browser_check.js`): per task, files changed against the starting project and the
+  reference fix; names the work lost that the reference keeps (comments and CSS selectors only noted); syntax of every changed JS,
+  JSON and HTML file and HTML structure; the task's own test rerun with the original test; index.html opened in Chromium (console
+  and page errors, failed loads) and every play test replayed with the app's own play-test code; the chat log and nano.jsonl read
+  for tools, refusals, test edits, handoffs, errors and endings. Verdicts: clean pass, pass with problems, fail. `GamePlayScriptDump`
+  dumps the play scripts of every suite. The rule is in CONTRIBUTING-AGENTS.md and the README.
+- **Re-analysis of every earlier run:** apart from the failures already known, two passes had problems: local run 2's l19 (the page
+  no longer loads app.js) and hard run 4's h01 (the request ended on Google's "high demand" error after the work was done). No other
+  pass had a syntax error, a browser error, a failing replayed play test or lost code. Two flags in standard runs 1 and 6 (task 03
+  "changed the play test") were the app's save dropping the file's last newline, now ignored.
+- **Files:** bench/hybrid/analyze.py, browser_check.js, README.md; test GamePlayScriptDump.kt; CONTRIBUTING-AGENTS.md.
+
 ---
 
 ## Outside the code
