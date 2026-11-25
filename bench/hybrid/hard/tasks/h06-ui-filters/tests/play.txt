@@ -1,0 +1,19 @@
+# filters show the matching items, and keep working when items change
+run document.getElementById('new').value = 'milk'
+tap "Add"
+run document.getElementById('new').value = 'eggs'
+tap "Add"
+run document.getElementById('new').value = 'bread'
+tap "Add"
+tap "milk"
+tap "Done"
+expect document.querySelectorAll('#list li').length === 1
+expect document.querySelector('#list li').textContent === 'milk'
+tap "Active"
+expect document.querySelectorAll('#list li').length === 2
+tap "eggs"
+expect document.querySelectorAll('#list li').length === 1
+expect document.querySelector('#list li').textContent === 'bread'
+tap "All"
+expect document.querySelectorAll('#list li').length === 3
+expect document.getElementById('count').textContent === '1 left'

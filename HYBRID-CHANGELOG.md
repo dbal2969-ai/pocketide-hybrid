@@ -249,6 +249,21 @@ the files after the run, `transcript.txt` and `check.txt`.
   swapped) is not run; the request ends as done and the chat says Nano tried to undo a change that had just passed.
 - **Files:** HybridAgent.kt (`undoes`). **Tests:** HybridAgentLoopTest (fails on the old code). 1,238 tests.
 
+### (next) · 2026-11-24 · Hard hybrid benchmark (ten tasks)
+- **Why:** owner's request for harder benchmark tests; the standard eight had passed 8 of 8 in three of the last four runs.
+- **Change:** `bench/hybrid/hard`: ten tasks, each harder in a different way: two bugs in two files behind one symptom (h01), code
+  from a written spec with 20 cases (h02), an async ordering and error bug (h03), a refactor into new files that must keep old
+  callers working (h04), a bug in a nested helper found from the failing test alone (h05), UI filters checked by a 14-step play test
+  (h06), two bugs far apart in a 34,000-character file (h07), four password rules in Private mode (h08), web research written to a
+  file a program checks (h09), and a shared helper with two different callers (h10). Each command task has a reference fix, and
+  `check_hard.py` proves it fails as given and passes with the fix (h06 was checked with Playwright). Models → Hybrid AI has a
+  **Run the hard benchmark** button; the runner, report and zip name say which suite ran. `to_kotlin.py` takes the object name.
+- **Files:** bench/hybrid/make_hard.py, check_hard.py, hard/ (tasks, zips, solutions), to_kotlin.py, README.md;
+  core/HybridBenchTasks.kt (`HARD`, `report` total and title), core/HybridBenchHardFiles.kt (generated), HybridBench.kt (`hard`),
+  HybridScreen.kt.
+- **Tests:** HybridBenchHardTest (5: files and ids, app copy matches the repository, every task fails as given and passes with its
+  reference fix under Node, judges, research routing). 1,243 tests.
+
 ---
 
 ## Outside the code

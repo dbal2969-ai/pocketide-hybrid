@@ -26,7 +26,7 @@ object HybridBenchTasks {
         /** Null = passed, else why it did not. */
         val judge: (Facts) -> String?,
     ) {
-        val files: Map<String, String> get() = HybridBenchFiles.FILES[id].orEmpty()
+        val files: Map<String, String> get() = (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id]).orEmpty()
     }
 
     class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>)
@@ -106,12 +106,66 @@ object HybridBenchTasks {
         },
     )
 
+    /**
+     * The hard suite (bench/hybrid/hard, 1.5.184): ten tasks that need more than one step of reasoning, more than one file, or more
+     * than the phone has. Every command task fails as given and passes with its reference fix (bench/hybrid/check_hard.py).
+     */
+    val HARD: List<Task> = listOf(
+        Task("h01-two-bugs-two-files", "Two bugs in two files", "Cart totals are wrong: coupons and bulk prices come out wrong. Find every cause and fix it so node test.js prints ok") { f ->
+            if (commandOk(f)) null else commandWhy(f)
+        },
+        Task("h02-spec-to-code", "Code from a spec", "Implement parseDuration and formatDuration in duration.js exactly as SPEC.md describes, so node test.js prints ok") { f ->
+            if (commandOk(f)) null else commandWhy(f)
+        },
+        Task("h03-async-order", "An async bug", "loadAll in loader.js returns too few results, in the wrong order, and throws when one id fails. Fix it so failed ids give { id, error: message } in their place. node test.js must print ok") { f ->
+            if (commandOk(f)) null else commandWhy(f)
+        },
+        Task("h04-split-module", "Refactor without breaking callers", "Split utils.js: move slugify and titleCase to strings.js, and clamp, sum and avg to numbers.js. Keep unique in utils.js, and keep utils.js exporting everything so app.js and other callers still work. node test.js must print ok") { f ->
+            if (commandOk(f)) null else commandWhy(f)
+        },
+        Task("h05-find-the-cause", "Find the cause from a failing test", "node test.js fails. Find the cause and fix it so it prints ok") { f ->
+            when {
+                !commandOk(f) -> commandWhy(f)
+                f.files["src/report.js"] != f.original["src/report.js"] || f.files["src/invoice.js"] != f.original["src/invoice.js"] -> "the callers were patched instead of the shared date helper"
+                else -> null
+            }
+        },
+        Task("h06-ui-filters", "UI filters with a play test", "Add All, Active and Done filter buttons above the list that show only the matching items and keep working as items are added or ticked. Make the play test in tests/play.txt pass", command = null) { f ->
+            val html = f.files["index.html"].orEmpty() + f.files["app.js"].orEmpty()
+            when {
+                listOf("All", "Active", "Done").any { !html.contains(">$it<") && !html.contains("'$it'") && !html.contains("\"$it\"") } -> "the All, Active and Done buttons are not all there"
+                !f.transcript.contains("outcome: ✓") -> "the app's checks did not pass (no ✓ outcome)"
+                else -> null
+            }
+        },
+        Task("h07-long-file-two-bugs", "Two bugs in a very long file", "inventory.js gives wrong results: totalValue is NaN and needsReorder misses items. Find both bugs and fix them so node test.js prints ok") { f ->
+            if (commandOk(f)) null else commandWhy(f)
+        },
+        Task("h08-private-password", "Private mode: several rules", "Implement checkPassword in password.js as its comment describes, with the problems in that order, so node test.js prints ok", privateMode = true) { f ->
+            when {
+                !commandOk(f) -> commandWhy(f)
+                counts(f.transcript).cloud > 0 -> "a step ran in the cloud in Private mode"
+                else -> null
+            }
+        },
+        Task("h09-research-to-json", "Research, then a checked file", "Look up the SPDX licence identifiers of the npm packages express, lodash and react, and write licences.json mapping each package name to its identifier. node test.js must print ok") { f ->
+            when {
+                !commandOk(f) -> commandWhy(f)
+                counts(f.transcript).handoffs.none { it.contains("web") } -> "no handoff for the web was shown"
+                else -> null
+            }
+        },
+        Task("h10-shared-helper", "Fix a shared helper safely", "Invoices show prices like \$12.5 instead of \$12.50. Fix it without breaking receipts, so node test.js prints ok") { f ->
+            if (commandOk(f)) null else commandWhy(f)
+        },
+    )
+
     /** The results as a markdown report. [problem] = why the run stopped early, if it did. */
-    fun report(results: List<Result>, about: String, problem: String?): String = buildString {
+    fun report(results: List<Result>, about: String, problem: String?, total: Int = ALL.size, title: String = "Hybrid AI benchmark"): String = buildString {
         val passed = results.count { it.passed }
-        append("# Hybrid AI benchmark\n\n").append(about).append("\n\n")
+        append("# ").append(title).append("\n\n").append(about).append("\n\n")
         if (problem != null) append("**Stopped early:** ").append(problem).append("\n\n")
-        append("**Passed ").append(passed).append(" of ").append(ALL.size).append("**")
+        append("**Passed ").append(passed).append(" of ").append(total).append("**")
         val phone = results.sumOf { it.counts.phone }; val cloud = results.sumOf { it.counts.cloud }
         if (phone + cloud > 0) append(" · steps on this phone: ").append(phone).append(" of ").append(phone + cloud)
         append("\n\n| # | Task | Result | Why not | On phone / in cloud | Handoffs | Time | Ended |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")

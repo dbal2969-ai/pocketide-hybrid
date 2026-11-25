@@ -56,3 +56,24 @@ The reply should come back and say "Ran on this phone".
 
 The chat log in each exported zip has every step, where it ran and every tool result, so the zips are what matters; the table
 is a quick summary. The tasks' source files are in `bench/hybrid/tasks/`; `node test.js` fails in each until the task is done.
+
+## Hard benchmark
+
+Models → Hybrid AI → **Run the hard benchmark** runs ten harder tasks the same way (about 60 to 90 minutes) and saves
+`pocketide-hybrid-hard-benchmark-<date>.zip`. Starting projects are in `hard/tasks/`, zips to run by hand in `hard/zips/`, and a
+reference fix for each in `hard/solutions/`. `python3 check_hard.py hard` proves every command task fails as given and passes with
+its reference fix; `make_hard.py hard` rebuilds them, then `to_kotlin.py hard ../../app/src/main/java/dev/pocketide/app/core/HybridBenchHardFiles.kt HybridBenchHardFiles`
+updates the app's copy (a unit test fails if it is out of date).
+
+| # | Prompt | Check | What makes it hard |
+| --- | --- | --- | --- |
+| h01 | Cart totals are wrong: coupons and bulk prices come out wrong. Find every cause and fix it so node test.js prints ok | `node test.js` | Two bugs in two files behind one symptom; the request names neither file |
+| h02 | Implement parseDuration and formatDuration in duration.js exactly as SPEC.md describes, so node test.js prints ok | `node test.js` (20 cases) | Code from a written spec with edge cases (order, repeats, case, invalid input) |
+| h03 | loadAll in loader.js returns too few results, in the wrong order, and throws when one id fails. Fix it so failed ids give { id, error: message } in their place. node test.js must print ok | `node test.js` | Async: `forEach(async …)`, ordering and per-item errors |
+| h04 | Split utils.js: move slugify and titleCase to strings.js, and clamp, sum and avg to numbers.js. Keep unique in utils.js, and keep utils.js exporting everything so app.js and other callers still work. node test.js must print ok | `node test.js` | A refactor across new files that must not change behaviour or break a caller |
+| h05 | node test.js fails. Find the cause and fix it so it prints ok | `node test.js`; the callers are not patched | The bug is in a nested helper (`src/lib/format/date.js`) the request does not name, with two callers |
+| h06 | Add All, Active and Done filter buttons above the list that show only the matching items and keep working as items are added or ticked. Make the play test in tests/play.txt pass | Play test (14 steps) | UI state across HTML and JS, checked by the app's play test |
+| h07 | inventory.js gives wrong results: totalValue is NaN and needsReorder misses items. Find both bugs and fix them so node test.js prints ok | `node test.js` | Two bugs far apart in a 34,000-character file (over twice the on-phone limit) |
+| h08 | (Private) Implement checkPassword in password.js as its comment describes, with the problems in that order, so node test.js prints ok | `node test.js`; no step in the cloud | Gemini Nano alone with four rules, exact messages and order |
+| h09 | Look up the SPDX licence identifiers of the npm packages express, lodash and react, and write licences.json mapping each package name to its identifier. node test.js must print ok | `node test.js`; a web handoff shown | The web, then a file a program checks |
+| h10 | Invoices show prices like $12.5 instead of $12.50. Fix it without breaking receipts, so node test.js prints ok | `node test.js` | A shared helper with two callers that use it differently |

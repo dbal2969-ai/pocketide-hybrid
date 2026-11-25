@@ -1,5 +1,6 @@
 import os, sys
-root = sys.argv[1]; out = sys.argv[2]
+# usage: to_kotlin.py <root with tasks/> <out.kt> [ObjectName]   (bench/hybrid → HybridBenchFiles, bench/hybrid/hard → HybridBenchHardFiles)
+root = sys.argv[1]; out = sys.argv[2]; name = sys.argv[3] if len(sys.argv) > 3 else 'HybridBenchFiles'
 def lit(s):
     return '"' + s.replace('\\', '\\\\').replace('"', '\\"').replace('$', '\\$').replace('\n', '\\n').replace('\t', '\\t') + '"'
 tasks = sorted(os.listdir(os.path.join(root, 'tasks')))
@@ -12,7 +13,7 @@ for t in tasks:
             entries.append(f'            {lit(p)} to {lit(open(os.path.join(dp, f)).read())}')
     parts.append(f'        {lit(t)} to linkedMapOf(\n' + ',\n'.join(entries) + '\n        )')
 src = ('package dev.pocketide.app.core\n\n'
- '/** The hybrid benchmark\'s starting projects, generated from bench/hybrid/tasks by bench/hybrid/to_kotlin.py. Do not edit by hand. */\n'
- 'object HybridBenchFiles {\n'
+ f'/** The hybrid benchmark\'s starting projects, generated from {root}/tasks by bench/hybrid/to_kotlin.py. Do not edit by hand. */\n'
+ f'object {name} {{\n'
  '    val FILES: Map<String, Map<String, String>> = linkedMapOf(\n' + ',\n'.join(parts) + '\n    )\n}\n')
 open(out, 'w').write(src); print('wrote', out, len(src), 'chars,', len(tasks), 'tasks')
