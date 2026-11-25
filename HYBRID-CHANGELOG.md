@@ -41,7 +41,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | 1124-2131 (run 6) | `c59582a` | 7 of 8, no stalls, every task ended done | 33 of 55 | 03 done entirely on the phone (9 steps); 08 failed: Nano's email regex lost its backslashes (`/S+@S+.S+/`), then Nano edited test.js instead of the app; 06 still showed "Changed, not checked" for a notes file | `f8e624b` |
 | 1124-2147 (run 7) | `a943442` | 8 of 8, no stalls, every task ended done | 23 of 50 | 03 went to the cloud because PocketIDE was in the background (reason shown); 07 Nano's first reply was not an action, so the cloud took it; 08 passed in Private mode (7 steps); 01 Nano again swapped its passing fix back despite the note | `12178cb` |
 | hard 1124-2213 (hard run 1) | `a31830a` | 9 of 10 | 39 of 84 | every handoff gave its reason (failed edits, a reply that was not an action, the web); h08 Private mode passed in 3 steps; h07 ended before any step: one cloud call failed with the SDK's "Something unexpected happened."; the report's # column showed "h0" | `31b6415` |
-| hard 1124-2237 (hard run 2) | `82ab9d0` | 9 of 10 | 31 of 82 | h07 failed: the cloud reply stopped at `MAX_TOKENS` because the phone's 1,024-token output setting applied to the cloud model too; Nano also named a tool in Chinese (讀取文件), handed off | `(next)` |
+| hard 1124-2237 (hard run 2) | `82ab9d0` | 9 of 10 | 31 of 82 | h07 failed: the cloud reply stopped at `MAX_TOKENS` because the phone's 1,024-token output setting applied to the cloud model too; Nano also named a tool in Chinese (讀取文件), handed off | `3cbcdd0` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -275,7 +275,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** HybridAgent.kt (`transient`, retry in `cloud`), HybridAi.kt (`explain`), core/HybridBenchTasks.kt.
 - **Tests:** HybridAgentTest (2). 1,245 tests.
 
-### (next) · 2026-11-24 · Cloud model tiers with Auto escalation (toward parity with Copilot-class agents)
+### 3cbcdd0 · 2026-11-24 23:30 · Cloud model tiers with Auto escalation (toward parity with Copilot-class agents)
 - **Why:** owner's request: bring PocketIDE to parity with Copilot or another reputable AI IDE through the hybrid model selection.
   The cloud side used `gemini-3.1-flash-lite`, the smallest model, for every step, with the phone's 1,024-token output limit
   (hard run 2, h07, stopped at `MAX_TOKENS`). The Firebase AI Logic model list (checked 2026-11-24) has stronger models that need no
