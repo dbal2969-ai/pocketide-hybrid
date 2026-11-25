@@ -190,6 +190,20 @@ object HybridBenchTasks {
         else -> null
     }
 
+    /**
+     * "Hybrid helps my strong model" (1.5.184): the benchmark runs in the Cascade workflow with Hybrid AI as the draft model, so Gemini
+     * Nano does the cheap steps on the phone and passes what it cannot do to the person's strong model's API, which also reviews and
+     * finishes the work. Why [strong] cannot be the strong model, or null when it can. Cloudflare is left out at the owner's request
+     * (it bills past a small free allowance).
+     */
+    fun strongProblem(strong: Workflow.Slot?, hasKey: Boolean): String? = when {
+        strong == null -> "Pick a strong model in Settings → Workflow first."
+        strong.provider == "hybrid" || strong.provider == "demo" -> "The strong model must be another provider's API, not ${Providers.byId(strong.provider).name}. Pick one in Settings → Workflow."
+        strong.provider == "cloudflare" -> "Cloudflare is not used for this benchmark (it bills past a small free allowance). Pick another strong model in Settings → Workflow."
+        !hasKey -> "${Providers.byId(strong.provider).name} has no API key saved. Add it in Settings, or pick another strong model."
+        else -> null
+    }
+
     /** The results as a markdown report. [problem] = why the run stopped early, if it did. */
     fun report(results: List<Result>, about: String, problem: String?, total: Int = ALL.size, title: String = "Hybrid AI benchmark"): String = buildString {
         val passed = results.count { it.passed }

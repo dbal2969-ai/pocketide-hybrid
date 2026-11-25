@@ -345,6 +345,19 @@ the files after the run, `transcript.txt` and `check.txt`.
   (`GAMES`), core/HybridBenchGameFiles.kt (generated), HybridBench.kt (`Suite`), HybridScreen.kt.
 - **Tests:** HybridBenchGamesTest (3), GamePlayScriptDump (every play test parses; dumps the scripts when asked). 1,266 tests.
 
+### (next) · 2026-11-25 · Benchmark "Hybrid helps my strong model" (Cascade), never Cloudflare
+- **Why:** owner's request: test the hybrid models as the weaker models that help a stronger model's API, and not Cloudflare (it
+  billed the owner $450 past its free allowance).
+- **Change:** the benchmark card has a **Hybrid helps my strong model** switch for all three suites. The run then uses the Cascade
+  workflow with Hybrid AI as the draft model and the strong model picked in Settings → Workflow (else the strongest other provider
+  with a key) as the strong one: Gemini Nano does the cheap steps on the phone, its handoffs go to the strong model's API instead
+  of Gemini's cloud, and the strong model reviews and finishes the work. It refuses to start when the strong model is missing, is
+  Hybrid AI or the demo, has no key, or is Cloudflare. The person's workflow, draft and strong choices are put back afterwards.
+  The report title, the zip name (`…-helping-…`) and the report header name the strong model.
+- **Files:** HybridBench.kt (`helperStrong`, `helperProblem`, `helping`), core/HybridBenchTasks.kt (`strongProblem`),
+  AppSettings.kt (`savedSlot`, `restoreSlot`), HybridScreen.kt.
+- **Tests:** HybridBenchGamesTest (the strong model must be another provider's API with a key, never Cloudflare). 1,267 tests.
+
 ---
 
 ## Outside the code

@@ -38,4 +38,13 @@ class HybridBenchGamesTest {
         val snake = task("gm01-snake-from-spec")
         check(snake.judge(Facts(snake.files + ("game.js" to "// no game"), snake.files, null, "", "outcome: ✓", "done")) == "game.js does not set window.game")
     }
+
+    /** "Hybrid helps my strong model": the strong model must be another provider's API with a key, and never Cloudflare. */
+    @Test fun theHelperSetupNeedsARealStrongModelThatIsNotCloudflare() {
+        check(HybridBenchTasks.strongProblem(null, false)!!.contains("Pick a strong model"))
+        check(HybridBenchTasks.strongProblem(dev.pocketide.app.core.Workflow.Slot("hybrid", ""), true)!!.contains("another provider"))
+        check(HybridBenchTasks.strongProblem(dev.pocketide.app.core.Workflow.Slot("cloudflare", "@cf/x"), true)!!.contains("Cloudflare is not used"))
+        check(HybridBenchTasks.strongProblem(dev.pocketide.app.core.Workflow.Slot("openai", "gpt-x"), false)!!.contains("no API key"))
+        check(HybridBenchTasks.strongProblem(dev.pocketide.app.core.Workflow.Slot("openai", "gpt-x"), true) == null)
+    }
 }

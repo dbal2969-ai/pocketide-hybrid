@@ -34,17 +34,29 @@ object HybridBench {
     /** The suites: the standard eight, the hard ten, and the games (HybridBenchTasks.ALL, HARD, GAMES). */
     enum class Suite(val id: String, val title: String) { STANDARD("hybrid", "Hybrid AI benchmark"), HARD("hybrid-hard", "Hybrid AI benchmark (hard)"), GAMES("hybrid-games", "Hybrid AI benchmark (games)") }
 
-    fun start(act: MainActivity, suite: Suite = Suite.STANDARD) {
-        if (running) return
-        running = true
-        Run(act, suite).begin()
+    /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
+    fun helperStrong(s: AppSettings): dev.pocketide.app.core.Workflow.Slot? = s.pickedStrongSlot() ?: s.strongerOther()
+
+    /** Why the helper setup cannot run now, or null. */
+    fun helperProblem(s: AppSettings): String? = helperStrong(s).let { st ->
+        HybridBenchTasks.strongProblem(st, st != null && (dev.pocketide.app.core.Providers.byId(st.provider).keyless || s.key(st.provider).isNotBlank()))
     }
 
-    private class Run(val act: MainActivity, val kind: Suite) {
+    /** [helping]: run in Cascade with Hybrid AI as the draft model helping the strong model (see HybridBenchTasks.strongProblem). */
+    fun start(act: MainActivity, suite: Suite = Suite.STANDARD, helping: Boolean = false) {
+        if (running) return
+        running = true
+        Run(act, suite, helping).begin()
+    }
+
+    private class Run(val act: MainActivity, val kind: Suite, val helping: Boolean) {
         val main = Handler(Looper.getMainLooper())
         val settings = AppSettings(act)
         val before = Triple(settings.provider, settings.workflow, settings.agent)
         val chatModeBefore = settings.mode
+        val draftBefore = settings.savedSlot(true)
+        val strongBefore = settings.savedSlot(false)
+        val strong = if (helping) helperStrong(settings) else null
         val modeBefore = HybridScreen.mode(act)
         val projectBefore = Projects.key(act)
         val stamp: String = SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
@@ -60,6 +72,12 @@ object HybridBench {
             act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             settings.provider = "hybrid"
             settings.workflow = dev.pocketide.app.core.Workflow.SINGLE
+            if (helping) {
+                helperProblem(settings)?.let { finish(it); return }
+                settings.workflow = dev.pocketide.app.core.Workflow.CASCADE
+                settings.setSlot(true, dev.pocketide.app.core.Workflow.Slot("hybrid", ""))
+                settings.setSlot(false, strong!!)
+            }
             settings.agent = true
             settings.mode = "agent"   // Agent mode: the chat box's mode and the agent switch, as the Agent chip sets them
             toast("Hybrid benchmark: checking that Node is ready…")
@@ -148,15 +166,17 @@ object HybridBench {
 
         fun finish(problem: String?) {
             settings.provider = before.first; settings.workflow = before.second; settings.agent = before.third; settings.mode = chatModeBefore
+            settings.restoreSlot(true, draftBefore); settings.restoreSlot(false, strongBefore)
             HybridScreen.setMode(act, modeBefore)
             act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             val hs = HybridAi.settings(act)
             val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
-                "on-phone limit ${hs.onDeviceMaxChars} characters · cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
-            val report = HybridBenchTasks.report(results, about, problem, tasks.size, kind.title)
+                "on-phone limit ${hs.onDeviceMaxChars} characters · " +
+                (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
+            val report = HybridBenchTasks.report(results, about, problem, tasks.size, kind.title + if (helping) " · hybrid helping a strong model" else "")
             File(out, "report.md").writeText(report)
             val where = try {
-                saveToDownloads("pocketide-$suite-benchmark-$stamp.zip") { os -> zipDir(out, os) }
+                saveToDownloads("pocketide-$suite${if (helping) "-helping" else ""}-benchmark-$stamp.zip") { os -> zipDir(out, os) }
             } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${out.absolutePath}" }
             act.benchSwitch(projectBefore)
             running = false

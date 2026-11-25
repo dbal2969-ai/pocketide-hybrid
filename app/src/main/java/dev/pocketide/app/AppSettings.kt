@@ -70,6 +70,10 @@ class AppSettings(ctx: Context) {
         get() = dev.pocketide.app.core.Workflow.parse(sp.getString("workflow", "single") ?: "single")
         set(v) { sp.edit().putString("workflow", dev.pocketide.app.core.Workflow.parse(v)).apply() }
 
+    /** The draft or strong slot exactly as saved ("" when none was picked), so a benchmark can put it back. */
+    fun savedSlot(draft: Boolean): String = sp.getString(if (draft) "workflow.draft" else "workflow.strong", "") ?: ""
+    fun restoreSlot(draft: Boolean, saved: String) { sp.edit().putString(if (draft) "workflow.draft" else "workflow.strong", saved).apply() }
+
     fun setSlot(draft: Boolean, s: dev.pocketide.app.core.Workflow.Slot) { sp.edit().putString(if (draft) "workflow.draft" else "workflow.strong", s.encode()).apply() }
 
     /** The model that drafts: the one picked, else a cheap provider that has a key and differs from the strong one. */

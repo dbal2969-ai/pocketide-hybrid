@@ -197,7 +197,17 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "Runs ${dev.pocketide.app.core.HybridBenchTasks.ALL.size} coding tasks with the real agent and Gemini Nano, checks each one, " +
             "and saves a results zip to Downloads/PocketIDE. About 30 to 60 minutes: keep the phone plugged in with PocketIDE open. " +
             "Needs Linux with Node (Terminal tab). Your settings and project are put back afterwards.", 13f, Ui.MUTED))
+        // 1.5.184: run any suite with Hybrid AI helping the person's strong model (Cascade) instead of on its own
+        val helpBox = android.widget.CheckBox(ctx).apply {
+            val st = HybridBench.helperStrong(dev.pocketide.app.AppSettings(ctx))
+            text = "Hybrid helps my strong model: Gemini Nano does the cheap steps and passes the rest to " +
+                (st?.let { (it.model.ifBlank { dev.pocketide.app.core.Providers.byId(it.provider).model }).ifBlank { dev.pocketide.app.core.Providers.byId(it.provider).name } } ?: "the strong model in Settings → Workflow") +
+                ", which also reviews the work (Cascade). Not Cloudflare."
+            setTextColor(Ui.TEXT)
+        }
+        benchCard.addView(helpBox)
         fun startBench(suite: HybridBench.Suite) {
+            if (helpBox.isChecked) HybridBench.helperProblem(dev.pocketide.app.AppSettings(ctx))?.let { toast(it); return }
             val hard = suite != HybridBench.Suite.STANDARD
             val m = activity as? MainActivity
             val n = when (suite) { HybridBench.Suite.HARD -> dev.pocketide.app.core.HybridBenchTasks.HARD.size; HybridBench.Suite.GAMES -> dev.pocketide.app.core.HybridBenchTasks.GAMES.size; else -> dev.pocketide.app.core.HybridBenchTasks.ALL.size }
@@ -209,7 +219,7 @@ object HybridScreen {
                         "with Hybrid AI (Single model, On this phone first; Private where a task says so), and check the results. The screen stays on. " +
                         "Do not use the app or leave it while it runs: Android pauses Gemini Nano when PocketIDE is not on screen. " +
                         "The results zip goes to Downloads/PocketIDE." + if (hard) " These tasks take longer: about 30 to 90 minutes." else "")
-                    .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, suite) }
+                    .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, suite, helpBox.isChecked) }
                     .setNegativeButton("Cancel", null).show()
             }
         }
