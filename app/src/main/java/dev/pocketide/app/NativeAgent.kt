@@ -265,6 +265,7 @@ class NativeAgent(
         tracker.unfinished().takeIf { it.isNotEmpty() }?.let { open.add("${it.size} plan step${if (it.size == 1) "" else "s"} still open (" + it.first().take(60) + ")") }
         // 1.5.173: a step the model itself marked failed ("Re-check the files and look at the result in the preview") sat under "✓ Done and checked"
         tracker.failed().takeIf { it.isNotEmpty() }?.let { open.add("${it.size} plan step${if (it.size == 1) "" else "s"} marked failed (" + it.first().take(60) + ")") }
+        refreshStubs()
         if (stubs.isNotEmpty()) open.add("unfinished files: " + stubs.keys.take(3).joinToString(", "))
         undefinedLeft.filterKeys { it in changed && store.read(it) != null }.takeIf { it.isNotEmpty() }?.let { open.add("names nothing defines in " + it.keys.take(3).joinToString(", ")) }
         dev.pocketide.app.core.RenameCheck.asked(steers.lastOrNull() ?: request)?.let { rn -> val (_, n) = dev.pocketide.app.core.RenameCheck.left(rn.old, paths()) { current(it) }; if (n > 0) open.add("${rn.old} still appears in $n place${if (n == 1) "" else "s"}") }
@@ -486,6 +487,17 @@ class NativeAgent(
     /** Steps the model marked done before any check ran after its last change; they become done when a check passes. */
     private val pendingDone = LinkedHashSet<String>()
     private val DOC_EXT = setOf("md", "markdown", "txt", "rst", "adoc")
+
+    /**
+     * Checks the files marked unfinished again, as they are now (1.5.184, benchmark run 5, task 05): edit_lines and run_command
+     * change files without updating [stubs], so app.js stayed "unfinished" after the stand-in was gone and the test passed.
+     */
+    private fun refreshStubs() {
+        for (p in stubs.keys.toList()) {
+            val why = current(p)?.let { dev.pocketide.app.core.StubCheck.find(p, it) }
+            if (why == null) stubs.remove(p) else stubs[p] = why
+        }
+    }
 
     /** Every file this run changed is a note or document (Markdown, text): no test or preview can check it. */
     private fun docsOnly(): Boolean = changed.isNotEmpty() && changed.all { it.substringAfterLast('.', "").lowercase() in DOC_EXT }
@@ -1312,6 +1324,7 @@ class NativeAgent(
             }
         }
         // Files written as stand-ins: ask once for the real code before the work is called done.
+        refreshStubs()
         if (stubs.isNotEmpty() && !stubNudged && round < maxRounds && wrapAt < 0) {
             stubNudged = true
             note("Unfinished files (${stubs.keys.joinToString()}): asking the model to complete them.", Ui.ACCENT)
@@ -1397,7 +1410,7 @@ class NativeAgent(
         }
         // Verification gate: files were changed but nothing ran after the last change. Ask once for a check before finishing.
         // (Only in agent mode: in review mode the changes are staged, not on disk, so commands and the page would test the old files.)
-        if (agent && !nested && changed.isNotEmpty() && checkMark < writeMark && !verifyNudged && round < maxRounds && wrapAt < 0 &&
+        if (agent && !nested && changed.isNotEmpty() && !docsOnly() && checkMark < writeMark && !verifyNudged && round < maxRounds && wrapAt < 0 &&
             Tools.only.let { it == null || "run_command" in it || "look_at_preview" in it }) {
             verifyNudged = true
             note("Not checked yet: asking the model to test its changes before finishing.", Ui.ACCENT)

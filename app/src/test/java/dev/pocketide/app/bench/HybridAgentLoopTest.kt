@@ -275,4 +275,22 @@ class HybridAgentLoopTest {
         assertEquals("the repeated edit was not run", 1, o.resultsOf("edit_file").count { !it.startsWith("Edited") })
         assertTrue(o.file("app.js")!!.contains("a + b"))
     }
+
+    /** Benchmark run 5, task 05: the stand-in was removed with edit_lines and the test passed, but the run ended "unfinished files: app.js". */
+    @Test fun aStandInRemovedWithEditLinesIsNoLongerUnfinished() {
+        val start = mapOf("app.js" to "function add(a, b) {\n  return a + b;\n}\nmodule.exports = { add };\n",
+            "test.js" to "const { add, twice } = require('./app.js');\nif (twice(3) !== 6) process.exit(1);\nconsole.log('ok');\n")
+        nano()
+        cloud(tools("write_file", "path" to "app.js", "content" to "function add(a, b) {\n  return a + b;\n}\nfunction twice(n) {\n  // Placeholder implementation\n  return add(n, n);\n}\nmodule.exports = { add, twice };\n"),
+            tools("edit_lines", "path" to "app.js", "start" to 5, "end" to 5, "text" to ""),
+            tools("run_command", "command" to "node test.js"),
+            ToolTurn("Added twice; node test.js prints ok.", emptyList(), "stop"))
+        RuntimeEnvironment.getApplication().getSharedPreferences("hybrid_ai", 0).edit().putString("mode", HybridAi.Mode.PREFER_IN_CLOUD.name).commit()
+        val o = AgentHarness(start, "Add twice(n) to app.js so node test.js prints ok", ModelGateway.NETWORK, provider = "hybrid", modelName = "", timeoutSeconds = 60).run()
+        assertFalse("timed out", o.timedOut)
+        assertFalse(o.file("app.js")!!, o.file("app.js")!!.contains("Placeholder"))
+        val r = o.result!!
+        assertFalse(r.text, r.text.contains("unfinished files"))
+        assertTrue(r.text, r.ok)
+    }
 }

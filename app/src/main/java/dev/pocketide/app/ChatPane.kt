@@ -1080,6 +1080,8 @@ class ChatPane(
         setBusy(false)
         settings.override = null; reviewOnly = false
         lastFailure = message
+        // 1.5.184: the chat log said only "request ended: stopped or failed" (benchmark run 5, task 06); the error is now in it
+        try { dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event("error: " + message.take(300))) } catch (e: Exception) { }
         // a plan step that failed gets its Retry / Skip card (the step is not left looking like it is still working)
         exchangeDone?.let { cb -> exchangeDone = null; cb(false) }
         dev.pocketide.app.core.AppLog.add("model", "${settings.provider}/${settings.model(settings.provider)}: $message")
@@ -1815,6 +1817,15 @@ class ChatPane(
     }
 
     private fun askRunCard(command: String, onRun: (Int, String) -> Unit, onSkip: () -> Unit): LinearLayout {
+        // 1.5.184 (benchmark run 5, task 05): a command that is always asked about (it used the network: apk add) held the
+        // unattended benchmark until the owner tapped Run. During the benchmark such a command is skipped, and the model is told.
+        if (HybridBench.running) {
+            val c = card()
+            c.addView(Ui.text(ctx, "Skipped for the benchmark (commands that need your OK are not run unattended):\n$ " + command.take(300), 12f, Ui.MUTED, true))
+            dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event("benchmark: skipped a command that needs the person's OK: " + command.lineSequence().firstOrNull { !it.trim().startsWith("#") && it.isNotBlank() }.orEmpty().take(120)))
+            c.post { onSkip() }
+            return c
+        }
         Notifier.assistant(ctx, "Waiting for your OK to run: " + command.take(120))
         val c = card()
         c.addView(Ui.text(ctx, "The assistant wants to run:\n$ $command", 13f, Ui.TEXT, true))
