@@ -1,0 +1,21 @@
+# the arrow keys move the paddle, without clicking the game first
+run window.__x = game.paddle.x
+key ArrowLeft
+expect game.paddle.x < window.__x
+run window.__x = game.paddle.x
+key ArrowRight
+key ArrowRight
+expect game.paddle.x > window.__x
+# the paddle stays inside the court
+run game.paddle.x = 30
+key ArrowLeft
+key ArrowLeft
+expect game.paddle.x === 0
+run game.paddle.x = 300
+key ArrowRight
+key ArrowRight
+expect game.paddle.x === 400 - game.paddle.w
+# the ball still moves
+run window.__b = game.ball.x + ',' + game.ball.y
+wait 300
+expect game.ball.x + ',' + game.ball.y !== window.__b

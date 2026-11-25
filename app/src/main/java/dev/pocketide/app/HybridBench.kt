@@ -31,14 +31,16 @@ object HybridBench {
     /** How long one task may run before it is stopped. */
     private const val TASK_LIMIT_MS = 12 * 60_000L
 
-    /** [hard] = the hard suite (HybridBenchTasks.HARD) instead of the standard eight tasks. */
-    fun start(act: MainActivity, hard: Boolean = false) {
+    /** The suites: the standard eight, the hard ten, and the games (HybridBenchTasks.ALL, HARD, GAMES). */
+    enum class Suite(val id: String, val title: String) { STANDARD("hybrid", "Hybrid AI benchmark"), HARD("hybrid-hard", "Hybrid AI benchmark (hard)"), GAMES("hybrid-games", "Hybrid AI benchmark (games)") }
+
+    fun start(act: MainActivity, suite: Suite = Suite.STANDARD) {
         if (running) return
         running = true
-        Run(act, hard).begin()
+        Run(act, suite).begin()
     }
 
-    private class Run(val act: MainActivity, val hard: Boolean) {
+    private class Run(val act: MainActivity, val kind: Suite) {
         val main = Handler(Looper.getMainLooper())
         val settings = AppSettings(act)
         val before = Triple(settings.provider, settings.workflow, settings.agent)
@@ -46,10 +48,10 @@ object HybridBench {
         val modeBefore = HybridScreen.mode(act)
         val projectBefore = Projects.key(act)
         val stamp: String = SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
-        val suite = if (hard) "hybrid-hard" else "hybrid"
+        val suite = kind.id
         val out = File(act.filesDir, "bench-results/$suite-$stamp").apply { mkdirs() }
         val results = ArrayList<HybridBenchTasks.Result>()
-        val tasks = if (hard) HybridBenchTasks.HARD else HybridBenchTasks.ALL
+        val tasks = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.STANDARD -> HybridBenchTasks.ALL }
         var i = 0
 
         fun toast(s: String) = Toast.makeText(act, s, Toast.LENGTH_LONG).show()
@@ -151,7 +153,7 @@ object HybridBench {
             val hs = HybridAi.settings(act)
             val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
                 "on-phone limit ${hs.onDeviceMaxChars} characters · cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
-            val report = HybridBenchTasks.report(results, about, problem, tasks.size, if (hard) "Hybrid AI benchmark (hard)" else "Hybrid AI benchmark")
+            val report = HybridBenchTasks.report(results, about, problem, tasks.size, kind.title)
             File(out, "report.md").writeText(report)
             val where = try {
                 saveToDownloads("pocketide-$suite-benchmark-$stamp.zip") { os -> zipDir(out, os) }
@@ -159,7 +161,7 @@ object HybridBench {
             act.benchSwitch(projectBefore)
             running = false
             val passed = results.count { it.passed }
-            AlertDialog.Builder(act).setTitle(if (hard) "Hard hybrid benchmark finished" else "Hybrid benchmark finished")
+            AlertDialog.Builder(act).setTitle(kind.title + " finished")
                 .setMessage((problem?.let { "Stopped early: $it\n\n" } ?: "") + "Passed $passed of ${tasks.size}.\n\n" +
                     results.joinToString("\n") { (if (it.passed) "✓ " else "✗ ") + it.task.title + (if (it.passed) "" else ": " + it.why) } +
                     "\n\nResults: $where")

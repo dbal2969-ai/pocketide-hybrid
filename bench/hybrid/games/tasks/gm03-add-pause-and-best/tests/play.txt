@@ -1,0 +1,55 @@
+# moves right by itself on each step
+run game.reset()
+run game.step()
+expect game.snake[0].x === 6 && game.snake[0].y === 10
+expect game.snake.length === 3
+# arrow keys turn the snake without clicking first
+run game.reset()
+key ArrowUp
+run game.step()
+expect game.snake[0].x === 5 && game.snake[0].y === 9
+key ArrowLeft
+run game.step()
+expect game.snake[0].x === 4 && game.snake[0].y === 9
+# turning straight back is ignored
+run game.reset()
+key ArrowLeft
+run game.step()
+expect game.snake[0].x === 6 && game.snake[0].y === 10
+# eating food grows the snake and scores
+run game.reset(); game.food = { x: 6, y: 10 }
+run game.step()
+expect game.snake.length === 4 && game.score === 1
+expect !(game.food.x === 6 && game.food.y === 10)
+expect document.getElementById('score').textContent.includes('1')
+# hitting the wall ends the game
+run game.reset(); for (let i = 0; i < 20; i++) game.step()
+expect game.over === true
+expect document.getElementById('status').textContent.toLowerCase().includes('game over')
+run window.__len = game.snake.length; window.__head = JSON.stringify(game.snake[0]); game.step()
+expect JSON.stringify(game.snake[0]) === window.__head
+# Start runs the game on its own
+run game.reset()
+tap "Start"
+until 3000 game.snake[0].x >= 8
+# P pauses and resumes a running game
+run game.reset()
+tap "Start"
+key p
+expect game.paused === true
+expect document.getElementById('status').textContent.toLowerCase().includes('paused')
+run window.__head = JSON.stringify(game.snake[0])
+wait 500
+expect JSON.stringify(game.snake[0]) === window.__head
+key p
+expect game.paused === false
+until 2000 JSON.stringify(game.snake[0]) !== window.__head
+# the best score is kept when the game ends
+run localStorage.removeItem('snakeBest'); game.reset(); game.food = { x: 6, y: 10 }; game.step(); game.food = { x: 7, y: 10 }; game.step()
+expect game.score === 2
+run for (let i = 0; i < 20; i++) game.step()
+expect game.over === true
+expect localStorage.getItem('snakeBest') === '2'
+expect document.getElementById('best').textContent.includes('Best: 2')
+run game.reset(); game.food = { x: 6, y: 10 }; game.step(); for (let i = 0; i < 20; i++) game.step()
+expect localStorage.getItem('snakeBest') === '2'

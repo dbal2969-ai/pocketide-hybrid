@@ -330,6 +330,20 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Note for the owner:** the Spark plan's free quota for gemini-3.8-flash ran out during a benchmark; a long run will use
   Fast while Balanced cools down. That is the free tier's limit, not a fault.
 
+### (next) · 2026-11-25 · Game benchmark (five browser games, play-tested)
+- **Why:** owner's request for a game creation benchmark. Games are where the owner's real runs went wrong (a Snake game whose
+  snake moved but ignored the keys).
+- **Change:** `bench/hybrid/games`: gm01 Snake from a spec (GAME.md) with 6 play tests; gm02 a paddle game whose keys go to a canvas
+  that never has focus, plus a paddle that leaves the court; gm03 pause (P) and a best score in localStorage added to a working Snake
+  without breaking its 6 tests; gm04 tic-tac-toe with a computer opponent with exact rules; gm05 a Restart that stacks game loops.
+  Each has a reference fix. Fairness is proved with the app's own play-test script (`PageSteps.script`, dumped by
+  `GamePlayScriptDump`) in Chromium (`check_games.js`): before the fix 0/6, 1/3, 6/8, 0/5 and 2/3 tests pass; after it, all of them.
+  Models → Hybrid AI → **Run the game benchmark**; a task passes when the app's checks pass (the play tests run there), the game
+  code changed, and the play tests are as given.
+- **Files:** bench/hybrid/make_games.py, check_games.js, games/ (tasks, zips, solutions), README.md; core/HybridBenchTasks.kt
+  (`GAMES`), core/HybridBenchGameFiles.kt (generated), HybridBench.kt (`Suite`), HybridScreen.kt.
+- **Tests:** HybridBenchGamesTest (3), GamePlayScriptDump (every play test parses; dumps the scripts when asked). 1,266 tests.
+
 ---
 
 ## Outside the code

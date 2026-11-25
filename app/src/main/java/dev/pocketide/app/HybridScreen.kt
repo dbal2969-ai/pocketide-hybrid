@@ -197,25 +197,29 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "Runs ${dev.pocketide.app.core.HybridBenchTasks.ALL.size} coding tasks with the real agent and Gemini Nano, checks each one, " +
             "and saves a results zip to Downloads/PocketIDE. About 30 to 60 minutes: keep the phone plugged in with PocketIDE open. " +
             "Needs Linux with Node (Terminal tab). Your settings and project are put back afterwards.", 13f, Ui.MUTED))
-        fun startBench(hard: Boolean) {
+        fun startBench(suite: HybridBench.Suite) {
+            val hard = suite != HybridBench.Suite.STANDARD
             val m = activity as? MainActivity
-            val n = if (hard) dev.pocketide.app.core.HybridBenchTasks.HARD.size else dev.pocketide.app.core.HybridBenchTasks.ALL.size
+            val n = when (suite) { HybridBench.Suite.HARD -> dev.pocketide.app.core.HybridBenchTasks.HARD.size; HybridBench.Suite.GAMES -> dev.pocketide.app.core.HybridBenchTasks.GAMES.size; else -> dev.pocketide.app.core.HybridBenchTasks.ALL.size }
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
                 HybridBench.running -> toast("The benchmark is already running.")
-                else -> AlertDialog.Builder(ctx).setTitle(if (hard) "Run the hard hybrid benchmark?" else "Run the hybrid benchmark?")
+                else -> AlertDialog.Builder(ctx).setTitle("Run the ${suite.title.removePrefix("Hybrid AI ")}?")
                     .setMessage("PocketIDE will make $n projects named \"bench …\", send each task to the agent " +
                         "with Hybrid AI (Single model, On this phone first; Private where a task says so), and check the results. The screen stays on. " +
                         "Do not use the app or leave it while it runs: Android pauses Gemini Nano when PocketIDE is not on screen. " +
-                        "The results zip goes to Downloads/PocketIDE." + if (hard) " The hard tasks take longer: about 60 to 90 minutes." else "")
-                    .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, hard) }
+                        "The results zip goes to Downloads/PocketIDE." + if (hard) " These tasks take longer: about 30 to 90 minutes." else "")
+                    .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, suite) }
                     .setNegativeButton("Cancel", null).show()
             }
         }
-        fs.buttonRow(benchCard, Ui.button(ctx, if (HybridBench.running) "Benchmark running…" else "Run the hybrid benchmark", true) { startBench(false) })
+        fs.buttonRow(benchCard, Ui.button(ctx, if (HybridBench.running) "Benchmark running…" else "Run the hybrid benchmark", true) { startBench(HybridBench.Suite.STANDARD) })
         benchCard.addView(Ui.text(ctx, "The hard benchmark has ${dev.pocketide.app.core.HybridBenchTasks.HARD.size} tasks that need several files, " +
             "a spec, async code, a refactor, a very long file, the web, or Private mode with several rules.", 13f, Ui.MUTED))
-        fs.buttonRow(benchCard, Ui.button(ctx, "Run the hard benchmark") { startBench(true) })
+        fs.buttonRow(benchCard, Ui.button(ctx, "Run the hard benchmark") { startBench(HybridBench.Suite.HARD) })
+        benchCard.addView(Ui.text(ctx, "The game benchmark has ${dev.pocketide.app.core.HybridBenchTasks.GAMES.size} browser games checked by play tests: " +
+            "keys that must work without clicking first, a game from a spec, new features, an opponent, and a restart that stacks loops.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Run the game benchmark") { startBench(HybridBench.Suite.GAMES) })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

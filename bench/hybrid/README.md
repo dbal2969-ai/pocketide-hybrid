@@ -77,3 +77,20 @@ updates the app's copy (a unit test fails if it is out of date).
 | h08 | (Private) Implement checkPassword in password.js as its comment describes, with the problems in that order, so node test.js prints ok | `node test.js`; no step in the cloud | Gemini Nano alone with four rules, exact messages and order |
 | h09 | Look up the SPDX licence identifiers of the npm packages express, lodash and react, and write licences.json mapping each package name to its identifier. node test.js must print ok | `node test.js`; a web handoff shown | The web, then a file a program checks |
 | h10 | Invoices show prices like $12.5 instead of $12.50. Fix it without breaking receipts, so node test.js prints ok | `node test.js` | A shared helper with two callers that use it differently |
+
+## Game benchmark
+
+Models → Hybrid AI → **Run the game benchmark** runs five browser games checked by the app's own play tests (`tests/play.txt`),
+which PocketIDE plays before it calls the work done. Starting projects are in `games/tasks/`, zips in `games/zips/`, reference fixes
+in `games/solutions/`. To prove each task is fair (its play tests fail as given and pass with the reference fix) with the app's own
+play-test script in Chromium: `POCKETIDE_DUMP_PLAY=/tmp/play ./gradlew testDebugUnitTest --tests '*GamePlayScriptDump*'`, then
+`node bench/hybrid/check_games.js bench/hybrid/games /tmp/play`. `make_games.py games` rebuilds them; `to_kotlin.py games
+../../app/src/main/java/dev/pocketide/app/core/HybridBenchGameFiles.kt HybridBenchGameFiles` updates the app's copy.
+
+| # | Prompt | Play tests | What it tests |
+| --- | --- | --- | --- |
+| gm01 | Build the Snake game exactly as GAME.md describes, so the play tests in tests/play.txt pass | 6 | A game from a spec: moving, turning with arrow keys (no clicking first), no reversing, eating, walls, Start |
+| gm02 | The ball moves but the paddle ignores the arrow keys. Fix it so the keys work without clicking the game first, and keep the paddle inside the court | 3 | The owner's snake bug: keys sent to a canvas that never has focus, and a paddle that leaves the court |
+| gm03 | Add pause and resume with the P key (status shows Paused), and keep the best score in localStorage under snakeBest, shown in #best as Best: N. Snake must keep working | 8 | New features without breaking the six existing play tests |
+| gm04 | Build tic-tac-toe with a computer opponent exactly as GAME.md describes | 5 | Taps on cells, an opponent with exact rules (win, block, centre, corners), win and draw |
+| gm05 | Every time Restart is pressed the game gets faster. Fix it | 3 | A restart that stacks game loops (setInterval never cleared) |

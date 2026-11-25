@@ -1,0 +1,15 @@
+# restarting does not make the game faster
+tap "Restart"
+tap "Restart"
+tap "Restart"
+wait 1000
+expect game.ticks >= 5 && game.ticks <= 14
+# the game still runs and restarts cleanly after a game over
+run game.over = true
+tap "Restart"
+expect game.over === false && game.ticks <= 2
+until 2000 game.ticks >= 5
+# the keys move the player
+run window.__x = game.x
+key ArrowLeft
+expect game.x === window.__x - 20

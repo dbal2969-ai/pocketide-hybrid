@@ -1,0 +1,4 @@
+body { font-family: sans-serif; margin: 12px; background: #111; color: #eee; }
+canvas { background: #000; display: block; margin: 8px 0; }
+button { font-size: 16px; padding: 6px 12px; margin-right: 6px; }
+.cell { width: 64px; height: 64px; font-size: 32px; margin: 2px; }

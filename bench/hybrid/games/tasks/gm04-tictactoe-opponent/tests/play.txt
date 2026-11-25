@@ -1,0 +1,30 @@
+# the computer takes the centre after X opens in a corner
+tap [data-i="0"]
+expect document.querySelector('[data-i="0"]').textContent === 'X'
+expect document.querySelector('[data-i="4"]').textContent === 'O'
+# the computer blocks a row
+tap [data-i="0"]
+tap [data-i="1"]
+expect document.querySelector('[data-i="2"]').textContent === 'O'
+# the computer takes a win when it has one
+tap [data-i="0"]
+tap [data-i="1"]
+tap [data-i="3"]
+expect document.querySelector('[data-i="6"]').textContent === 'O'
+expect document.getElementById('status').textContent === 'O wins'
+tap [data-i="8"]
+expect document.querySelector('[data-i="8"]').textContent === ''
+# a used cell cannot be taken again, and New game clears the board
+tap [data-i="0"]
+tap [data-i="4"]
+expect document.querySelector('[data-i="4"]').textContent === 'O'
+expect document.querySelectorAll('.cell').length === 9
+tap "New game"
+expect [...document.querySelectorAll('.cell')].every(c => c.textContent === '')
+# a full board with no line is a draw
+tap [data-i="4"]
+tap [data-i="2"]
+tap [data-i="3"]
+tap [data-i="7"]
+tap [data-i="8"]
+expect document.getElementById('status').textContent === 'Draw'

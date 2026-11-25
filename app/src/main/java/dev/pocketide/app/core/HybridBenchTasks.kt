@@ -26,7 +26,7 @@ object HybridBenchTasks {
         /** Null = passed, else why it did not. */
         val judge: (Facts) -> String?,
     ) {
-        val files: Map<String, String> get() = (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id]).orEmpty()
+        val files: Map<String, String> get() = (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id] ?: HybridBenchGameFiles.FILES[id]).orEmpty()
     }
 
     class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>)
@@ -159,6 +159,36 @@ object HybridBenchTasks {
             if (commandOk(f)) null else commandWhy(f)
         },
     )
+
+    /**
+     * The game suite (bench/hybrid/games, 1.5.184): browser games checked by the app's own play tests. Every play test fails as given
+     * and passes with the reference fix, played with the app's play-test script in Chromium (check_games.js).
+     */
+    val GAMES: List<Task> = listOf(
+        Task("gm01-snake-from-spec", "Snake from a spec", "Build the Snake game exactly as GAME.md describes, so the play tests in tests/play.txt pass", command = null) { f ->
+            game(f, "game.js") ?: if (!f.files["game.js"].orEmpty().contains("window.game")) "game.js does not set window.game" else null
+        },
+        Task("gm02-fix-keyboard", "Fix keys that do nothing", "The ball moves but the paddle ignores the arrow keys. Fix it so the keys work without clicking the game first, and keep the paddle inside the court. Make the play tests in tests/play.txt pass", command = null) { f ->
+            game(f, "game.js")
+        },
+        Task("gm03-add-pause-and-best", "Add features to a working game", "Add pause and resume with the P key (status shows Paused), and keep the best score in localStorage under snakeBest, shown in #best as Best: N. Snake must keep working. Make the play tests in tests/play.txt pass", command = null) { f ->
+            game(f, "game.js")
+        },
+        Task("gm04-tictactoe-opponent", "A game with an opponent", "Build tic-tac-toe with a computer opponent exactly as GAME.md describes, so the play tests in tests/play.txt pass", command = null) { f ->
+            game(f, "game.js") ?: if (!f.files["index.html"].orEmpty().contains("cell")) "index.html has no cells" else null
+        },
+        Task("gm05-restart-speedup", "A restart that speeds the game up", "Every time Restart is pressed the game gets faster. Fix it so the play tests in tests/play.txt pass", command = null) { f ->
+            game(f, "game.js")
+        },
+    )
+
+    /** A game task passed when [code] changed, the play tests are as given, and the app's checks passed (the play tests run there). */
+    private fun game(f: Facts, code: String): String? = when {
+        f.files[code] == f.original[code] -> "$code was not changed"
+        f.files[PlayTests.FILE] != f.original[PlayTests.FILE] -> "the play tests were changed"
+        !f.transcript.contains("outcome: ✓") -> "the app's checks did not pass (no ✓ outcome)"
+        else -> null
+    }
 
     /** The results as a markdown report. [problem] = why the run stopped early, if it did. */
     fun report(results: List<Result>, about: String, problem: String?, total: Int = ALL.size, title: String = "Hybrid AI benchmark"): String = buildString {
