@@ -42,7 +42,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | 1124-2147 (run 7) | `a943442` | 8 of 8, no stalls, every task ended done | 23 of 50 | 03 went to the cloud because PocketIDE was in the background (reason shown); 07 Nano's first reply was not an action, so the cloud took it; 08 passed in Private mode (7 steps); 01 Nano again swapped its passing fix back despite the note | `12178cb` |
 | hard 1124-2213 (hard run 1) | `a31830a` | 9 of 10 | 39 of 84 | every handoff gave its reason (failed edits, a reply that was not an action, the web); h08 Private mode passed in 3 steps; h07 ended before any step: one cloud call failed with the SDK's "Something unexpected happened."; the report's # column showed "h0" | `31b6415` |
 | hard 1124-2237 (hard run 2) | `82ab9d0` | 9 of 10 | 31 of 82 | h07 failed: the cloud reply stopped at `MAX_TOKENS` because the phone's 1,024-token output setting applied to the cloud model too; Nano also named a tool in Chinese (讀取文件), handed off | `3cbcdd0` |
-| hard 1124-2308 (hard run 3) | `eb8137a` (cloud tiers) | **2 of 10** (regression) | 32 of 40 | every cloud step failed: `Role 'function' is not supported. Please use a valid role: user, model.` The newer models refuse the role the app sent tool results under (gemini-3.1-flash-lite had accepted it), and that error matched the loose "is not supported" test for a missing model, so Balanced was skipped and Flash-Lite answered and failed too. Only h08 and h10 (all on the phone) passed; Auto did move up to Best once ("the check failed 2 times") | `(next)` |
+| hard 1124-2308 (hard run 3) | `eb8137a` (cloud tiers) | **2 of 10** (regression) | 32 of 40 | every cloud step failed: `Role 'function' is not supported. Please use a valid role: user, model.` The newer models refuse the role the app sent tool results under (gemini-3.1-flash-lite had accepted it), and that error matched the loose "is not supported" test for a missing model, so Balanced was skipped and Flash-Lite answered and failed too. Only h08 and h10 (all on the phone) passed; Auto did move up to Best once ("the check failed 2 times") | `a06ce7a` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -297,7 +297,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Not yet measured on the phone:** whether this project can use `gemini-4-hydrogen` (if not, Auto falls back to Balanced and says
   so); the next standard and hard benchmark runs will show the effect.
 
-### (next) · 2026-11-24 · Fix the cloud tiers' regression (hard run 3, 2 of 10)
+### a06ce7a · 2026-11-24 23:40 · Fix the cloud tiers' regression (hard run 3, 2 of 10)
 - **Evidence:** hard run 1124-2308: eight tasks ended on `Role 'function' is not supported. Please use a valid role: user, model.`
 - **Change:** tool results go back to the cloud model as the user's turn (with their function-response parts), not under the old
   "function" role, and neighbouring turns of the same role are joined so turns alternate. Only errors about the model itself
