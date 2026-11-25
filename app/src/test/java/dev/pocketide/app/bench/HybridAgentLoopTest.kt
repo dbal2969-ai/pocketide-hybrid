@@ -246,4 +246,33 @@ class HybridAgentLoopTest {
         val p = HybridAgent.phonePrompt(false, msgs, 14000)!!
         assertTrue("the whole ${big.length}-character result is in the prompt", p.contains("note line 150 "))
     }
+
+    @Test fun aPassingCheckAfterAChangeTellsNanoToAnswer() {
+        val prompts = ArrayList<String>()
+        val q = ArrayDeque(listOf(action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            action("run_command", "command" to "node test.js")))
+        HybridAgent.testPhone = { p -> prompts.add(p); nanoPrompts++; q.removeFirstOrNull() ?: """{"reason":"done","tool":"answer","tool_args":{"text":"Fixed add; node test.js prints ok."}}""" }
+        cloud()
+        val o = run("Fix add in app.js so the test passes")
+        assertFalse("timed out", o.timedOut)
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+        assertTrue("the prompt after the passing test says so", prompts.any { it.contains("the check passed after your change") })
+        assertFalse("not before it", prompts.first().contains("the check passed after your change"))
+    }
+
+    @Test fun privateModeAsksNanoForSomethingDifferentInsteadOfRepeatingAFailure() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("hybrid_ai", 0).edit().putString("mode", HybridAi.Mode.ONLY_ON_DEVICE.name).commit()
+        val bad = action("edit_file", "path" to "app.js", "search" to "return a * b;", "replace" to "return a + b;")
+        val prompts = ArrayList<String>()
+        val q = ArrayDeque(listOf(bad, bad, action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            action("run_command", "command" to "node test.js")))
+        HybridAgent.testPhone = { p -> prompts.add(p); nanoPrompts++; q.removeFirstOrNull() ?: """{"reason":"done","tool":"answer","tool_args":{"text":"Fixed add."}}""" }
+        cloud()
+        val o = run("Fix add in app.js so the test passes")
+        assertFalse("timed out", o.timedOut)
+        assertEquals("the cloud is never used in Private mode", 0, cloudCalls)
+        assertTrue(prompts.any { it.contains("that exact action already failed") })
+        assertEquals("the repeated edit was not run", 1, o.resultsOf("edit_file").count { !it.startsWith("Edited") })
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+    }
 }

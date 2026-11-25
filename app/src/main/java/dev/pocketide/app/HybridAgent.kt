@@ -91,9 +91,17 @@ object HybridAgent {
             }
         }
         val secs = (System.nanoTime() - t0) / 1e9
-        val (turn, why) = phoneTurn(reply, messages)
+        var (turn, why) = phoneTurn(reply, messages)
         val again = turn?.calls?.firstOrNull()?.takeIf { repeatsFailure(it, messages) }
         if (again != null && !only) return Phone(null, "Gemini Nano repeated a step that already failed (${again.name})")
+        // 1.5.184 (run 4, task 08): in Private mode there is no one to pass to, and Nano sent the same refused edit five times.
+        // It is asked once more, told what failed; a repeat after that goes ahead so the loop's own limits still apply.
+        if (again != null) {
+            val note = "\nNOTE: that exact action already failed (${lastFailure(messages)}). Do something different: read the file again, " +
+                "change fewer lines, or write the whole small file.\nYour reply, one JSON object:"
+            val retry = try { testPhone?.invoke(prompt + note) ?: HybridAi.onDeviceText(ctx, prompt + note) } catch (e: Exception) { null }
+            if (retry != null) { val t2 = phoneTurn(retry, messages); turn = t2.first; why = t2.second }
+        }
         if (turn != null) return Phone(Result(turn, true, secs, ""), "")
         if (only) return Phone(Result(ToolTurn(reply.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")
         return Phone(null, "Gemini Nano $why")
@@ -139,6 +147,20 @@ object HybridAgent {
 
     private fun head(docs: Boolean) = SmallLocal.system(Tools.smallCatalogue(docs)) + "\n\nThe conversation so far, oldest first:\n"
     private const val TAIL = "\nYour reply, one JSON object:"
+
+    private val PASSED = Regex("""(?i)^\s*exit code 0\b""")
+
+    /**
+     * 1.5.184 (run 4, task 01): Nano ran the test, it passed, and Nano then edited the fix back out. When the newest result is a
+     * passing command after a change, the prompt says so and asks for the answer.
+     */
+    fun passedNote(messages: List<Map<String, Any?>>): String {
+        val last = messages.lastOrNull()?.takeIf { it["role"] == "tool" } ?: return ""
+        if (!PASSED.containsMatchIn(textOf(last["content"]))) return ""
+        val calls = messages.filter { it["role"] == "assistant" }.flatMap { (it["tool_calls"] as? List<*>).orEmpty().mapNotNull { tc -> callOf(tc) } }
+        if (calls.lastOrNull()?.name != "run_command" || calls.none { it.name in WRITES }) return ""
+        return "NOTE: the check passed after your change. If the request is done, reply with the answer action now and do not change the files again.\n"
+    }
 
     /** True while PocketIDE is the app on screen. */
     fun foreground(ctx: Context): Boolean = try {
@@ -201,7 +223,7 @@ object HybridAgent {
             recent.add(0, l); budget -= l.length
         }
         val skipped = lines.size - 1 - recent.size
-        return head + first + (if (skipped > 0) "[$skipped earlier steps left out]\n" else "") + recent.joinToString("") + tail
+        return head + first + (if (skipped > 0) "[$skipped earlier steps left out]\n" else "") + recent.joinToString("") + passedNote(messages) + tail
     }
 
     private fun line(m: Map<String, Any?>, room: Int = 2000): String? {
