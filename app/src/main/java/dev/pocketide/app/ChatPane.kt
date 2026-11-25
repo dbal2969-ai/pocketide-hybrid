@@ -3655,7 +3655,9 @@ class ChatPane(
     }
 
     private fun moreMenu() {
-        val items = (if (Projects.isChat(ctx)) listOf<Pair<String, () -> Unit>>("Build this as a project" to { buildThis() }) else emptyList()) + listOf<Pair<String, () -> Unit>>(
+        val leftovers = if (Projects.isChat(ctx)) store.list() else emptyList()
+        val items = (if (Projects.isChat(ctx)) listOf<Pair<String, () -> Unit>>("Build this as a project" to { buildThis() }) else emptyList()) +
+            (if (leftovers.isNotEmpty()) listOf<Pair<String, () -> Unit>>("Files left in this chat (${leftovers.size})…" to { chatLeftovers() }) else emptyList()) + listOf<Pair<String, () -> Unit>>(
             "New chat" to { newChat() },
             "Checkpoints (restore files)" to { showCheckpoints() },
             "Export or summarize this chat…" to { exportMenu() },
@@ -3673,6 +3675,40 @@ class ChatPane(
             }
         )
         android.app.AlertDialog.Builder(ctx).setItems(items.map { it.first }.toTypedArray()) { _, i -> items[i].second() }.show()
+    }
+
+    /**
+     * 1.5.185: the Chat home has no project, but its hidden folder can hold files (an early build from the chat wrote a whole game
+     * there, which confused the tabs and made Gemini Nano take the chat for that project). They are listed here and can be moved
+     * into a new project of their own (nothing is lost; the chats stay) or deleted after a second confirmation.
+     */
+    private fun chatLeftovers() {
+        val files = store.list()
+        if (files.isEmpty()) { shortToast("No files are left in this chat."); return }
+        val shown = files.take(40).joinToString("\n") + if (files.size > 40) "\n… and ${files.size - 40} more" else ""
+        android.app.AlertDialog.Builder(ctx).setTitle("Files left in this chat (${files.size})")
+            .setMessage("This chat has no project, so these files are not used here, but they are sent to the assistant and can confuse it.\n\n$shown")
+            .setPositiveButton("Move to a new project") { _, _ ->
+                val name = Projects.create(ctx, "Files from the chat", dev.pocketide.app.core.Templates.EMPTY)
+                val from = store.root; val to = File(Projects.root(ctx), name)
+                var moved = 0; var failed = 0
+                for (k in from.listFiles().orEmpty()) {
+                    if (k.name.startsWith(".")) continue
+                    val dest = File(to, k.name)
+                    if (k.renameTo(dest) || (k.copyRecursively(dest, overwrite = false) && k.deleteRecursively())) moved++ else failed++
+                }
+                onFilesChanged(emptyList()); refresh()
+                toast(if (failed == 0) "Moved to the project \"$name\". This chat keeps its conversations." else "Moved $moved, $failed could not be moved; they are still here.")
+            }
+            .setNeutralButton("Delete them") { _, _ ->
+                android.app.AlertDialog.Builder(ctx).setTitle("Delete ${files.size} files for good?")
+                    .setMessage("They cannot be brought back. The chats themselves are kept. Moving them to a new project keeps a copy instead.")
+                    .setPositiveButton("Delete") { _, _ ->
+                        for (k in store.root.listFiles().orEmpty()) if (!k.name.startsWith(".")) k.deleteRecursively()
+                        onFilesChanged(emptyList()); refresh(); toast("Deleted. This chat keeps its conversations.")
+                    }.setNegativeButton("Cancel", null).show()
+            }
+            .setNegativeButton("Close", null).show()
     }
 
     // ---- export and summary ----
