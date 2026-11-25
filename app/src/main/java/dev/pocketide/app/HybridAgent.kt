@@ -51,14 +51,24 @@ object HybridAgent {
     private const val FALLBACK_MARK = " instead. Why: "
 
     fun phone(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
+        val p = phoneStep(ctx, messages, docs)
+        val r = p.result ?: return p
+        if (HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE || online(ctx)) return p
+        return Phone(Result(r.turn, r.onDevice, r.seconds, listOf(r.note, "No internet connection, so this stayed on the phone.").filter { it.isNotBlank() }.joinToString(" "), r.model), p.reason, p.stay, p.strongFailed)
+    }
+
+    private fun phoneStep(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
         val mode = HybridScreen.mode(ctx)
         if (mode == HybridAi.Mode.PREFER_IN_CLOUD) return Phone(null, "")
+        // 1.5.184 (the owner's touch-controls run): with no connection, Nano handed off after two failed edits and the request died on
+        // "android_getaddrinfo failed". Offline, nothing can be passed on, so Nano carries on as in Private mode.
+        val offline = !online(ctx)
         // once a step of this request was passed on, the rest of it stays with that model (Nano would only start over)
         val said = messages.filter { it["role"] == "assistant" }.map { (it["content"] as? String).orEmpty() }
-        if (mode == HybridAi.Mode.PREFER_ON_DEVICE && said.any { it.contains(HANDOFF_MARK) })
+        if (mode == HybridAi.Mode.PREFER_ON_DEVICE && !offline && said.any { it.contains(HANDOFF_MARK) })
             return Phone(null, "", stay = true, strongFailed = said.any { it.contains(FALLBACK_MARK) })
         val limit = HybridAi.settings(ctx).onDeviceMaxChars
-        val only = mode == HybridAi.Mode.ONLY_ON_DEVICE
+        val only = mode == HybridAi.Mode.ONLY_ON_DEVICE || offline
         // Nano tends to repeat a failing step (a benchmark run had six refused edits in a row): after two, the cloud takes over
         val streak = failStreak(messages)
         if (streak >= FAIL_LIMIT && !only) return Phone(null, "my last $streak tool calls failed (the last: ${lastFailure(messages)})")
@@ -209,6 +219,40 @@ object HybridAgent {
     // ---------------- phone: small local model mode ----------------
 
     const val FAIL_LIMIT = 2
+
+    /** For tests: whether the phone is online (null = ask Android). */
+    @Volatile var testOnline: Boolean? = null
+
+    /** True when the phone has a working internet connection (when unsure, true: the cloud call then says what is wrong). */
+    fun online(ctx: Context): Boolean {
+        testOnline?.let { return it }
+        if (testPhone != null) return true
+        return try {
+            val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java) ?: return true
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+            caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (e: Exception) { true }
+    }
+
+    /**
+     * A tool Gemini Nano named in another language or its own words ("membaca_file", "讀取文件", "readFile"): the PocketIDE tool
+     * its arguments fit, or null (1.5.184; benchmark runs had both of those names, each costing a handoff).
+     */
+    fun toolFromArgs(name: String, args: Set<String>): String? {
+        val n = name.lowercase().replace(Regex("[^a-z]"), "")
+        val byName = mapOf("readfile" to "read_file", "writefile" to "write_file", "editfile" to "edit_file", "editlines" to "edit_lines",
+            "runcommand" to "run_command", "listfiles" to "list_files", "search" to "search", "grep" to "search")
+        byName[n]?.let { return it }
+        return when {
+            "command" in args -> "run_command"
+            "path" in args && "search" in args && "replace" in args -> "edit_file"
+            "path" in args && "start" in args && ("text" in args || "end" in args) -> "edit_lines"
+            "path" in args && "content" in args -> "write_file"
+            "pattern" in args || "query" in args -> "search"
+            args == setOf("path") -> "read_file"
+            else -> null
+        }
+    }
     @Volatile var RETRY_MS = 2500L
 
     private val LASTING = Regex("""(?i)App Check|attestation|PERMISSION_DENIED|API has not been used|SERVICE_DISABLED|INVALID_ARGUMENT|valid role|API key|billing|not supported|unsupported|cancel""")
@@ -340,7 +384,11 @@ object HybridAgent {
         val p = SmallLocal.parse(reply) { Tools.paramTypes(it) }
         if (p.calls.isNotEmpty()) {
             val c = p.calls[0]
-            if (Tools.paramTypes(c.name) == null) return null to "asked for a tool that does not exist (${c.name})"
+            if (Tools.paramTypes(c.name) == null) {
+                val keys = (MiniJson.obj(MiniJson.parse(c.arguments)) ?: emptyMap<String, Any?>()).keys
+                val known = toolFromArgs(c.name, keys) ?: return null to "asked for a tool that does not exist (${c.name})"
+                return ToolTurn(p.text, listOf(ToolCall(c.id, known, c.arguments)), "tool_calls") to ""
+            }
             return ToolTurn(p.text, p.calls, "tool_calls") to ""
         }
         if (dev.pocketide.app.core.HybridRoute.refused(p.text)) return null to "said it could not do it"

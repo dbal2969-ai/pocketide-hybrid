@@ -46,6 +46,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | hard 1124-2343 (hard run 4) | `b7a2354` | **10 of 10** | 49 of 102 | first perfect hard run. Auto moved to Gemini 4 Hydrogen once ("the check failed 2 times"), and Hydrogen answered, so the project can use it. Google reported "high demand" during the run: it ended h01's request after its work was done, and in h02 Balanced was marked unusable for the session, so Fast (`gemini-3.5-flash-lite`) answered 51 of the cloud steps | `3375f9a` |
 | hard 1125-0008 (hard run 5) | `e547833` | **10 of 10**, all ended done | 39 of 92 | second perfect hard run. Gemini 4 Hydrogen answered 8 steps after two moves up ("the last 2 tool calls failed", "the check failed 4 times"). The note now quoted why Balanced dropped out: `You exceeded your current quota, please check your plan and billing details` (the free tier's request quota for gemini-3.8-flash); the word "billing" made it count as unusable for the session, so Fast answered 45 steps | `a6b5958` |
 | games 1125-0233 (game run 1) | `717b4be` | **5 of 5**, all ended done | 19 of 56 | the play tests ran before the work was called done and sent gm03 and gm05 back once each; the page check asked for touch controls on the keyboard-only paddle game (gm02); Auto moved to Gemini 4 Hydrogen once ("the last 2 tool calls failed"). Balanced's free quota was still spent from the night's runs, so Fast answered 35 cloud steps and Hydrogen 2 | none needed |
+| hard helping 1125-0743 | `7bc42e7` | **10 of 10**, all ended done | 26 on the phone (the report did not count the strong model's steps) | first "Hybrid helps my strong model" run, with `kilo/recursive/flint-v1.0:free` as the strong model: every handoff went to it and every task passed; h08 Private stayed on the phone (13 steps). Nano asked for a tool named `membaca_file` (h07) | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -357,6 +358,23 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** HybridBench.kt (`helperStrong`, `helperProblem`, `helping`), core/HybridBenchTasks.kt (`strongProblem`),
   AppSettings.kt (`savedSlot`, `restoreSlot`), HybridScreen.kt.
 - **Tests:** HybridBenchGamesTest (the strong model must be another provider's API with a key, never Cloudflare). 1,267 tests.
+
+### (next) · 2026-11-25 · A more reliable Gemini Nano: insert by line, no repeated lines, offline stays on the phone
+- **Evidence:** the owner's touch-controls test on the Snake game (2026-11-25): with the cloud it worked; on the phone alone Nano
+  failed twice: it searched for `{ ... }` (not in the file), then for `canvas` (many matches), then its replacement repeated the
+  next line and declared `ctx` twice (caught and put back), and after two failures it handed off with no connection, so the request
+  ended on `android_getaddrinfo failed: EAI_NODATA`. Benchmark runs also had Nano name tools `membaca_file` and `讀取文件`.
+- **Change:** Nano's instructions say to add new code with `edit_lines` inserted after a line number (start = N+1, end = N), copying
+  nothing, and to search with whole lines, never "..."; the tool list keeps edit_lines' insert sentence (it was cut off). A search with
+  "..." gets a reply that says why it cannot match and what to do instead. When a replacement starts with the search text and then
+  repeats declaration lines that already follow it in the file (const, let, var, function, class, import, def), the repeats are left
+  out. With no internet connection Nano carries on as in Private mode instead of handing off, and its replies say "No internet
+  connection, so this stayed on the phone." A tool Nano names in other words (another language, camelCase) runs as the PocketIDE
+  tool its arguments fit. In "Hybrid helps my strong model" runs the report counts the strong model's steps.
+- **Files:** core/SmallLocal.kt, core/Tools.kt (`smallCatalogue`), core/EditBlocks.kt (`withoutRepeats`, the "..." reply),
+  HybridAgent.kt (`online`, `phoneStep`, `toolFromArgs`), core/HybridBenchTasks.kt (`steps`, `Counts.other`, report).
+- **Tests:** NanoEditsTest (5), HybridAgentLoopTest (offline Nano keeps going; a tool named in another language runs),
+  HybridBenchGamesTest (the strong model's steps are counted). 1,275 tests.
 
 ---
 

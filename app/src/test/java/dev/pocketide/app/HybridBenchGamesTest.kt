@@ -47,4 +47,15 @@ class HybridBenchGamesTest {
         check(HybridBenchTasks.strongProblem(dev.pocketide.app.core.Workflow.Slot("openai", "gpt-x"), false)!!.contains("no API key"))
         check(HybridBenchTasks.strongProblem(dev.pocketide.app.core.Workflow.Slot("openai", "gpt-x"), true) == null)
     }
+
+    /** The helping run's report said "steps on this phone: 26 of 26": the strong model's steps carry no label and were not counted. */
+    @Test fun theStrongModelsStepsAreCounted() {
+        val log = "===== request started: x\n----- t · round 0 · assistant said\nhi\n⚡ Ran on this phone (Gemini Nano) · 1 s\n" +
+            "----- t · round 1 · assistant thought\n...\n----- t · round 1 · assistant said\n...\n----- t · round 2 · assistant thought\n"
+        val c = HybridBenchTasks.counts(log)
+        check(c.phone == 1 && c.cloud == 0 && c.other == 2) { "${c.phone} ${c.cloud} ${c.other}" }
+        val r = HybridBenchTasks.Result(HybridBenchTasks.HARD[0], true, "", c, 60, "done")
+        val rep = HybridBenchTasks.report(listOf(r), "a", null, 1, "Hybrid AI benchmark (hard) · hybrid helping a strong model")
+        check(rep.contains("steps on this phone: 1 of 3") && rep.contains("steps by the strong model: 2") && rep.contains("1 / 0 / strong 2")) { rep }
+    }
 }

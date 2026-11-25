@@ -125,7 +125,10 @@ object EditBlocks {
         val b = if (numbered) EditBlock(b0.path, stripLineNumbers(b0.search), stripLineNumbers(b0.replace)) else b0
         val s = b.search
         val exact = if (s.isEmpty()) 0 else countOcc(cur, s)
-        if (exact == 1) return ApplyResult(text = cur.replaceFirst(s, b.replace))
+        if (exact == 1) {
+            val at = cur.indexOf(s)
+            return ApplyResult(text = cur.substring(0, at) + withoutRepeats(cur.substring(at + s.length), s, b.replace) + cur.substring(at + s.length))
+        }
         if (exact > 1) return ApplyResult(error = MANY)
         val cl = cur.split("\n")
         val sl = s.split("\n")
@@ -152,7 +155,10 @@ object EditBlocks {
             loose(cl, sl)?.let { (from, to) ->
                 return ApplyResult(text = (cl.subList(0, from) + reindented(cl, sl, from, b.replace.split("\n")) + cl.subList(to + 1, cl.size)).joinToString("\n"))
             }
-            return ApplyResult(error = "the SEARCH text was not found in the current file" + closest(cl, sl))
+            // 1.5.184: Gemini Nano searched for "document.addEventListener('keydown', function(e) { ... })"
+            val dots = if (s.contains("...") || s.contains("…")) ". It contains \"...\", which stands for skipped code the file does not have: " +
+                "copy whole lines exactly, or add new code with edit_lines (insert after line N: start = N+1, end = N)" else ""
+            return ApplyResult(error = "the SEARCH text was not found in the current file" + dots + closest(cl, sl))
         }
         var repl = b.replace.split("\n")
         if (reindent) repl = reindented(cl, sl, hits[0], repl)
@@ -161,6 +167,24 @@ object EditBlocks {
     }
 
     private val SPACES = Regex("""\s+""")
+
+    private val DECL = Regex("""^\s*(export\s+)?(const|let|var|function|class|import|def)\b""")
+
+    /**
+     * 1.5.184 (Gemini Nano, the owner's snake game): asked to add code after `const canvas = …;`, Nano's replacement repeated the next
+     * line of the file, `const ctx = …`, and the file declared ctx twice. When the replacement starts with the search text and then
+     * repeats the declaration lines that already follow it in the file, those repeats are left out.
+     */
+    fun withoutRepeats(after: String, search: String, replace: String): String {
+        if (!replace.startsWith(search) || !(after.isEmpty() || after.startsWith("\n"))) return replace
+        val extra = replace.substring(search.length).split("\n")
+        val next = after.removePrefix("\n").split("\n")
+        var i = 1   // extra[0] is the rest of the search's last line ("" when it ended the line)
+        var k = 0
+        while (i < extra.size && k < next.size && extra[i].trim() == next[k].trim() && next[k].isNotBlank() && DECL.containsMatchIn(next[k])) { i++; k++ }
+        if (k == 0) return replace
+        return search + (listOf(extra[0]) + extra.drop(i)).joinToString("\n").let { if (extra.size == i) it.removeSuffix("\n") else it }
+    }
 
     /** Moves the replacement to the file's indentation when the search text was written with a different one. */
     private fun reindented(cl: List<String>, sl: List<String>, at: Int, repl0: List<String>): List<String> {

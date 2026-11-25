@@ -29,7 +29,13 @@ object HybridBenchTasks {
         val files: Map<String, String> get() = (HybridBenchFiles.FILES[id] ?: HybridBenchHardFiles.FILES[id] ?: HybridBenchGameFiles.FILES[id]).orEmpty()
     }
 
-    class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>)
+    /** [other]: steps by another model (the strong model in "Hybrid helps my strong model"), which carry no ⚡ or ☁ label. */
+    class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>, val other: Int = 0)
+
+    private val STEP = Regex("""· round (\d+) · assistant (said|thought)""")
+
+    /** The model steps in a chat log: each request's rounds that have an assistant entry (1.5.184). */
+    fun steps(transcript: String): Int = transcript.split("request started").sumOf { part -> STEP.findAll(part).map { it.groupValues[1] }.toSet().size }
 
     class Result(val task: Task, val passed: Boolean, val why: String, val counts: Counts, val seconds: Long, val ended: String)
 
@@ -42,6 +48,7 @@ object HybridBenchTasks {
         PHONE.findAll(transcript).count(),
         CLOUD.findAll(transcript).count(),
         HANDOFF.findAll(transcript).map { it.groupValues[1].trim() + ": " + it.groupValues[2].trim() }.distinct().toList(),
+        maxOf(0, steps(transcript) - PHONE.findAll(transcript).count() - CLOUD.findAll(transcript).count()),
     )
 
     /** The check command printed "ok" on its own line and exited cleanly. */
@@ -211,11 +218,15 @@ object HybridBenchTasks {
         if (problem != null) append("**Stopped early:** ").append(problem).append("\n\n")
         append("**Passed ").append(passed).append(" of ").append(total).append("**")
         val phone = results.sumOf { it.counts.phone }; val cloud = results.sumOf { it.counts.cloud }
-        if (phone + cloud > 0) append(" · steps on this phone: ").append(phone).append(" of ").append(phone + cloud)
+        val other = results.sumOf { it.counts.other }
+        // other steps are counted only when another model worked (Hybrid helps my strong model); otherwise they are app rounds
+        val strong = title.contains("helping")
+        if (phone + cloud > 0) append(" · steps on this phone: ").append(phone).append(" of ").append(phone + cloud + if (strong) other else 0)
+        if (strong) append(" · steps by the strong model: ").append(other)
         append("\n\n| # | Task | Result | Why not | On phone / in cloud | Handoffs | Time | Ended |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
         for (r in results) {
             append("| ").append(r.task.id.substringBefore('-')).append(" | ").append(r.task.title).append(" | ").append(if (r.passed) "✓ passed" else "✗ failed")
-                .append(" | ").append(r.why.replace("|", "/")).append(" | ").append(r.counts.phone).append(" / ").append(r.counts.cloud)
+                .append(" | ").append(r.why.replace("|", "/")).append(" | ").append(r.counts.phone).append(" / ").append(r.counts.cloud).append(if (strong) " / strong " + r.counts.other else "")
                 .append(" | ").append(r.counts.handoffs.joinToString("; ").replace("|", "/").ifEmpty { "none" })
                 .append(" | ").append(r.seconds / 60).append(" min ").append(r.seconds % 60).append(" s | ").append(r.ended).append(" |\n")
         }

@@ -40,7 +40,7 @@ class HybridAgentLoopTest {
         ctx.getSharedPreferences("hybrid_ai", 0).edit().clear().putString("mode", HybridAi.Mode.PREFER_ON_DEVICE.name).commit()
     }
 
-    @After fun tearDown() { HybridAgent.testPhone = null; HybridAgent.testCloud = null }
+    @After fun tearDown() { HybridAgent.testPhone = null; HybridAgent.testCloud = null; HybridAgent.testOnline = null }
 
     private fun nano(vararg replies: String) {
         val q = ArrayDeque(replies.toList())
@@ -340,6 +340,33 @@ class HybridAgentLoopTest {
         assertTrue(s, s.contains("☁ Passing this to the strongest cloud model (gemini-4-hydrogen). Why: the last 2 tool calls failed."))
         assertEquals("said once", 1, Regex("Passing this to the strongest").findAll(s).count())
         assertTrue(s, s.contains("Ran in the cloud (gemini-4-hydrogen)"))
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+    }
+
+    /** The owner's touch-controls run: offline, Nano handed off after two failed edits and the request died. Now it carries on. */
+    @Test fun offlineNanoKeepsGoingInsteadOfHandingOff() {
+        HybridAgent.testOnline = false
+        nano(action("edit_file", "path" to "app.js", "search" to "return a * b;", "replace" to "return a + b;"),
+            action("edit_file", "path" to "app.js", "search" to "return a / b;", "replace" to "return a + b;"),
+            action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            action("run_command", "command" to "node test.js"))
+        cloud()
+        val o = run("Fix add in app.js so node test.js prints ok")
+        assertFalse("timed out", o.timedOut)
+        assertEquals("the cloud is never tried offline", 0, cloudCalls)
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+        assertFalse(shown(o), shown(o).contains("I'm passing this to"))
+        assertTrue(shown(o), shown(o).contains("No internet connection, so this stayed on the phone."))
+    }
+
+    @Test fun aToolNamedInAnotherLanguageStillRuns() {
+        nano("""{"reason":"read it","tool":"membaca_file","tool_args":{"path":"app.js"}}""",
+            action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            action("run_command", "command" to "node test.js"))
+        cloud()
+        val o = run("Fix add in app.js so node test.js prints ok")
+        assertEquals("read_file", o.names.first())
+        assertEquals(0, cloudCalls)
         assertTrue(o.file("app.js")!!.contains("a + b"))
     }
 }

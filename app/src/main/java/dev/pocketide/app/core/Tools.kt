@@ -428,7 +428,9 @@ object Tools {
         val all = allDefs(docs)
         for (n in SmallLocal.TOOLS) {
             val d = all.firstOrNull { it.name == n } ?: continue
-            sb.append(TextTools.describe(d.name, d.description.substringBefore(". ").trimEnd('.') + ".", d.props, d.required))
+            // 1.5.184: edit_lines keeps its second sentence (how to insert); cut to the first, Gemini Nano never inserted with it
+            val text = if (d.name == "edit_lines") d.description.split(". ").take(2).joinToString(". ").trimEnd('.') + "." else d.description.substringBefore(". ").trimEnd('.') + "."
+            sb.append(TextTools.describe(d.name, text, d.props, d.required))
         }
         sb.append("- answer: reply to the person (the work is done, or the request is a question).\n    - text (string, required)\n")
         return sb.toString()
