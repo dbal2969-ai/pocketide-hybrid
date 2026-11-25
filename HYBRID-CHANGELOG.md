@@ -45,6 +45,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | hard 1124-2308 (hard run 3) | `eb8137a` (cloud tiers) | **2 of 10** (regression) | 32 of 40 | every cloud step failed: `Role 'function' is not supported. Please use a valid role: user, model.` The newer models refuse the role the app sent tool results under (gemini-3.1-flash-lite had accepted it), and that error matched the loose "is not supported" test for a missing model, so Balanced was skipped and Flash-Lite answered and failed too. Only h08 and h10 (all on the phone) passed; Auto did move up to Best once ("the check failed 2 times") | `a06ce7a` |
 | hard 1124-2343 (hard run 4) | `b7a2354` | **10 of 10** | 49 of 102 | first perfect hard run. Auto moved to Gemini 4 Hydrogen once ("the check failed 2 times"), and Hydrogen answered, so the project can use it. Google reported "high demand" during the run: it ended h01's request after its work was done, and in h02 Balanced was marked unusable for the session, so Fast (`gemini-3.5-flash-lite`) answered 51 of the cloud steps | `3375f9a` |
 | hard 1125-0008 (hard run 5) | `e547833` | **10 of 10**, all ended done | 39 of 92 | second perfect hard run. Gemini 4 Hydrogen answered 8 steps after two moves up ("the last 2 tool calls failed", "the check failed 4 times"). The note now quoted why Balanced dropped out: `You exceeded your current quota, please check your plan and billing details` (the free tier's request quota for gemini-3.8-flash); the word "billing" made it count as unusable for the session, so Fast answered 45 steps | `a6b5958` |
+| games 1125-0233 (game run 1) | `717b4be` | **5 of 5**, all ended done | 19 of 56 | the play tests ran before the work was called done and sent gm03 and gm05 back once each; the page check asked for touch controls on the keyboard-only paddle game (gm02); Auto moved to Gemini 4 Hydrogen once ("the last 2 tool calls failed"). Balanced's free quota was still spent from the night's runs, so Fast answered 35 cloud steps and Hydrogen 2 | none needed |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -357,4 +358,8 @@ Changes and decisions that are not in a commit, kept here so the record is compl
   owner should delete it in the Firebase console (Project settings → Service accounts).
 - **Release:** the judges' APK is to be published by the owner as GitHub release `v1.5.183-hybrid-judges` (this session cannot
   create releases), rebuilt from the latest commit with `-PjudgeAppCheckToken`.
+- **Free quota and judging:** the Gemini Developer API free tier's request limits are per Firebase project, so judges share
+  them with every benchmark run. The night of 2026-11-24 used up `gemini-3.8-flash`'s quota (runs from hard run 5 on used Fast
+  instead). The app keeps working on Fast, but heavy runs should stop well before the judging period (2026-12-10 to 12-16), and
+  more quota can be asked for through the hackathon's quota form (sprint 3 closes 2026-11-25, 10 AM PT).
 - **Version label:** the app still reports 1.5.183-hybrid; builds are told apart by commit, as in the table above.
