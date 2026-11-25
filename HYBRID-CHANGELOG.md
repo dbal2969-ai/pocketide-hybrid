@@ -564,7 +564,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   aBuildRequestNanoOnlyAnswersGoesToTheCloud, nanoHearsAboutTheStarterKit), AppSelfKnowledgeTest (+1). 1,316 tests, 0 failures.
 - **Evidence:** pocketide-hybrid-app-benchmark-1125-1338 and pocketide-hybrid-scratch-benchmark-1125-1218, with their analyses.
 
-### (next) · 2026-11-25 14:30 · Firebase agent skills: audit and fixes; a switch for model tips
+### ea46a32 · 2026-11-25 14:30 · Firebase agent skills: audit and fixes; a switch for model tips
 - **Why:** the owner asked to add Firebase's agent skills (encouraged by the hackathon) to see how they help and to say so in the
   submission. They also asked for a toggle for suggestions, which "can get to be annoying" (chat model tips, chosen in the
   question that followed).
