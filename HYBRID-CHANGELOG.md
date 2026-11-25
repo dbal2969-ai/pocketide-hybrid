@@ -376,7 +376,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** NanoEditsTest (5), HybridAgentLoopTest (offline Nano keeps going; a tool named in another language runs),
   HybridBenchGamesTest (the strong model's steps are counted). 1,275 tests.
 
-### (next) · 2026-11-25 · Local model benchmark: twenty tiny tasks for Gemini Nano alone, with every exchange recorded
+### 4b87ed0 · 2026-11-25 10:15 · Local model benchmark: twenty tiny tasks for Gemini Nano alone, with every exchange recorded
 - **Why:** owner's request: benchmarks solely for the local model, to tune it. Gemini Nano's weights cannot be changed by apps
   (AICore manages the model; no fine-tuning or adapters are documented), so what is tuned is how PocketIDE drives it.
 - **Change:** `bench/hybrid/local`: twenty tasks in Private mode, five skills: find and explain without changing anything (4), fix
