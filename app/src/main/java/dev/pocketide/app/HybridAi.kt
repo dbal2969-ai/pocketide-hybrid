@@ -76,7 +76,7 @@ object HybridAi {
 
     /** One request on Gemini Nano only, never the cloud (the agent's phone path). Blocking; throws when Nano cannot run it. */
     fun onDeviceText(ctx: Context, prompt: String): String =
-        runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateContent(prompt) }.text?.trim().orEmpty()
+        HybridCloud.traced("hybrid_phone") { runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateContent(prompt) } }.text?.trim().orEmpty()
 
     /** The cloud model with PocketIDE's tools as functions (the agent's cloud path). Built per request, since the tools can change. */
     @Synchronized
@@ -177,7 +177,7 @@ object HybridAi {
             note = "The cloud is switched off right now (Remote Config), so this stayed on the phone."
         }
         val t0 = System.nanoTime()
-        val r = runBlocking { model(ctx, use).generateContent(prompt) }
+        val r = HybridCloud.traced(if (use == Mode.ONLY_ON_DEVICE) "hybrid_phone" else "hybrid_chat") { runBlocking { model(ctx, use).generateContent(prompt) } }
         val secs = (System.nanoTime() - t0) / 1e9
         return Reply(r.text?.trim().orEmpty(), r.inferenceSource == InferenceSource.ON_DEVICE, secs, note)
     }

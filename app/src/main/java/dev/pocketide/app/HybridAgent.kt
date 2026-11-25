@@ -89,7 +89,7 @@ object HybridAgent {
         testCloud?.let { f -> return Result(f(system, messages, tools), false, 0.5, "") }
         val t0 = System.nanoTime()
         val model = HybridAi.cloudToolModel(ctx, system, declarations(tools))
-        val r = runBlocking { model.generateContent(contents(messages)) }
+        val r = HybridCloud.traced("hybrid_cloud") { runBlocking { model.generateContent(contents(messages)) } }
         return Result(turn(r), false, (System.nanoTime() - t0) / 1e9, "")
     }
 

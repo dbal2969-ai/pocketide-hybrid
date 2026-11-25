@@ -4,4 +4,6 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.3.0" apply false
     // #BuildHybridAI: reads app/google-services.json (Firebase AI Logic, App Check)
     id("com.google.gms.google-services") version "4.6.0" apply false
+    // #BuildHybridAI: crash reports from testers' and judges' phones (Crashlytics), applied with google-services
+    id("com.google.firebase.crashlytics") version "3.0.8" apply false
 }

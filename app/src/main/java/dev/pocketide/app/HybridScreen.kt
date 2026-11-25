@@ -41,6 +41,7 @@ object HybridScreen {
         fs.body.addView(Ui.text(ctx, "Quick coding help runs on this phone with Gemini Nano: offline, private and free. Long requests, " +
             "phones without Nano, and the cloud-first mode use a cloud Gemini model through Firebase AI Logic. Every reply says where it ran. " +
             "In the editor: ⋮ → Quick assist.", 13f, Ui.MUTED))
+        fs.buttonRow(fs.body, Ui.button(ctx, "How it works") { intro(activity, always = true) })
 
         if (!HybridAi.configured(ctx)) {
             fs.heading("Not set up in this build")
@@ -90,12 +91,21 @@ object HybridScreen {
         fun paintMode() { modeLine.text = mode(ctx).label + "\nRequests over ${HybridAi.settings(ctx).onDeviceMaxChars} characters go to the cloud in the on-phone-first mode." }
         paintMode()
         modeCard.addView(modeLine)
+        // Private mode: the plainest way to say "my code never leaves this phone"
+        val privateBox = CheckBox(ctx).apply {
+            text = "Private: keep my code on this phone (Gemini Nano only, never the cloud)"
+            isChecked = mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE; setTextColor(Ui.TEXT)
+            setOnCheckedChangeListener { _, on ->
+                setMode(ctx, if (on) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE); paintMode()
+            }
+        }
         fs.buttonRow(modeCard, Ui.button(ctx, "Change") {
             val all = HybridAi.Mode.entries
             AlertDialog.Builder(ctx).setTitle("Where requests run")
-                .setSingleChoiceItems(all.map { it.label }.toTypedArray(), all.indexOf(mode(ctx))) { d, i -> setMode(ctx, all[i]); paintMode(); d.dismiss() }
+                .setSingleChoiceItems(all.map { it.label }.toTypedArray(), all.indexOf(mode(ctx))) { d, i -> setMode(ctx, all[i]); paintMode(); privateBox.isChecked = all[i] == HybridAi.Mode.ONLY_ON_DEVICE; d.dismiss() }
                 .show()
         })
+        modeCard.addView(privateBox)
 
         // ---- Model settings ----
         fs.heading("Model settings")
@@ -204,6 +214,23 @@ object HybridScreen {
         fs.dialog.setOnDismissListener { closed = true; io.shutdown() }
         fs.show()
         refresh()
+        intro(activity)
+    }
+
+    /** "How hybrid AI works", shown the first time the screen opens (and from the ⓘ line under the heading afterwards). */
+    fun intro(activity: Activity, always: Boolean = false) {
+        val p = activity.getSharedPreferences(PREFS, 0)
+        if (!always && p.getBoolean("intro_seen", false)) return
+        AlertDialog.Builder(activity).setTitle("How hybrid AI works")
+            .setMessage("• Gemini Nano answers on this phone first: free, private, and it works offline.\n\n" +
+                "• When a request needs the web, is too long, or Nano cannot do it, Nano says so and passes it to the cloud model " +
+                "(Firebase AI Logic), or to your strong model in the Cascade and Critique workflows.\n\n" +
+                "• Every reply says where it ran and how long it took. \"Your hybrid usage\" adds it up.\n\n" +
+                "• Private mode keeps everything on the phone.\n\n" +
+                "• In the agent, Nano's steps are real tool calls, and PocketIDE checks every edit: a broken edit is put back.")
+            .setPositiveButton("Got it") { _, _ -> p.edit().putBoolean("intro_seen", true).apply() }
+            .setOnCancelListener { p.edit().putBoolean("intro_seen", true).apply() }
+            .show()
     }
 
     /** "On this phone (Gemini Nano) · 1.2 s" plus the routing note, if any. */

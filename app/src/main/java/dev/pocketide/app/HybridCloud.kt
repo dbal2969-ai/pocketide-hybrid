@@ -67,6 +67,24 @@ object HybridCloud {
         }
     }
 
+    // ---------------- Performance Monitoring ----------------
+
+    /**
+     * Runs [f] inside a Performance Monitoring trace named [name] (hybrid_phone, hybrid_cloud, …), so the console shows how long
+     * requests take on the phone and in the cloud, on every phone that runs the app. Does nothing without Firebase.
+     */
+    fun <T> traced(name: String, f: () -> T): T {
+        val ctx = HybridAi.appContext
+        val t = try {
+            if (off || ctx == null || !HybridAi.configured(ctx)) null
+            else com.google.firebase.perf.FirebasePerformance.getInstance().newTrace(name).also {
+                it.putAttribute("on_phone_model", if (HybridAi.settings(ctx).fullModel) "full" else "fast")
+                it.start()
+            }
+        } catch (e: Exception) { null }
+        try { return f() } finally { try { t?.stop() } catch (e: Exception) { /* traces are best effort */ } }
+    }
+
     // ---------------- Remote Config ----------------
 
     /** A value set in the console or the in-app defaults; null before the defaults are set (then the built-in values apply). */

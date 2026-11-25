@@ -4,7 +4,10 @@ plugins {
 }
 // #BuildHybridAI: Firebase is configured only when app/google-services.json exists (kept out of git; CI writes it from a
 // secret). Without it the app builds and runs as before, with hybrid AI switched off.
-if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
 
 android {
     externalNativeBuild { ndkBuild { path = file("src/main/cpp/Android.mk") } }
@@ -102,6 +105,9 @@ dependencies {
     implementation("com.google.firebase:firebase-config:24.0.1")
     implementation("com.google.firebase:firebase-auth:25.0.0")
     implementation("com.google.firebase:firebase-firestore:27.2.0")
+    // #BuildHybridAI: Crashlytics (crashes on testers' and judges' phones) and Performance Monitoring (phone vs cloud request times)
+    implementation("com.google.firebase:firebase-crashlytics:21.1.0")
+    implementation("com.google.firebase:firebase-perf:23.0.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")  // MIT licence; runs Android classes on the JVM for the agent harness
 }
