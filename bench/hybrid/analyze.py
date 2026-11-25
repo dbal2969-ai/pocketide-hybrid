@@ -111,7 +111,7 @@ class Tags(html.parser.HTMLParser):
         else: self.problems.append(f"</{tag}> closes nothing")
 
 
-def html_problems(text, files, orig_text):
+def html_problems(text, files, orig_text, where=""):
     t = Tags()
     try: t.feed(text); t.close()
     except Exception as e: return [f"HTML does not parse: {e}"]
@@ -119,7 +119,9 @@ def html_problems(text, files, orig_text):
     for tag in ("html", "head", "body"):
         if t.counts["/" + tag] > 1 or t.counts[tag] > 1: probs.append(f"<{tag}> opens {t.counts[tag]} times and closes {t.counts['/' + tag]} times")
     for src in t.scripts:
-        if not src.startswith("http") and src not in files: probs.append(f"script {src} does not exist")
+        # 1.5.185: a script is found relative to its page (app/index.html loads app/app.js), as the browser does
+        full = os.path.normpath(os.path.join(os.path.dirname(where), src.split("?")[0])).replace(os.sep, "/") if where else src
+        if not src.startswith("http") and full not in files and src not in files: probs.append(f"script {src} does not exist")
     if orig_text is not None:
         o = Tags(); o.feed(orig_text)
         for src in o.scripts:
@@ -205,7 +207,7 @@ def main():
             s = syntax(p, final[p], tmp)
             if s: problems.append(s)
             if p.endswith(".html"):
-                for h in html_problems(final[p], final, orig.get(p)): problems.append(f"{p}: {h}")
+                for h in html_problems(final[p], final, orig.get(p), p): problems.append(f"{p}: {h}")
         for p in removed: problems.append(f"{p} was deleted")
         # deleted lines, and those the reference keeps
         for p in changed:
@@ -243,12 +245,15 @@ def main():
         # from scratch: the app played as a person would (scratch/checks.js), by what it is: snake, calculator, todo, tictactoe, tip
         if suite == "scratch":
             kind = tid.split("-")[1] if "-" in tid else ""
-            if "index.html" not in final: problems.append("no index.html was built")
+            # the page the Preview tab opens: index.html, else the shallowest index.html (s05 built app/index.html)
+            pages = sorted((p for p in final if p.split("/")[-1] == "index.html"), key=lambda p: p.count("/"))
+            if not pages: problems.append("no index.html was built")
             else:
+                if pages[0] != "index.html": notes.append(f"the page is {pages[0]} (not at the top of the project)")
                 d = tempfile.mkdtemp()
                 for p, s in final.items():
                     fp = os.path.join(d, p); os.makedirs(os.path.dirname(fp), exist_ok=True); open(fp, "w").write(s)
-                r = subprocess.run(["node", os.path.join(HERE, "scratch", "checks.js"), d, kind], capture_output=True, text=True, timeout=600,
+                r = subprocess.run(["node", os.path.join(HERE, "scratch", "checks.js"), os.path.join(d, os.path.dirname(pages[0])), kind], capture_output=True, text=True, timeout=600,
                                    env={**os.environ, "NODE_PATH": subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip()})
                 try:
                     cs = json.loads(r.stdout.strip().splitlines()[-1])["checks"]

@@ -73,6 +73,16 @@ object CloudTier {
 
     fun lower(t: Tier): Tier? = when (t) { Tier.BEST -> Tier.BALANCED; Tier.BALANCED -> Tier.FAST; Tier.FAST -> null }
 
+    /**
+     * The tier that answers when [t] cannot (out of quota, busy, not available), 1.5.185: the next one down, or when none is left
+     * below, one above (from-scratch run 1125-1218: Balanced's quota ran out, Fast was then out of quota or busy, and four requests
+     * died although Best had never been tried). Never one in [tried] (this step) or [skip] (cooling down or unavailable).
+     */
+    fun fallback(t: Tier, tried: Set<Tier>, skip: Set<Tier>): Tier? {
+        val order = generateSequence(lower(t)) { lower(it) }.toList() + listOf(Tier.BALANCED, Tier.BEST, Tier.FAST)
+        return order.firstOrNull { it != t && it !in tried && it !in skip }
+    }
+
     // 1.5.184 (hard run 3): "Role 'function' is not supported" matched a loose "is not supported" and Balanced was skipped for the
     // session; only errors about the model itself count now
     private val UNAVAILABLE = Regex("""(?i)(models?/\S+\s+(is\s+)?not\s+(found|supported|available)|model\s+\S*\s*(is\s+)?not\s+(found|available)|not\s+found\s+for\s+api|\bNOT_FOUND\b|\b404\b|Blaze|billing|pay-as-you-go|no\s+access\s+to\s+(the\s+)?model)""")

@@ -265,7 +265,7 @@ object ModelClient {
                         main.post { if (!call.cancelled) listener.onStatus("Thinking (hybrid AI)…") }
                         val hctx = hybridCtx()
                         fun emit(res: HybridAgent.Result, handoff: String, reason: String) {
-                            HybridCloud.log(if (res.onDevice) "phone" else "cloud", res.seconds, reason, "agent")
+                            if (res.model != HybridAgent.APP_STEP) HybridCloud.log(if (res.onDevice) "phone" else "cloud", res.seconds, reason, "agent")
                             val lab = HybridScreen.label(HybridAi.Reply("", res.onDevice, res.seconds, res.note, res.model))
                             val shown = listOf(handoff, res.turn.text, lab).filter { it.isNotBlank() }.joinToString("\n\n")
                             main.post { if (!call.cancelled) { listener.onStatus(lab); listener.onTurn(res.turn.copy(text = shown)) } }

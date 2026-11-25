@@ -24,6 +24,7 @@ object Prompts {
     const val PHONE_NOTE =
         "The user is on an Android phone with a touchscreen and no keyboard or mouse. Anything you build that has controls must work by touch: " +
             "on-screen buttons, taps or swipes, never keyboard-only input (keyboard keys may be added as well). " +
+            "An app, game or tool asked for without naming a language or platform is a web page: index.html with its script and style, shown in the Preview tab (not a Node command-line program). " +
             "For web pages add <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">, make tap targets at least 44 px, and design for a narrow portrait screen. " +
             "Mention an APK only when the user asked for one earlier in this chat: then, once you have built or fixed the web app it would wrap, end your reply by saying they can ask you for the APK when they are happy with it. Otherwise do not mention an APK."
 

@@ -83,10 +83,20 @@ object Design {
 
     /** Told to the model when the app already set the kit up. */
     fun builtNote(kind: String, dir: String, result: String): String =
-        "\n\nTHE STARTER KIT IS ALREADY SET UP: before you started, the app ran game_assets action=scaffold kind=$kind out=$dir. " + result.lineSequence().first().take(400) +
+        "\n\n$KIT_MARK: before you started, the app ran game_assets action=scaffold kind=$kind out=$dir. " + result.lineSequence().first().take(400) +
             "\nIt runs, and its play tests in ${PlayTests.FILE} pass. Do not scaffold again or start over. Write PLAN.md for the request, shape the kit to it (its data files first: " +
             (if (kind == "rpg3d") "$dir/design.json and $dir/data/content.json" else if (kind in APP_KITS) "$dir/app.json" else "$dir/main.js") +
-            "), add a play test for every new item, and finish when look_at_preview test=all passes."
+            ")" + (if (kind in APP_KITS) KIT_SAMPLES else "") + ", add a play test for every new item, and finish when look_at_preview test=all passes."
+
+    /** The marker Gemini Nano's prompt looks for (HybridAgent.head), since its own prompt replaces the system prompt. */
+    const val KIT_MARK = "THE STARTER KIT IS ALREADY SET UP"
+
+    /**
+     * 1.5.185 (from-scratch run 1125-1218, s05): "Make a to-do list app" was finished as the kit came, with its made-up records
+     * ("Plan the week", "Call the dentist"), due dates, priorities and tags the person never asked for.
+     */
+    const val KIT_SAMPLES = "; app.json comes with made-up sample records and fields from the template: remove the samples (the person's " +
+        "list starts empty unless they gave items) and keep only the fields and views the request needs, named in the person's words"
 
     /** The note with the request's own items listed, so none is forgotten, and the kit to start from when one fits. */
     fun note(request: String): String {

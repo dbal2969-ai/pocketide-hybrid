@@ -9,6 +9,7 @@ import dev.pocketide.app.core.ToolCall
 import dev.pocketide.app.core.ToolTurn
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -245,6 +246,53 @@ class HybridAgentLoopTest {
         val msgs = listOf(mapOf<String, Any?>("role" to "user", "content" to "Fix add"), mapOf<String, Any?>("role" to "tool", "tool_call_id" to "x", "content" to big))
         val p = HybridAgent.phonePrompt(false, msgs, 14000)!!
         assertTrue("the whole ${big.length}-character result is in the prompt", p.contains("note line 150 "))
+    }
+
+    @Test fun theAppLooksItselfUpBeforeNanoAnswers() {
+        // 1.5.185 (in-app run 1): Nano answered "I do not have access to PocketIDE's documentation" without calling app_help
+        val prompts = ArrayList<String>()
+        HybridAgent.testPhone = { p -> prompts.add(p); """{"reason":"from app_help","tool":"answer","tool_args":{"text":"Paste it in ⚙ Settings › AI provider › API key."}}""" }
+        cloud()
+        val o = run("Where do I paste my Groq API key in PocketIDE?")
+        assertFalse("timed out", o.timedOut)
+        assertEquals("app_help", o.names.first())
+        assertTrue("Nano answers from the lookup", prompts.isNotEmpty() && prompts.first().contains("Found in PocketIDE"))
+        assertTrue(prompts.first().contains("- app_help"))
+        assertEquals(0, cloudCalls)
+    }
+
+    @Test fun aBuildRequestNanoOnlyAnswersGoesToTheCloud() {
+        // 1.5.185 (from-scratch run, s10): "Build what we discussed above." got Nano's "I have provided the function" and nothing was built
+        nano("""{"reason":"done","tool":"answer","tool_args":{"text":"I have provided the JavaScript function. Save it in a file."}}""")
+        cloud(tools("write_file", "path" to "tip.js", "content" to "module.exports = {};\n"))
+        val o = run("Build a tip calculator page")
+        assertFalse("timed out", o.timedOut)
+        assertTrue("the cloud built it", cloudCalls >= 1 && o.names.contains("write_file"))
+        val msgs = listOf(mapOf<String, Any?>("role" to "user", "content" to "What does add do?"))
+        assertFalse(HybridAgent.answersATaskUndone(msgs))
+        assertTrue(HybridAgent.answersATaskUndone(listOf(mapOf<String, Any?>("role" to "user", "content" to "Build what we discussed above."))))
+        val chat = listOf(mapOf<String, Any?>("role" to "system", "content" to dev.pocketide.app.core.ChatHome.NOTE), mapOf<String, Any?>("role" to "user", "content" to "Make a to-do list app"))
+        assertFalse("in the Chat home answering is the job", HybridAgent.answersATaskUndone(chat))
+    }
+
+    @Test fun nanoHearsAboutTheStarterKit() {
+        val msgs = listOf(mapOf<String, Any?>("role" to "system", "content" to "SYS" + dev.pocketide.app.core.Design.builtNote("crud", "app", "Wrote the crud app kit to app")),
+            mapOf<String, Any?>("role" to "user", "content" to "Make a to-do list app"))
+        val p = HybridAgent.phonePrompt(false, msgs, 14000)!!
+        assertTrue(p.contains(dev.pocketide.app.core.Design.KIT_MARK) && p.contains("remove the samples"))
+    }
+
+    @Test fun appFirstOnlyForTheAppAndOnlyFirst() {
+        fun user(t: String) = listOf(mapOf<String, Any?>("role" to "user", "content" to dev.pocketide.app.core.PromptCache.withContext("Project files: app.js, index.html", t)))
+        assertEquals("app_help", HybridAgent.appFirst(user("How do I keep my code on this phone so it never goes to the cloud?"))?.name)
+        assertEquals("app_help", HybridAgent.appFirst(user("How do I turn on the built-in Pomodoro timer?"))?.name)
+        assertEquals("app_help", HybridAgent.appFirst(user("Set my OpenAI API key to sk-test-123 for me."))?.name)
+        val wrap = HybridAgent.appFirst(user("Turn on word wrap in the editor."))!!
+        assertEquals("app_settings", wrap.name); assertTrue(wrap.arguments, wrap.arguments.contains("\"value\":\"true\"") && wrap.arguments.contains("editorWrap"))
+        assertTrue(HybridAgent.appFirst(user("Switch the hybrid cloud model to Best."))!!.arguments.contains("\"value\":\"best\""))
+        assertNull(HybridAgent.appFirst(user("Fix add in app.js so the test passes")))
+        assertNull(HybridAgent.appFirst(user("Make a to-do list app")))
+        assertNull(HybridAgent.appFirst(user("Where do I paste my Groq API key?") + listOf(mapOf("role" to "tool", "content" to "x"))))
     }
 
     @Test fun inTheChatHomeNanoIsToldThereIsNoProject() {

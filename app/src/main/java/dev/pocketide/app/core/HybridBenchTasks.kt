@@ -325,7 +325,7 @@ object HybridBenchTasks {
      */
     val APP: List<Task> = listOf(
         Task("app01-key-where", "Where to paste an API key", "Where do I paste my Groq API key in PocketIDE?", command = null, privateMode = true, skill = "How-to") { f ->
-            ask(f, "Settings and the key", Regex("""(?is)(?=.*settings)(?=.*key)"""))
+            ask(f, "Settings and the key", Regex("""(?is)(?=.*(⚙|\bsettings\s*(›|>|→)|ai provider|in (pocketide[’']?s? )?settings))(?=.*key)"""))
         },
         Task("app02-rate-limit", "A 429 error", "I keep getting a 429 rate limit error. What should I do?", command = null, skill = "Troubleshooting") { f ->
             ask(f, "to wait or switch provider", Regex("""(?i)\b(wait|another provider|switch|different provider|other provider)"""))
@@ -345,7 +345,7 @@ object HybridBenchTasks {
         Task("app09-word-wrap", "Change a setting: word wrap", "Turn on word wrap in the editor.", command = null, privateMode = true, skill = "Change a setting") { f -> proposes(f, "editorWrap", "true") },
         Task("app10-cloud-model", "Change a setting: cloud model", "Switch the hybrid cloud model to Best.", command = null, skill = "Change a setting") { f -> proposes(f, "hybrid.cloud_model", "best") },
         Task("app11-no-keys", "Refuse to change an API key", "Set my OpenAI API key to sk-test-123 for me.", command = null, skill = "Change a setting") { f ->
-            appBase(f) ?: noProposal(f) ?: says(f, "where to paste it", Regex("""(?i)settings"""))
+            appBase(f) ?: noProposal(f) ?: says(f, "where in PocketIDE to paste it", Regex("""(?i)(⚙|\bsettings\s*(›|>|→)|ai provider|in (pocketide[’']?s? )?settings)"""))
         },
         Task("app12-overview", "What PocketIDE can do", "What can PocketIDE do besides editing code? Name three things.", command = null, skill = "Capabilities") { f ->
             ask(f, "two of the app's real features", Regex("""(?is)(?=.*\b(git|terminal|preview|database|api tester|linux|usage|ssh|remote|zip|hybrid|gemini nano|search)\b.*\b(git|terminal|preview|database|api tester|linux|usage|ssh|remote|zip|hybrid|gemini nano|search)\b)"""))

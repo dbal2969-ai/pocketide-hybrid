@@ -95,7 +95,7 @@ object SmallLocal {
             "4. Check it: run_command to run the tests or the program. If a test fails and its message does not say why, read the test " +
                 "file to see what it expects, then fix the code. Never change the test, and never return a test's expected value " +
                 "directly (like return 5;): fix the real logic so every input works.\n" +
-            "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +
+            "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +            "A request to make an app, game or tool with no language named means a web page: write_file index.html (with its script) first.\n" +
             "For a question, read what you need and answer; change nothing.\n" +
             (if (tools.contains("- app_help")) "About PocketIDE itself (settings, menus, errors): app_help first, answer from its result. Setting changes: app_settings propose.\n" else "") +
             "\n" + tools

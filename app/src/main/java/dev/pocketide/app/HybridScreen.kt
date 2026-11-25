@@ -302,7 +302,7 @@ object HybridScreen {
 
     /** "On this phone (Gemini Nano) · 1.2 s" plus the routing note, if any. */
     fun label(r: HybridAi.Reply): String =
-        (if (r.onDevice) "⚡ Ran on this phone (Gemini Nano)" else "☁ Ran in the cloud (${r.model.ifBlank { HybridCloud.cloudModel() }})") +
+        (if (r.onDevice && r.model == HybridAgent.APP_STEP) "⚡ PocketIDE did this step itself (no model)" else if (r.onDevice) "⚡ Ran on this phone (Gemini Nano)" else "☁ Ran in the cloud (${r.model.ifBlank { HybridCloud.cloudModel() }})") +
             " · ${"%.1f".format(r.seconds)} s" + (if (r.note.isNotEmpty()) "\n" + r.note else "")
 
     /** Editor quick assist: one action on the selected lines, shown in a dialog with where it ran. */

@@ -49,7 +49,18 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   page.on('pageerror', e => errors.push('page error: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   page.on('requestfailed', r => errors.push('failed to load: ' + r.url().split('/').pop()));
-  const url = 'file://' + path.join(dir, 'index.html');
+  // served over http, as the app's Preview serves it: pages that load ES modules do not run from file:// (s05 in run 1125-1218)
+  const server = require('http').createServer((req, res) => {
+    const p = path.join(dir, decodeURIComponent(req.url.split('?')[0]).replace(/\/$/, '/index.html'));
+    if (!p.startsWith(dir)) { res.writeHead(403); return res.end(); }
+    require('fs').readFile(p, (err, data) => {
+      if (err) { res.writeHead(404); return res.end(); }
+      const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
+      res.writeHead(200, { 'Content-Type': types[path.extname(p)] || 'application/octet-stream' }); res.end(data);
+    });
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const url = 'http://127.0.0.1:' + server.address().port + '/index.html';
   try { await page.goto(url); } catch (e) { check('the page opens', false, e.message); }
   await wait(700);
   check('loads with no errors', errors.length === 0, errors.join('; '));
@@ -180,5 +191,6 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   check('no errors while playing', errors.length === 0, errors.join('; '));
   await browser.close();
+  server.close();
   console.log(JSON.stringify({ checks }));
 })();

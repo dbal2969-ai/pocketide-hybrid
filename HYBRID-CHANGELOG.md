@@ -50,6 +50,8 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | local 1125-0955 (local run 1) | `e379bb8` | **12 of 20** (Gemini Nano alone) | 115 of 115 | Find and explain 0 of 4, but Nano's answers were right ("rules.js"; "it passed"): "Change nothing" made the app take each as a task and end it "Nothing was changed", and final answers were not in the chat log. Nano's own failures: a search for a block's first line or a line's start with a whole new block or line as the replacement (l08 syntax error, l11 doubled keys); edit_lines 3–5 used to insert, deleting three cases (l13); a module without module.exports (l17); it tried to edit test.js (refused). 32 refused calls, 4 repeated reads, 0 unusable replies. l02's one Nano call took 548 s (the app was off screen) | `1ababce` |
 | local 1125-1040 (local run 2) | `1ababce` | **19 of 20** | 116 of 116 | every skill but one at 100%: Find and explain 4/4 (was 0/4), Add new code 6/6, New file 2/2, Two files 3/3; refused calls 32 → 12. Only l08 failed: told "label gave Unknown Name (30)", Nano added fallbacks twice and never read test.js to learn the property is `name` | `33dd884` |
 | local 1125-1111 (local run 3) | `33dd884` | app 18 of 20; **analysis 16 clean** | 116 of 116 | l08 now passes (Nano read the test). The full analysis found two passes that were wrong: l05 `return 5;` (the visible test's answer, hard-coded) and l13 `Default:` (a label, not the default case). Fails: l12 replaced the line it meant to insert after (ArrowRight lost, tap added twice); l19 left the old module.exports after the new one. l18 was right but ended "getScore still appears" because the test names the old name | `fb9312f` |
+| scratch 1125-1218 (from-scratch run 1) | `3a8cd77` | app 4 of 10; **analysis 3 clean, 1 with problems** | 26 of 125 | Four requests died on quota or busy errors with Best never tried; Nano in the Chat home took leftover files for "an isometric RPG"; after Build this Nano only answered (s10); the tip calculator became a Node CLI (s09); the to-do kit was kept with made-up records (s05) | `509f511`, `ce51e65`, (next) |
+| app 1125-1338 (in-app questions run 1) | `103b58d` | app 3 of 14 | 12 of 19 | Nano was never offered app_help (the project context's file names hid the question), answered from what it thought it knew, and its refusals showed as JSON; the cloud passed app03 and app07 | (next) |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -516,6 +518,51 @@ the files after the run, `transcript.txt` and `check.txt`.
   them**, which asks for a second confirmation. Nothing happens unless the person chooses.
 - **Files:** ChatPane.kt (`moreMenu`, `chatLeftovers`).
 - **Tests:** none new (UI only); 1,308 tests, 0 failures.
+
+### (next) · 2026-11-25 14:10 · Fixes from in-app run 1 (3 of 14) and from-scratch run 1 (4 of 10)
+- **Why:** both runs were analysed in full with analyze.py, passes as well as fails.
+  - **In-app run 1125-1338:**
+    - Nano never got the app tools. `SmallLocal.forApp` tested the whole message, project context included, and the context's
+      file names (app.js, index.html) made every request look like a project request.
+    - Without the tools, Nano answered from what it thought it knew ("I do not have access to PocketIDE's documentation").
+    - In Private mode, two of those refusals were shown as raw JSON.
+    - The cloud model answered "blank Preview" from app.js instead of Help.
+    - app11 passed with wrong advice ("set the key in your configuration files"), because the check only looked for the word
+      "settings".
+  - **From-scratch run 1125-1218:**
+    - s01, s03, s02 and s08 died on quota or "high demand" errors: Balanced was cooling down, Fast failed too, and Best was never
+      tried.
+    - s10: after Build this as a project, Nano answered "I have provided the function" and nothing was built.
+    - s09: the tip calculator became a Node readline program.
+    - s05: the to-do list was finished exactly as the starter kit came, with made-up records and fields. Nano never heard about
+      the kit, because the note is in the system prompt its own prompt replaces.
+    - The analyzer opened pages from file://, where pages that load ES modules do not run, and looked for scripts at the project
+      top level.
+- **Change:**
+  - **The app looks itself up first.** For a question about PocketIDE, or a request about an API key or token, PocketIDE calls
+    app_help itself before any model. For a request to change one of its settings ("Turn on word wrap", "Switch the cloud model
+    to Best"), it shows the proposal card first. The step is labelled "⚡ PocketIDE did this step itself (no model)" and is not
+    counted as a Nano step. The app tools and the app note now read the person's own words, not the project context.
+  - **Recognising questions about the app:** a word that only makes sense about the app (on this phone, the cloud, built-in, API
+    key…) counts even next to "my code".
+  - **Private mode:** a refusal written as an answer is shown as text, not JSON.
+  - **Cloud fallback:** when a cloud tier is out of quota, busy or unavailable, the next tier down answers; when none is left
+    below, one above does. A busy model with nothing else to try is asked again once after 8 s.
+  - **Nano answering instead of doing:** a request to do something that Nano only answers, before any tool call, is passed on.
+    In Private mode, Nano is asked once more to take a first step. This does not apply in the chat with no project.
+  - **Web page by default:** an app, game or tool asked for with no language named is a web page (index.html), in the main
+    prompt and in Nano's.
+  - **Starter kits:** for app kits, the note says to remove the template's sample records and keep only the fields the request
+    needs, and it now reaches Nano too.
+  - **Analyzer:** `scratch/checks.js` serves the page over http like the Preview does, and analyze.py finds the page in a
+    subfolder and resolves scripts relative to it. All five reference apps still pass every check.
+  - **Stricter checks:** app01 and app11 now need a real place in PocketIDE (⚙ / Settings › / AI provider).
+- **Files:** HybridAgent.kt (`appFirst`, `requestOf`, `answersATaskUndone`, `kitNote`, tier fallback), HybridScreen.kt (label),
+  ModelClient.kt, core/AppHelp.kt (`settingValue`, app signals), core/CloudTier.kt (`fallback`), core/Design.kt (`KIT_MARK`,
+  `KIT_SAMPLES`), core/Prompts.kt, core/SmallLocal.kt, core/HybridBenchTasks.kt; bench/hybrid/analyze.py, scratch/checks.js.
+- **Tests:** ScratchRun1Test (3), HybridAgentLoopTest (+4: theAppLooksItselfUpBeforeNanoAnswers, appFirstOnlyForTheAppAndOnlyFirst,
+  aBuildRequestNanoOnlyAnswersGoesToTheCloud, nanoHearsAboutTheStarterKit), AppSelfKnowledgeTest (+1). 1,316 tests, 0 failures.
+- **Evidence:** pocketide-hybrid-app-benchmark-1125-1338 and pocketide-hybrid-scratch-benchmark-1125-1218, with their analyses.
 
 ---
 

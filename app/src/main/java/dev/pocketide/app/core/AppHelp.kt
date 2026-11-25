@@ -165,15 +165,31 @@ object AppHelp {
 
     private fun isKindWord(s: String) = AppMap.Kind.values().any { it.about == s }
 
-    private val ABOUT_APP = Regex("""(?i)\b(pocketide|this app|the app|in the app|setting|settings|menu|button|tab|api key|key for|rate limit|quota|""" +
-        """4(01|03|04|29)\b|preview (tab|is blank)|word wrap|light theme|dark (mode|theme)|agent mode|ask mode|plan mode|hybrid|gemini nano|""" +
-        """private mode|cloud model|usage|cost|slash command|checkpoint|undo|terminal|git(hub)?\b|provider|model)\b""")
+    // 1.5.185 (in-app run 1): words that only make sense about PocketIDE itself, even next to "my code" ("keep my code on this phone")
+    private val ABOUT_APP_STRONG = Regex("""(?i)\b(pocketide|this app|the app|in the app|settings?|menu|api key|rate limit|quota|""" +
+        """4(01|03|29)\b|preview tab|word wrap|light theme|dark (mode|theme)|agent mode|ask mode|plan mode|hybrid|gemini nano|""" +
+        """private mode|cloud model|usage|slash commands?|on this phone|the cloud|built-in)\b""")
+    // words that are about the app unless the request is about the person's project
+    private val ABOUT_APP_WEAK = Regex("""(?i)\b(button|tab|key for|preview|undo|terminal|git(hub)?|provider|model|cost|checkpoints?|""" +
+        """turn (on|off)|feature|option)\b""")
     private val ABOUT_PROJECT = Regex("""(?i)\b(my|the|this) (web ?app|page|site|website|game|project|code|function|file|script)\b|\.(js|html|css|json|py|ts|kt)\b|\bin (the )?(index|app|game|main)\b""")
 
     /** True when [request] is about PocketIDE itself rather than the person's project (small models get pointed at app_help). */
-    fun aboutApp(request: String): Boolean = ABOUT_APP.containsMatchIn(request) && !ABOUT_PROJECT.containsMatchIn(request)
+    fun aboutApp(request: String): Boolean = ABOUT_APP_STRONG.containsMatchIn(request) ||
+        (ABOUT_APP_WEAK.containsMatchIn(request) && !ABOUT_PROJECT.containsMatchIn(request))
 
     private val CHANGE_SETTING = Regex("""(?i)^\s*(please\s+)?(can you\s+|could you\s+)?((turn|switch|set|change)\b.*\b(on|off|to)\b|(enable|disable|untick|tick)\b)""")
+
+    /** The value [request] asks for: "to Best" → "best", "turn on" / "enable" → "true", "off" / "disable" → "false", else null. */
+    fun settingValue(request: String): String? {
+        Regex("""(?i)\bto\s+([A-Za-z]+)(\s+mode)?\s*[.!]?\s*$""").find(request.trim())?.let { m -> val v = m.groupValues[1].lowercase()
+            return when (v) { "on", "true", "yes" -> "true"; "off", "false", "no" -> "false"; else -> v } }
+        return when {
+            Regex("""(?i)\b(turn|switch|set)\b[^.]*\b(off)\b|\b(disable|untick)\b""").containsMatchIn(request) -> "false"
+            Regex("""(?i)\b(turn|switch|set)\b[^.]*\b(on)\b|\b(enable|tick)\b""").containsMatchIn(request) -> "true"
+            else -> null
+        }
+    }
 
     /**
      * The setting [request] asks to change ("Turn on word wrap in the editor" → editorWrap), or null. Only requests that start with a

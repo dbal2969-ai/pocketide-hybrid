@@ -50,7 +50,37 @@ object HybridAgent {
     private const val HANDOFF_MARK = "⚡ Gemini Nano (on this phone): I'm passing this to"
     private const val FALLBACK_MARK = " instead. Why: "
 
+    /** The model name of a step PocketIDE took itself, with no model call ([appFirst]); HybridScreen.label names it. */
+    const val APP_STEP = "PocketIDE itself"
+
+    /** The person's own words in a user message (PromptCache.withContext puts the project context first). */
+    fun requestOf(text: String): String = text.substringAfterLast("My request:\n")
+
+    /**
+     * 1.5.185 (in-app run 1: 1 of 9 Nano tasks): asked about PocketIDE, Gemini Nano answered from what it thinks it knows ("I do not
+     * have access to PocketIDE's documentation") instead of calling app_help, and the cloud model once read app.js instead. For a
+     * question about the app, or a request to change one of its settings, PocketIDE now takes the first step itself, before any
+     * model: it looks the question up (app_help), or proposes the change (app_settings, a card the person approves). The model
+     * answers from that result. Null when the request is not about the app or a step was already taken.
+     */
+    fun appFirst(messages: List<Map<String, Any?>>): ToolCall? {
+        if (messages.any { it["role"] == "tool" || it["role"] == "assistant" && (it["tool_calls"] as? List<*>).orEmpty().isNotEmpty() }) return null
+        val ask = requestOf(messages.lastOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty()).trim()
+        if (ask.isEmpty()) return null
+        val app = dev.pocketide.app.core.AppHelp
+        app.settingRequest(ask)?.let { item ->
+            app.settingValue(ask)?.let { v -> return ToolCall("app-first", dev.pocketide.app.core.AppSettingsTool.NAME,
+                MiniJson.write(mapOf("action" to "propose", "key" to item.setting, "value" to v, "why" to "You asked: " + ask.take(120)))) }
+        }
+        // a question about the app, or any request about an API key or token (app11: "Set my OpenAI API key…" got advice to edit config files)
+        if (app.aboutApp(ask) && (dev.pocketide.app.core.Intent.of(ask) == dev.pocketide.app.core.Intent.Kind.QUESTION || Regex("""(?i)\b(api key|token)\b""").containsMatchIn(ask)))
+            return ToolCall("app-first", "app_help", MiniJson.write(mapOf("query" to ask.take(200))))
+        return null
+    }
+
     fun phone(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
+        appFirst(messages)?.let { c -> return Phone(Result(ToolTurn("", listOf(c), "tool_calls"), true, 0.0,
+            if (c.name == "app_help") "PocketIDE looked up its own help and settings first." else "PocketIDE proposed the setting change first.", APP_STEP), "") }
         val p = phoneStep(ctx, messages, docs)
         val r = p.result ?: return p
         if (HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE || online(ctx)) return p
@@ -127,9 +157,19 @@ object HybridAgent {
             return Phone(Result(ToolTurn("Done: the check passed after the change, so I left the files as they are.", emptyList(), "stop"), true, secs,
                 "Gemini Nano tried to undo a change that had just passed the check; it was not run."), "")
         if (turn != null) return Phone(Result(turn, true, secs, ""), "")
-        if (only) return Phone(Result(ToolTurn(reply.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")
+        if (turn == null && only && why.startsWith("answered without doing")) {
+            val note = "\nNOTE: nothing has been done yet. Take the first step with a tool: write_file to create a file, or read_file or search to look.\nYour reply, one JSON object:"
+            val retry = try { testPhone?.invoke(prompt + note) ?: HybridAi.onDeviceText(ctx, prompt + note) } catch (e: Exception) { null }
+            if (retry != null) { val t2 = phoneTurn(retry, messages); turn = t2.first; why = t2.second; if (turn != null) return Phone(Result(turn, true, secs, ""), "") }
+        }
+        // 1.5.185 (in-app run 1, app01/app04): a refusal written as an answer action was shown as raw JSON; its text is shown instead
+        val shown = (if (SmallLocal.isAction(reply)) SmallLocal.parse(reply) { Tools.paramTypes(it) }.text else "").ifBlank { reply.trim() }
+        if (only) return Phone(Result(ToolTurn(shown.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")
         return Phone(null, "Gemini Nano $why")
     }
+
+    /** How long a busy model is left before it is asked again, when no other tier can answer. */
+    private const val BUSY_WAIT_MS = 8_000L
 
     /** The turn on the cloud model through Firebase AI Logic, with every tool as a function. Blocking. */
     fun cloud(ctx: Context, system: String, messages: List<Map<String, Any?>>, tools: List<*>?): Result {
@@ -141,7 +181,10 @@ object HybridAgent {
         var lastError: Exception? = null
         var fellBack = ""
         // a tier this project cannot use is skipped for the session and the next one down answers; a refused thinking setting is dropped
-        repeat(4) {
+        val tried = HashSet<dev.pocketide.app.core.CloudTier.Tier>()
+        var waited = false
+        repeat(6) {
+            tried.add(tier)
             val model = HybridAi.cloudToolModel(ctx, system, decl, tier)
             val ask = { HybridCloud.traced("hybrid_cloud") { runBlocking { model.generateContent(contents(messages)) } } }
             try {
@@ -164,20 +207,23 @@ object HybridAgent {
                     // 1.5.184 (hard run 5): the free quota ran out ("check your plan and billing details"); it refills, so a cool-down
                     dev.pocketide.app.core.CloudTier.quota(msg) -> {
                         HybridAi.coolUntil[tier] = System.currentTimeMillis() + dev.pocketide.app.core.CloudTier.QUOTA_COOLDOWN_MS
-                        val down = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
+                        val down = dev.pocketide.app.core.CloudTier.fallback(tier, tried, HybridAi.skipNow()) ?: throw e
                         fellBack = "${tier.label} (${tier.model}) used up its free request quota for now, so ${down.label} answers for the next " +
                             "${dev.pocketide.app.core.CloudTier.QUOTA_COOLDOWN_MS / 60_000} minutes (${msg.take(100)})."
                         tier = down
                     }
                     // 1.5.184 (hard run 4): "high demand" is Google's servers, not the project; the next tier down answers this step only
                     dev.pocketide.app.core.CloudTier.busy(msg) -> {
-                        val down = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
-                        fellBack = "${tier.label} (${tier.model}) was busy, so ${down.label} answered this step (${msg.take(120)})."
+                        // with every other tier tried, a busy model is asked once more after a pause (demand spikes pass)
+                        val down = dev.pocketide.app.core.CloudTier.fallback(tier, tried, HybridAi.skipNow())
+                            ?: if (!waited) { waited = true; Thread.sleep(BUSY_WAIT_MS); tried.clear(); tier } else throw e
+                        fellBack = if (down == tier) "${tier.label} (${tier.model}) was busy; it was asked again after a pause (${msg.take(120)})."
+                            else "${tier.label} (${tier.model}) was busy, so ${down.label} answered this step (${msg.take(120)})."
                         tier = down
                     }
                     dev.pocketide.app.core.CloudTier.unavailable(msg) -> {
                         HybridAi.skipTiers.add(tier)
-                        val down = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
+                        val down = dev.pocketide.app.core.CloudTier.fallback(tier, tried, HybridAi.skipNow()) ?: throw e
                         fellBack = "${tier.label} (${tier.model}) is not available to this project, so ${down.label} answers from now on (${msg.take(160)})."
                         tier = down
                     }
@@ -286,13 +332,25 @@ object HybridAgent {
         return maxOf(2000, limit - head(docs, messages).length - TAIL.length - first.length - 1500)
     }
 
+    /**
+     * 1.5.185 (from-scratch run 1125-1218, s05): the app set up a starter kit before the request and said so in the system prompt,
+     * which Nano's own prompt replaces; Nano listed the files as if the project were empty. The note now reaches Nano too.
+     */
+    private fun kitNote(messages: List<Map<String, Any?>>): String {
+        val sys = messages.firstOrNull { it["role"] == "system" }?.let { textOf(it["content"]) }.orEmpty()
+        val i = sys.indexOf(dev.pocketide.app.core.Design.KIT_MARK)
+        if (i < 0) return ""
+        return "\n" + sys.substring(i).substringBefore("\n\n").take(900)
+    }
+
     /** 1.5.185: the app tools are offered when the person's latest request is about PocketIDE itself (SmallLocal.forApp). */
     private fun head(docs: Boolean, messages: List<Map<String, Any?>>): String {
-        val asked = messages.lastOrNull { it["role"] == "user" && textOf(it["content"]).isNotEmpty() }?.let { textOf(it["content"]) }.orEmpty()
+        // 1.5.185: the person's own words, not the project context before them (its file names made every request look like a project's)
+        val asked = requestOf(messages.lastOrNull { it["role"] == "user" && textOf(it["content"]).isNotEmpty() }?.let { textOf(it["content"]) }.orEmpty())
         // 1.5.185: the Chat home (no project) is known from its note in the system prompt, which Nano's own prompt replaces
         val chatHome = messages.any { it["role"] == "system" && textOf(it["content"]).contains(dev.pocketide.app.core.ChatHome.LABEL_NOTE) }
         return SmallLocal.system(Tools.smallCatalogue(docs, SmallLocal.forApp(asked), chatHome)) +
-            (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + "\n\nThe conversation so far, oldest first:\n"
+            (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + kitNote(messages) + "\n\nThe conversation so far, oldest first:\n"
     }
     private const val TAIL = "\nYour reply, one JSON object:"
 
@@ -425,8 +483,27 @@ object HybridAgent {
         val wrote = messages.any { m -> (m["tool_calls"] as? List<*>).orEmpty().any { callOf(it)?.name in WRITES } }
         if (!wrote && CLAIM.containsMatchIn(p.text)) return null to "said it changed files, but no file was written"
         if (p.text.isBlank()) return null to "gave an empty answer"
+        if (answersATaskUndone(messages)) return null to "answered without doing anything the request asked for"
         return ToolTurn(p.text, emptyList(), "stop") to ""
     }
+
+    /**
+     * 1.5.185 (from-scratch run 1125-1218, s10): after Build this as a project, "Build what we discussed above." in an empty project got
+     * Nano's "I have provided the JavaScript function… save it in a file" and the request ended with nothing built. A request to do
+     * something (not a question or a report) that Nano answers before any tool call in it is passed on (in Private mode, asked again).
+     * Not in the Chat home, where answering is the job.
+     */
+    fun answersATaskUndone(messages: List<Map<String, Any?>>): Boolean {
+        if (messages.any { it["role"] == "system" && textOf(it["content"]).contains(dev.pocketide.app.core.ChatHome.LABEL_NOTE) }) return false
+        // the person's message (the app's later notes are user messages too, without "My request:")
+        val start = messages.indexOfLast { it["role"] == "user" && textOf(it["content"]).contains("My request:") }
+            .let { if (it >= 0) it else messages.indexOfLast { m -> m["role"] == "user" } }
+        if (start < 0) return false
+        if (messages.drop(start + 1).any { (it["tool_calls"] as? List<*>).orEmpty().isNotEmpty() || it["role"] == "tool" }) return false
+        val ask = requestOf(textOf(messages[start]["content"])).trim()
+        return dev.pocketide.app.core.Intent.of(ask) == dev.pocketide.app.core.Intent.Kind.TASK && !dev.pocketide.app.core.AppHelp.aboutApp(ask)
+    }
+
 
     // ---------------- cloud: Firebase AI Logic function calling ----------------
 

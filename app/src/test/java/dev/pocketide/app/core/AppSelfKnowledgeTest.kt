@@ -77,6 +77,18 @@ class AppSelfKnowledgeTest {
         assertFalse(AppHelp.aboutApp("What does step() in snake.js return?"))
     }
 
+    @Test fun valuesAndAppSignalsFromInAppRun1() {
+        assertEquals("true", AppHelp.settingValue("Turn on word wrap in the editor."))
+        assertEquals("false", AppHelp.settingValue("Turn word wrap off"))
+        assertEquals("best", AppHelp.settingValue("Switch the hybrid cloud model to Best."))
+        assertEquals("plan", AppHelp.settingValue("Switch to plan mode"))
+        assertTrue(AppHelp.aboutApp("How do I keep my code on this phone so it never goes to the cloud?"))
+        assertTrue(AppHelp.aboutApp("How do I turn on the built-in Pomodoro timer?"))
+        assertTrue(AppHelp.aboutApp("I keep getting a 429 rate limit error. What should I do?"))
+        assertFalse(AppHelp.aboutApp("How do I turn on sound in my game?"))
+        assertFalse(AppHelp.aboutApp("Fix add in app.js so the test passes"))
+    }
+
     @Test fun proposalsAreCheckedAndKeysNeverChange() {
         val ok = AppSettingsTool.check("editorWrap", "true") as AppSettingsTool.Check.Ok
         assertEquals("true", ok.value)
