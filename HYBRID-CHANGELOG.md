@@ -415,7 +415,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   then fix the code. Never change the test."
 - **Files:** core/SmallLocal.kt. **Tests:** LocalRunFixesTest (the instruction is there). 1,289 tests.
 
-### (next) · 2026-11-25 · Full analysis of every benchmark run (analyze.py)
+### 029c438 · 2026-11-25 12:30 · Full analysis of every benchmark run (analyze.py)
 - **Why:** owner's instruction: analyse fails and passes, everything the model does, and the finished work, not the test summary
   (the owner had seen a syntax error in a preview after a run graded all passed). A hand comparison of local run 2's passes found
   l19 had "passed" with `<script src="app.js">` deleted and `</body>` written twice: its test only looked for the Reset button.
