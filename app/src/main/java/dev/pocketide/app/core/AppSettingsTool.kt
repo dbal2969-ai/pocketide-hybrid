@@ -44,8 +44,12 @@ object AppSettingsTool {
 
     /** Whether [key] may be set to [value], with the value in its stored form ("true", "best", "plan") and as the person reads it. */
     fun check(key: String, value: String): Check {
-        if (SECRET.containsMatchIn(key) && find(key)?.setting?.let { SECRET.containsMatchIn(it) } != false)
-            return Check.No("API keys, tokens, passwords and account details are never changed by the assistant. Tell the person to paste it themselves in ⚙ Settings › AI provider.")
+        // 1.5.185 (in-app run 2, app11): "OpenAI API Key" was matched by search to the tick box that names OpenAI among providers; a key
+        // that looks like a secret is only allowed when it names a tick box exactly (autoSwitchCredit, or its full label)
+        val exact = known.firstOrNull { it.setting.equals(key.trim(), ignoreCase = true) || it.label.equals(key.trim(), ignoreCase = true) }
+        if (SECRET.containsMatchIn(key) && (exact == null || SECRET.containsMatchIn(exact.setting!!)))
+            return Check.No("NOT proposed, and nothing changed: API keys, tokens, passwords and account details are never changed by the assistant. " +
+                "Tell the person: they paste it themselves in ⚙ Settings › AI provider › API key.")
         val item = find(key) ?: return Check.No("There is no setting called \"$key\" that the assistant can change. Call app_settings with action \"get\" for the list, or app_help to find where it is.")
         val s = item.setting!!
         if (s in PERSON_ONLY) return Check.No("Only the person can change this one: ${AppMap.path(item)}. Tell them where it is; do not propose it.")

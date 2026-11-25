@@ -296,7 +296,7 @@ object HybridBenchTasks {
     )
 
     /** "PocketIDE does not have that", in the ways a model says it. */
-    val NOT_HAVE = Regex("""(?i)(does ?n[o’']?t (have|support|offer|include|seem|appear|provide)|doesn't|no (such|built-in|option|setting|feature|way|support)|not (available|supported|a feature|part of|possible|able|offered|included)|isn[’']?t (available|supported|possible|a feature|an option|part)|is not (available|supported|possible|a feature|an option|part)|there is no|there[’']?s no|can[’']?t (find|export|do|be)|cannot|could ?n[o’']?t find|don[’']?t see|do not see|unable|lacks)""")
+    val NOT_HAVE = Regex("""(?i)(does ?n[o’']?t (currently |yet |actually |seem to |appear to )?(have|support|offer|include|seem|appear|provide)|doesn't|no (such|built-in|option|setting|feature|way|support)|not (available|supported|a feature|part of|possible|able|offered|included)|isn[’']?t (currently )?(available|supported|possible|a feature|an option|part)|is not (available|supported|possible|a feature|an option|part)|there is no|there[’']?s no|can[’']?t (find|export|do|be)|cannot|could ?n[o’']?t find|don[’']?t see|do not see|unable|lacks)""")
     private val CLAIMS_DONE = Regex("""(?i)\b(is now (on|set|enabled|switched)|has been (turned|switched|set|changed|enabled)|i(’ve|'ve| have) (turned|switched|set|changed|enabled)|i (turned|switched|set|changed|enabled))\b""")
     private val WAITS = Regex("""(?i)\b(apply|approve|card|tap|confirm|accept)\b""")
 

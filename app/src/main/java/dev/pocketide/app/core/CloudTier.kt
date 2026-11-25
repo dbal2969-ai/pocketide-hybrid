@@ -78,6 +78,12 @@ object CloudTier {
      * below, one above (from-scratch run 1125-1218: Balanced's quota ran out, Fast was then out of quota or busy, and four requests
      * died although Best had never been tried). Never one in [tried] (this step) or [skip] (cooling down or unavailable).
      */
+    /** How long to wait for a free limit to refill: the error's own "retry in 23s" / retryDelay, else 30 s; 5 to 60 s. */
+    fun retryAfterMs(msg: String): Long {
+        val s = Regex("""(?i)retry(?: in|Delay\W*)\s*([0-9]+(?:\.[0-9]+)?)\s*s""").find(msg)?.groupValues?.get(1)?.toDoubleOrNull()
+        return ((s ?: 30.0) * 1000).toLong().coerceIn(5_000L, 60_000L)
+    }
+
     fun fallback(t: Tier, tried: Set<Tier>, skip: Set<Tier>): Tier? {
         val order = generateSequence(lower(t)) { lower(it) }.toList() + listOf(Tier.BALANCED, Tier.BEST, Tier.FAST)
         return order.firstOrNull { it != t && it !in tried && it !in skip }

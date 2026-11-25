@@ -89,6 +89,21 @@ class AppSelfKnowledgeTest {
         assertFalse(AppHelp.aboutApp("Fix add in app.js so the test passes"))
     }
 
+    @Test fun inAppRun2() {
+        // app11: "OpenAI API Key" was matched to the tick box that lists OpenAI among providers
+        val k = AppSettingsTool.check("OpenAI API Key", "sk-test-123")
+        assertTrue(k is AppSettingsTool.Check.No && (k as AppSettingsTool.Check.No).why.startsWith("NOT proposed"))
+        assertTrue(AppSettingsTool.check("When a provider runs out of credit, try the next provider that has a key", "on") is AppSettingsTool.Check.Ok ||
+            AppSettingsTool.check("autoSwitchCredit", "on") is AppSettingsTool.Check.Ok)
+        // app04: spending is about the app
+        assertTrue(AppHelp.aboutApp("Where can I see how much I've spent on AI?"))
+        // app05: the best match leads and weak ones are left out
+        val a = AppHelp.answer("How do I keep my code on this phone so it never goes to the cloud?")
+        assertTrue(a, a.lines()[1].contains("Private: keep my code on this phone"))
+        assertTrue(a, a.lines().count { it.startsWith("- ") } <= 3)
+        assertTrue(AppHelp.answer("run commands without asking").contains("only the person can change this"))
+    }
+
     @Test fun proposalsAreCheckedAndKeysNeverChange() {
         val ok = AppSettingsTool.check("editorWrap", "true") as AppSettingsTool.Check.Ok
         assertEquals("true", ok.value)

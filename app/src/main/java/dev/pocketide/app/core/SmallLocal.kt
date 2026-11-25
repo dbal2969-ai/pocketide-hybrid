@@ -21,6 +21,26 @@ object SmallLocal {
 
     val TOOLS = listOf("search", "list_files", "read_file", "write_file", "edit_lines", "edit_file", "run_command", "app_help", "app_settings")
 
+    /**
+     * 1.5.185 (from-scratch run 1125-1527, 17 of 20 Nano replies): asked for a whole page, Nano wrote it in one write_file and its reply
+     * stopped at the on-device output limit (1024 tokens) in the middle of the content, so it was not a usable action. True for an
+     * action whose JSON never closes.
+     */
+    fun cutOff(reply: String): Boolean {
+        val t = reply.trim().removePrefix("```json").removePrefix("``` json").removePrefix("```").trim()
+        if (!t.startsWith("{") || !t.contains("\"tool\"")) return false
+        var depth = 0; var inStr = false; var esc = false
+        for (c in t) {
+            if (inStr) { if (esc) esc = false else if (c == '\\') esc = true else if (c == '"') inStr = false; continue }
+            when (c) { '"' -> inStr = true; '{' -> depth++; '}' -> depth-- }
+        }
+        return inStr || depth > 0
+    }
+
+    /** What Nano is told after [cutOff]. */
+    const val CUT_OFF_NOTE = "\nNOTE: your last reply was cut off at the length limit, so nothing was written. Write a much smaller file now " +
+        "(at most 40 lines: a short index.html that loads script.js, or the first part of script.js); add the rest afterwards with insert_lines.\nYour reply, one JSON object:"
+
     /** 1.5.185: offered only when the request is about PocketIDE itself ([forApp]). */
     val APP_TOOLS = setOf("app_help", "app_settings")
 
@@ -95,7 +115,8 @@ object SmallLocal {
             "4. Check it: run_command to run the tests or the program. If a test fails and its message does not say why, read the test " +
                 "file to see what it expects, then fix the code. Never change the test, and never return a test's expected value " +
                 "directly (like return 5;): fix the real logic so every input works.\n" +
-            "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +            "A request to make an app, game or tool with no language named means a web page: write_file index.html (with its script) first.\n" +
+            "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +            "A request to make an app, game or tool with no language named means a web page. Your reply is cut off after about 60 lines, " +
+                "so build it in small files: a short index.html that loads script.js, then script.js; add more with insert_lines.\n" +
             "For a question, read what you need and answer; change nothing.\n" +
             (if (tools.contains("- app_help")) "About PocketIDE itself (settings, menus, errors): app_help first, answer from its result. Setting changes: app_settings propose.\n" else "") +
             "\n" + tools

@@ -138,16 +138,20 @@ object AppHelp {
         val wantsOverview = Regex("""(?i)\b(what can|capabilit|features?\b|overview|able to|what does pocketide|what else)""").containsMatchIn(q)
         val sb = StringBuilder()
         if (wantsOverview) sb.append(overview()).append('\n')
-        val top = hits.take(max)
+        // 1.5.185 (in-app run 2, app05): with the right answer first and five weak matches after it, Nano said nothing matched; matches
+        // far weaker than the best are left out, and the best is named as such
+        val top = hits.take(max).let { h -> h.filter { it.score >= h.first().score * 0.5 } }
         if (top.isEmpty() && !wantsOverview) {
             sb.append("Nothing in PocketIDE's settings, menus, buttons or Help matches \"").append(q.take(80)).append("\". ")
             sb.append("Tell the person PocketIDE does not seem to have that; do not invent buttons, menus or steps.")
             return sb.toString()
         }
-        if (top.isNotEmpty()) sb.append("Found in PocketIDE:\n")
+        if (top.isNotEmpty()) sb.append("Found in PocketIDE (best match first):\n")
         for (h in top) {
             val d = h.doc
-            val now = d.setting?.let(value)?.let { " (now: $it)" }.orEmpty()
+            val now = d.setting?.let(value)?.let { " (now: $it)" }.orEmpty() +
+                // 1.5.185 (in-app run 2, app03): the cloud model offered to propose a setting only the person may change
+                (if (d.setting in AppSettingsTool.PERSON_ONLY) " (only the person can change this; do not offer to propose it)" else "")
             val body = d.body.replace(Regex("""\s+"""), " ").let { if (it.length > BODY) it.take(BODY).trimEnd() + "…" else it }
             val line = "- " + d.where + " › \"" + d.title + "\"" + now + (if (body.isNotBlank() && !isKindWord(body)) ": " + body else "") + "\n"
             if (sb.length + line.length > room) { if (sb.length + 80 < room) sb.append(line.take(room - sb.length - 2).trimEnd()).append("…\n"); break }
@@ -168,7 +172,7 @@ object AppHelp {
     // 1.5.185 (in-app run 1): words that only make sense about PocketIDE itself, even next to "my code" ("keep my code on this phone")
     private val ABOUT_APP_STRONG = Regex("""(?i)\b(pocketide|this app|the app|in the app|settings?|menu|api key|rate limit|quota|""" +
         """4(01|03|29)\b|preview tab|word wrap|light theme|dark (mode|theme)|agent mode|ask mode|plan mode|hybrid|gemini nano|""" +
-        """private mode|cloud model|usage|slash commands?|on this phone|the cloud|built-in)\b""")
+        """private mode|cloud model|usage|slash commands?|on this phone|the cloud|built-in|spen[dt]|spending|billing|on ai|ai usage)\b""")   // 1.5.185: spending (in-app run 2, app04)
     // words that are about the app unless the request is about the person's project
     private val ABOUT_APP_WEAK = Regex("""(?i)\b(button|tab|key for|preview|undo|terminal|git(hub)?|provider|model|cost|checkpoints?|""" +
         """turn (on|off)|feature|option)\b""")

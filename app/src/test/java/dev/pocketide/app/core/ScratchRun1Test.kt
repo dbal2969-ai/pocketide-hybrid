@@ -22,6 +22,16 @@ class ScratchRun1Test {
 
     @Test fun anAppWithNoLanguageIsAWebPage() {
         assertTrue(Prompts.PHONE_NOTE.contains("is a web page"))
-        assertTrue(SmallLocal.system("Tools:\n").contains("write_file index.html"))
+        assertTrue(SmallLocal.system("Tools:\n").contains("a short index.html that loads script.js"))
+    }
+
+    @Test fun run2_aCutOffWriteIsSeenAndWaitsFollowTheError() {
+        val cut = "```json\n{\n  \"reason\": \"page\",\n  \"tool\": \"write_file\",\n  \"tool_args\": {\n    \"path\": \"index.html\",\n    \"content\": \"<!DOCTYPE html>\\n<html lang=\\\"en"
+        assertTrue(SmallLocal.cutOff(cut))
+        assertTrue(!SmallLocal.cutOff("""{"reason":"x","tool":"write_file","tool_args":{"path":"a.js","content":"let a = '{';"}}"""))
+        assertTrue(!SmallLocal.cutOff("I cannot do that."))
+        assertEquals(23_400L, CloudTier.retryAfterMs("Quota exceeded. Please retry in 23.4s."))
+        assertEquals(30_000L, CloudTier.retryAfterMs("You exceeded your current quota, please check your plan and billing details."))
+        assertEquals(60_000L, CloudTier.retryAfterMs("retryDelay\": \"300s"))
     }
 }

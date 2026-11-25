@@ -132,6 +132,12 @@ object HybridAgent {
         }
         val secs = (System.nanoTime() - t0) / 1e9
         var (turn, why) = phoneTurn(reply, messages)
+        // 1.5.185 (from-scratch run 1125-1527): a whole page in one write_file stopped at the output limit; Nano is asked once for a smaller file
+        if (turn == null && SmallLocal.cutOff(reply)) {
+            why = "wrote more than fits in one reply (cut off at the length limit)"
+            val retry = try { testPhone?.invoke(prompt + SmallLocal.CUT_OFF_NOTE) ?: HybridAi.onDeviceText(ctx, prompt + SmallLocal.CUT_OFF_NOTE) } catch (e: Exception) { null }
+            if (retry != null) { val t2 = phoneTurn(retry, messages); if (t2.first != null) { turn = t2.first; why = "" } else if (SmallLocal.cutOff(retry)) why = "wrote more than fits in one reply twice (cut off at the length limit)" }
+        }
         recorder?.let { rec ->
             val c = turn?.calls?.firstOrNull()
             val previous = messages.lastOrNull()?.takeIf { it["role"] == "tool" }?.let { textOf(it["content"]) }.orEmpty()
@@ -183,7 +189,9 @@ object HybridAgent {
         // a tier this project cannot use is skipped for the session and the next one down answers; a refused thinking setting is dropped
         val tried = HashSet<dev.pocketide.app.core.CloudTier.Tier>()
         var waited = false
-        repeat(6) {
+        var quotaWaits = 0
+        var malformed = false
+        repeat(9) {
             tried.add(tier)
             val model = HybridAi.cloudToolModel(ctx, system, decl, tier)
             val ask = { HybridCloud.traced("hybrid_cloud") { runBlocking { model.generateContent(contents(messages)) } } }
@@ -207,10 +215,21 @@ object HybridAgent {
                     // 1.5.184 (hard run 5): the free quota ran out ("check your plan and billing details"); it refills, so a cool-down
                     dev.pocketide.app.core.CloudTier.quota(msg) -> {
                         HybridAi.coolUntil[tier] = System.currentTimeMillis() + dev.pocketide.app.core.CloudTier.QUOTA_COOLDOWN_MS
-                        val down = dev.pocketide.app.core.CloudTier.fallback(tier, tried, HybridAi.skipNow()) ?: throw e
-                        fellBack = "${tier.label} (${tier.model}) used up its free request quota for now, so ${down.label} answers for the next " +
-                            "${dev.pocketide.app.core.CloudTier.QUOTA_COOLDOWN_MS / 60_000} minutes (${msg.take(100)})."
-                        tier = down
+                        val down = dev.pocketide.app.core.CloudTier.fallback(tier, tried, HybridAi.skipNow())
+                        if (down != null) {
+                            fellBack = "${tier.label} (${tier.model}) used up its free request quota for now, so ${down.label} answers for the next " +
+                                "${dev.pocketide.app.core.CloudTier.QUOTA_COOLDOWN_MS / 60_000} minutes (${msg.take(100)})."
+                            tier = down
+                        } else {
+                            // 1.5.185 (from-scratch run 1125-1527: 9 of 10 tasks ended on this): every tier was out at once. The free
+                            // limits are mostly per minute, so the step waits for them to refill and asks the first tier again, twice at most
+                            if (quotaWaits >= 2) throw e
+                            quotaWaits++
+                            val wait = dev.pocketide.app.core.CloudTier.retryAfterMs(msg)
+                            Thread.sleep(wait)
+                            tier = pick.tier; HybridAi.coolUntil.remove(tier); tried.clear()
+                            fellBack = "Every cloud model was at its free request limit; the step waited ${wait / 1000} s for it to refill and was asked again."
+                        }
                     }
                     // 1.5.184 (hard run 4): "high demand" is Google's servers, not the project; the next tier down answers this step only
                     dev.pocketide.app.core.CloudTier.busy(msg) -> {
@@ -220,6 +239,13 @@ object HybridAgent {
                         fellBack = if (down == tier) "${tier.label} (${tier.model}) was busy; it was asked again after a pause (${msg.take(120)})."
                             else "${tier.label} (${tier.model}) was busy, so ${down.label} answered this step (${msg.take(120)})."
                         tier = down
+                    }
+                    // 1.5.185 (from-scratch run 1125-1527, s07): "Content generation stopped. Reason: MALFORMED_FUNCTION_CALL" ended a task;
+                    // the model wrote a tool call the API could not read, which usually passes when asked again
+                    msg.contains("MALFORMED_FUNCTION_CALL") -> {
+                        if (malformed) tier = dev.pocketide.app.core.CloudTier.fallback(tier, tried, HybridAi.skipNow()) ?: throw e
+                        malformed = true
+                        fellBack = "The cloud model wrote a tool call that could not be read; the step was asked again."
                     }
                     dev.pocketide.app.core.CloudTier.unavailable(msg) -> {
                         HybridAi.skipTiers.add(tier)

@@ -52,6 +52,8 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | local 1125-1111 (local run 3) | `33dd884` | app 18 of 20; **analysis 16 clean** | 116 of 116 | l08 now passes (Nano read the test). The full analysis found two passes that were wrong: l05 `return 5;` (the visible test's answer, hard-coded) and l13 `Default:` (a label, not the default case). Fails: l12 replaced the line it meant to insert after (ArrowRight lost, tap added twice); l19 left the old module.exports after the new one. l18 was right but ended "getScore still appears" because the test names the old name | `fb9312f` |
 | scratch 1125-1218 (from-scratch run 1) | `3a8cd77` | app 4 of 10; **analysis 3 clean, 1 with problems** | 26 of 125 | Four requests died on quota or busy errors with Best never tried; Nano in the Chat home took leftover files for "an isometric RPG"; after Build this Nano only answered (s10); the tip calculator became a Node CLI (s09); the to-do kit was kept with made-up records (s05) | `509f511`, `ce51e65`, `517496e` |
 | app 1125-1338 (in-app questions run 1) | `103b58d` | app 3 of 14 | 12 of 19 | Nano was never offered app_help (the project context's file names hid the question), answered from what it thought it knew, and its refusals showed as JSON; the cloud passed app03 and app07 | `517496e` |
+| scratch 1125-1527 (from-scratch run 2) | `ea46a32` | app 1 of 10; analysis 1 clean | 6 of 90 | 8 tasks ended when every cloud tier hit its free per-minute limit; 17 of 20 Nano replies were whole pages cut off at the 1,024-token output limit | (next) |
+| app 1125-1555 (in-app questions run 2) | `ea46a32` | **app 10 of 14; analysis 10 clean** | 14 of 16 | app11 matched "OpenAI API Key" to the wrong tick box and Nano claimed a proposal; app05 Nano missed the top match; app04 not taken as about the app; app08 wording not accepted | (next) |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -587,6 +589,40 @@ the files after the run, `transcript.txt` and `check.txt`.
   docs/FIREBASE-AGENT-SKILLS.md, HACKATHON.md, bench/hybrid/README.md.
 - **Tests:** 1,316 unit tests, 0 failures; Firestore rules 14 of 14 in the emulator (firebase-tools 15.37.0).
 - **Evidence:** the skills' checklists (docs/FIREBASE-AGENT-SKILLS.md).
+
+### (next) · 2026-11-25 16:40 · Fixes from in-app run 2 (10 of 14) and from-scratch run 2 (1 of 10)
+- **Why:** both runs were analysed in full with analyze.py.
+  - **From-scratch run 1125-1527:**
+    - Eight tasks ended on "You exceeded your current quota". Every cloud tier hit its free per-minute limit at once, so the new
+      fallback had nowhere left to go.
+    - 17 of Nano's 20 replies were unusable. Told by 14:10's change to "write_file index.html (with its script) first", Nano wrote
+      whole pages in one reply and stopped at the 1,024-token output limit, in the middle of the file.
+    - One task ended on "MALFORMED_FUNCTION_CALL" from the cloud model.
+  - **In-app run 1125-1555:**
+    - app11: "OpenAI API Key" was matched to the tick box that names OpenAI among providers. The tool answered "give true or false"
+      instead of refusing, and Nano then claimed it had proposed the key.
+    - app05: app_help listed Private first, with five weak matches after it, and Nano said nothing matched.
+    - app04: "how much I've spent on AI" was not recognised as a question about the app.
+    - app08: the check did not accept "does not currently have".
+    - app03: the cloud model offered to propose a setting that only the person may change.
+    - The analyzer flagged bold list headings and "on → off" as invented labels.
+- **Change:**
+  - **Every tier out of quota:** the step waits for the limit to refill and asks the first tier again, at most twice. The wait is
+    the time the error names, else 30 s, between 5 and 60 s.
+  - **MALFORMED_FUNCTION_CALL:** the step is asked again once, then the next tier answers.
+  - **Cut-off replies:** `SmallLocal.cutOff` spots a reply whose JSON never closes. Nano is asked once for a file of at most 40
+    lines and told to add the rest with insert_lines. Nano's prompt now says replies stop after about 60 lines, so it should build
+    in small files.
+  - **API keys:** a key that looks like a secret is refused unless it names a tick box exactly. The refusal starts "NOT proposed,
+    and nothing changed" and gives the place to paste the key.
+  - **app_help results:** matches weaker than half the best one are left out, the list is introduced as "best match first", and a
+    setting only the person may change is marked so.
+  - **Other fixes:** spending words now count as questions about the app; the check accepts "does not currently have"; the
+    analyzer skips bold headings and treats → as a value change, not a menu path.
+- **Files:** HybridAgent.kt (cut-off retry, quota wait, malformed call), core/CloudTier.kt (`retryAfterMs`), core/SmallLocal.kt
+  (`cutOff`, `CUT_OFF_NOTE`, prompt), core/AppSettingsTool.kt, core/AppHelp.kt, core/HybridBenchTasks.kt; bench/hybrid/analyze.py.
+- **Tests:** ScratchRun1Test (+1), AppSelfKnowledgeTest (+1). 1,318 tests, 0 failures.
+- **Evidence:** pocketide-hybrid-scratch-benchmark-1125-1527, pocketide-hybrid-app-benchmark-1125-1555, and their analyses.
 
 ---
 

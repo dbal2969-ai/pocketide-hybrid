@@ -35,10 +35,11 @@ def app_answer_problems(answer, strings):
     """Labels and menu paths an answer quotes that the app never shows: invented buttons, menus or settings."""
     found = []
     for q in re.findall(r'["“]([^"”\n]{3,90})["”]|\*\*([^*\n]{3,60})\*\*', answer):
+        if q[1] and q[1].rstrip().endswith(":"): continue   # a bold heading of the answer's own list ("**Server Status:**")
         q = q[0] or q[1]
         if not real_label(q, strings): found.append(f'quotes "{q}", which the app never shows')
-    for chain in re.findall(r"[^\n.]*?(?:›|→| > )[^\n.]*", answer):
-        parts = [x.strip(" *\"“”'`") for x in re.split(r"›|→| > ", chain)]
+    for chain in re.findall(r"[^\n.]*?(?:›| > )[^\n.]*", answer):   # → is how answers show a value changing (on → off), not a path
+        parts = [x.strip(" *\"“”'`") for x in re.split(r"›| > ", chain)]
         for x in parts:
             x = re.sub(r"^(open|tap|go to|choose|pick|then|in)\s+", "", x, flags=re.I).strip()
             if 2 < len(x) <= 60 and x[:1].isupper() and not real_label(x, strings):
