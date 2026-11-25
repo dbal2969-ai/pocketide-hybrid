@@ -23,6 +23,10 @@ after 2 minutes, which is too short for this build, so it relies on the pull req
 
 ## Rules
 
+0. **Change record (#BuildHybridAI).** Every commit that changes `app/`, `bench/`, the build files or the workflows adds an entry
+   to `HYBRID-CHANGELOG.md` in the same commit: why, what changed, files, tests and the evidence (benchmark run or report).
+   CI (`changelog.yml`) fails a push or pull request that skips it.
+
 1. Work on a branch and open a pull request. **Never push to `main`, never merge, never run `release.sh`.** The owner reads every
    pull request and merges it.
 2. One behaviour per pull request. Keep it small. Change nothing the task did not ask for.

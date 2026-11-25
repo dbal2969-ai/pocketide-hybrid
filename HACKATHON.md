@@ -54,10 +54,12 @@ The first commit (`Baseline: PocketIDE MIT edition 1.5.182…`) is the app exact
 
 ## What was built during the hackathon
 
+Every change, with its reason, files, tests and the benchmark run behind it, is recorded in [`HYBRID-CHANGELOG.md`](HYBRID-CHANGELOG.md).
+
 | Change | Files |
 |---|---|
 | Firebase AI Logic hybrid inference: one `GenerativeModel` per routing mode (`PREFER_ON_DEVICE`, `PREFER_IN_CLOUD`, `ONLY_ON_DEVICE`), cloud model `gemini-3.1-flash-lite` | `app/src/main/java/dev/pocketide/app/HybridAi.kt` |
-| Routing rule on top of the SDK: requests over 4,000 characters go to the cloud even in on-phone-first mode (Gemini Nano is built for short single-turn prompts) | `HybridAi.route` |
+| Routing rule on top of the SDK: requests over the on-phone limit (14,000 characters by default, adjustable) go to the cloud even in on-phone-first mode | `HybridAi.route` |
 | Every reply is labelled with where it ran (`inferenceSource`: on this phone or cloud) and how long it took | `HybridScreen.label` |
 | Gemini Nano status and one-tap download through Android AICore, with progress | `HybridAi.nanoStatus`, `HybridAi.downloadNano`, Hybrid AI screen |
 | Hybrid AI screen: Nano status, routing mode, a prompt to try | `HybridScreen.kt`, opened from Models → Hybrid AI |
@@ -73,6 +75,7 @@ The first commit (`Baseline: PocketIDE MIT edition 1.5.182…`) is the app exact
 | Reliability from real runs on the phone: an edit that deletes a definition the file still uses is refused and put back; after two failed steps in a row Nano passes the rest of the request on; a passed-on request stays with the model it went to; when the strong model fails, the cloud model answers | `core/UndefinedNames.kt`, `NativeAgent.kt`, `HybridAgent.kt`, `ModelClient.kt` |
 | **Crashlytics** and **Performance Monitoring** (phone vs cloud request times); a **Private** switch and a first-run explanation on the Hybrid AI screen | `HybridCloud.kt`, `HybridScreen.kt` |
 | Judges' build: one App Check debug token for every phone, given at build time and never in git | `app/build.gradle.kts` |
+| One-tap hybrid benchmark in the app (Models → Hybrid AI): eight phone tasks run unattended and checked, results saved as a zip; fixes from each run are in the change record | `HybridBench.kt`, `core/HybridBenchTasks.kt`, `bench/hybrid/` |
 | Build: Firebase is applied only when `app/google-services.json` exists; CI writes it from the `GOOGLE_SERVICES_JSON` secret, so the config is not in git and the app still builds without it | `build.gradle.kts`, `app/build.gradle.kts`, `.github/workflows/build-apk.yml`, `.gitignore` |
 
 ## Why hybrid fits a phone IDE
