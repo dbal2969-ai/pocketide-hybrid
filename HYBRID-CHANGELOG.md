@@ -47,6 +47,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | hard 1125-0008 (hard run 5) | `e547833` | **10 of 10**, all ended done | 39 of 92 | second perfect hard run. Gemini 4 Hydrogen answered 8 steps after two moves up ("the last 2 tool calls failed", "the check failed 4 times"). The note now quoted why Balanced dropped out: `You exceeded your current quota, please check your plan and billing details` (the free tier's request quota for gemini-3.8-flash); the word "billing" made it count as unusable for the session, so Fast answered 45 steps | `a6b5958` |
 | games 1125-0233 (game run 1) | `717b4be` | **5 of 5**, all ended done | 19 of 56 | the play tests ran before the work was called done and sent gm03 and gm05 back once each; the page check asked for touch controls on the keyboard-only paddle game (gm02); Auto moved to Gemini 4 Hydrogen once ("the last 2 tool calls failed"). Balanced's free quota was still spent from the night's runs, so Fast answered 35 cloud steps and Hydrogen 2 | none needed |
 | hard helping 1125-0743 | `7bc42e7` | **10 of 10**, all ended done | 26 on the phone (the report did not count the strong model's steps) | first "Hybrid helps my strong model" run, with `kilo/recursive/flint-v1.0:free` as the strong model: every handoff went to it and every task passed; h08 Private stayed on the phone (13 steps). Nano asked for a tool named `membaca_file` (h07) | `316fd34` |
+| local 1125-0955 (local run 1) | `e379bb8` | **12 of 20** (Gemini Nano alone) | 115 of 115 | Find and explain 0 of 4, but Nano's answers were right ("rules.js"; "it passed"): "Change nothing" made the app take each as a task and end it "Nothing was changed", and final answers were not in the chat log. Nano's own failures: a search for a block's first line or a line's start with a whole new block or line as the replacement (l08 syntax error, l11 doubled keys); edit_lines 3–5 used to insert, deleting three cases (l13); a module without module.exports (l17); it tried to edit test.js (refused). 32 refused calls, 4 repeated reads, 0 unusable replies. l02's one Nano call took 548 s (the app was off screen) | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -392,6 +393,20 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** HybridBenchLocalTest (5), HybridAgentLoopTest (every Nano exchange is recorded). 1,281 tests.
 - **Next:** after the first run, a tuning matrix (Fast or Full model, temperature, instruction variants with worked examples) run
   overnight, and the winning settings shipped through Remote Config.
+
+### (next) · 2026-11-25 · Fixes from local run 1 (12 of 20): questions that say "change nothing", widened edits, edit_lines that deletes
+- **Evidence:** local run 1125-0955 and its nano.jsonl records.
+- **Change:** a request that says "change nothing" (or "don't change anything", "make no changes"; not "…nothing else") is a
+  question, or run-and-report when it asks to run something, unless one of its sentences starts with an order to change something;
+  a change word inside a question ("Which file defines add?") no longer makes it a task. The final answer is written to the chat log.
+  When a search stops at the start of a line, or at a block's first line, and the replacement starts with it and covers the rest of
+  the line or a whole block ending in its closing brace, the match is widened to cover what the replacement replaces (an insert at
+  the top of a block is not widened). An edit_lines call that would delete two or more lines its new text does not keep is refused
+  once, with how to insert (start = N+1, end = N); sent again it goes ahead, and requests that ask to remove or replace are not
+  checked. Nano's instructions say to end a Node file with module.exports. The test harness decides the request kind as the app does.
+- **Files:** core/Intent.kt (`NO_CHANGE`), core/Scope.kt (`asksForChange`), NativeAgent.kt (final answer logged, edit_lines check),
+  core/EditBlocks.kt (`covered`, `closing`, `linesLost`), core/SmallLocal.kt, test AgentHarness.kt.
+- **Tests:** LocalRunFixesTest (6), HybridAgentLoopTest (a change-nothing question answered on the phone succeeds). 1,288 tests.
 
 ---
 

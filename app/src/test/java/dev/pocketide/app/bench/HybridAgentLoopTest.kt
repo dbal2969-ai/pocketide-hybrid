@@ -383,4 +383,17 @@ class HybridAgentLoopTest {
         val second = MiniJson.obj(MiniJson.parse(lines[1]))!!
         check(second["tool"] == "run_command" && (second["previous_result"] as String).startsWith("Edited")) { second.toString() }
     }
+
+    /** Local run 1, l01: Nano answered "rules.js" but the request was taken as a task and ended "Nothing was changed". */
+    @Test fun aChangeNothingQuestionAnsweredOnThePhoneSucceeds() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("hybrid_ai", 0).edit().putString("mode", HybridAi.Mode.ONLY_ON_DEVICE.name).commit()
+        nano("""{"reason":"it is there","tool":"answer","tool_args":{"text":"app.js"}}""")
+        cloud()
+        val o = run("Which file defines add? Reply with the file name only. Change nothing.")
+        assertFalse("timed out", o.timedOut)
+        val r = o.result!!
+        assertTrue(r.text, r.ok)
+        assertFalse(r.text, r.text.contains("Nothing was changed"))
+        assertTrue(shown(o), shown(o).contains("app.js"))
+    }
 }

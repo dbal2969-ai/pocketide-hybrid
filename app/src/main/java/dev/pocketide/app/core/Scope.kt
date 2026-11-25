@@ -22,6 +22,14 @@ object Scope {
     /** Words that ask for something to be changed: any of these makes the request a task. */
     private val CHANGE = Regex("""\b(fix|fixes|fixing|change|update|edit|modify|add|remove|delete|rename|refactor|rewrite|replace|implement|build|create|make|write|improve|clean\s+up|correct|repair|patch|install|set\s+up|move|convert|port|restore|apply|commit|push|deploy|optimi[sz]e|speed\s+up|adjust|tweak|resolve|address)\b""", I)
 
+    /**
+     * True when a sentence of [text] starts with an order to change something ("Fix …", "Please add …"). Used where the person
+     * also said "change nothing", so a change word inside a question ("Which file defines add?") does not count.
+     */
+    fun asksForChange(text: String): Boolean = text.split(Regex("""(?<=[.!?])\s+|\n+""")).any {
+        Regex("""^\s*(please\s+|now\s+|then\s+|and\s+)?""" + CHANGE.pattern, RegexOption.IGNORE_CASE).containsMatchIn(it.trim())
+    }
+
     /** "run the tests and report", "check the page and tell me": a request to find out, with no change asked for. */
     fun reportOnly(text: String): Boolean {
         val t = text.trim().replace(Regex("""https?://\S+"""), "link")

@@ -127,6 +127,8 @@ object EditBlocks {
         val exact = if (s.isEmpty()) 0 else countOcc(cur, s)
         if (exact == 1) {
             val at = cur.indexOf(s)
+            val end = covered(cur, at, s, b.replace)
+            if (end > at + s.length) return ApplyResult(text = cur.substring(0, at) + b.replace + cur.substring(end))
             return ApplyResult(text = cur.substring(0, at) + withoutRepeats(cur.substring(at + s.length), s, b.replace) + cur.substring(at + s.length))
         }
         if (exact > 1) return ApplyResult(error = MANY)
@@ -167,6 +169,61 @@ object EditBlocks {
     }
 
     private val SPACES = Regex("""\s+""")
+
+    /**
+     * 1.5.184 (local benchmark run 1): where in [cur] the replacement really ends. Gemini Nano searched for the start of a line
+     * ("if (e.key === 'ArrowLeft')") or a block's first line ("function label(user) {") and wrote the whole new line or block, so the
+     * old rest stayed behind it (doubled key handling; a second closing brace and a syntax error). When the replacement starts with the
+     * search and also covers the rest of that line, or is a whole block ending in its closing brace, the match is widened to match.
+     * Returns the end of the widened match, or at + search length when nothing is widened.
+     */
+    fun covered(cur: String, at: Int, search: String, replace: String): Int {
+        val end = at + search.length
+        if (!replace.startsWith(search.trimEnd())) return end
+        val lineEnd = cur.indexOf('\n', end).let { if (it < 0) cur.length else it }
+        val tail = cur.substring(end, lineEnd)
+        if (tail.isNotBlank() && replace.substring(search.length.coerceAtMost(replace.length)).startsWith(tail)) return lineEnd
+        val head = search.trimEnd()
+        if ('\n' in head || !head.endsWith("{")) return end
+        val last = replace.trimEnd().lines().last().trim()
+        if (!Regex("""^\}[);,]*$""").matches(last) || replace.count { it == '{' } != replace.count { it == '}' }) return end
+        val close = closing(cur, at + head.length - 1)
+        if (close < 0) return end
+        val after = last.substring(1)
+        return close + 1 + if (after.isNotEmpty() && cur.startsWith(after, close + 1)) after.length else 0
+    }
+
+    /** The index of the brace that closes the one at [open], skipping strings and comments, or -1. */
+    private fun closing(s: String, open: Int): Int {
+        var depth = 0; var i = open; var q = 0.toChar()
+        while (i < s.length) {
+            val c = s[i]
+            when {
+                q != 0.toChar() -> { if (c == '\\') i++ else if (c == q) q = 0.toChar() }
+                c == '"' || c == '\'' || c == '`' -> q = c
+                c == '/' && i + 1 < s.length && s[i + 1] == '/' -> { i = s.indexOf('\n', i).let { if (it < 0) s.length else it }; continue }
+                c == '{' -> depth++
+                c == '}' -> { depth--; if (depth == 0) return i }
+            }
+            i++
+        }
+        return -1
+    }
+
+    private val REMOVE_ASKED = Regex("""(?i)\b(remove|delete|replace|drop|rewrite|clear|strip|get\s+rid)\b""")
+
+    /**
+     * The lines an edit_lines call would delete that its new text does not keep (non-blank, at least two), unless [request] asks to
+     * remove or replace something; null when nothing worth keeping is lost.
+     */
+    fun linesLost(cur: String, start: Int, end: Int, text: String, request: String): List<String>? {
+        if (end < start || REMOVE_ASKED.containsMatchIn(request)) return null
+        val lines = cur.split("\n")
+        val gone = (start..end).mapNotNull { lines.getOrNull(it - 1) }.filter { it.isNotBlank() }
+        val kept = text.lines().map { it.trim() }.toSet()
+        val lost = gone.filter { it.trim() !in kept && it.trim().length > 2 }
+        return lost.takeIf { it.size >= 2 }
+    }
 
     private val DECL = Regex("""^\s*(export\s+)?(const|let|var|function|class|import|def)\b""")
 

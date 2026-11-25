@@ -487,6 +487,8 @@ class NativeAgent(
     private var steeredSincePlan = false
     /** Steps the model marked done before any check ran after its last change; they become done when a check passes. */
     private val pendingDone = LinkedHashSet<String>()
+    /** edit_lines calls already warned that they delete lines (path:start:end); the same call again goes ahead. */
+    private val linesWarned = HashSet<String>()
     private val DOC_EXT = setOf("md", "markdown", "txt", "rst", "adoc")
 
     /**
@@ -931,6 +933,8 @@ class NativeAgent(
         if (turn.text.isNotBlank()) body.text = turn.text.trimStart()
         if (turn.calls.isEmpty()) {
             if (cutNote != null) { messages.add(Tools.assistantText(turn.text)); messages.add(Tools.userText(anthropic, cutNote)); request(); return }
+            // 1.5.184 (local benchmark run 1): the final answer never reached the chat log, so a right answer looked like none
+            if (turn.text.isNotBlank()) dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.block("assistant said", turn.text.trim(), round))
             finish(turn.text); return
         }
         if ((wrapAt >= 0 && round >= wrapAt + 2) || round >= maxRounds + 2) {
@@ -2576,6 +2580,13 @@ class NativeAgent(
                 val st = intArg(a["start"]); val en = intArg(a["end"])
                 if (st == null || en == null) { reply("edit_lines needs start and end line numbers.", "$label (failed)"); return }
                 val res = EditBlocks.applyLines(cur, st, en, (a["text"] as? String) ?: "")
+                // 1.5.184 (local benchmark l13): Gemini Nano sent start 3, end 5 to INSERT a case, and deleted three others
+                dev.pocketide.app.core.EditBlocks.linesLost(cur, st, en, (a["text"] as? String) ?: "", request)?.let { lost ->
+                    val key = "$p:$st:$en"
+                    if (key !in linesWarned) { linesWarned.add(key); reply("Not applied: start $st and end $en replace lines $st-$en, and the new text " +
+                        "does not keep ${lost.joinToString("; ") { "\"" + it.trim().take(50) + "\"" }}. To INSERT after line N without removing anything, use " +
+                        "start = N+1 and end = N. If removing those lines is what you want, send the same edit again.", "$label (would delete lines)"); return }
+                }
                 val newText = res.text
                 if (newText == null) { reply("Edit not applied to $p: ${res.error}.", "$label (failed)"); return }
                 testGate(p, cur, newText, job)?.let { if (askTestNow(p, newText, label) { r, s -> reply(r, s) }) return; reply(it, "$label (refused)"); return }

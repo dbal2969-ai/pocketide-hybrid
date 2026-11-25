@@ -84,7 +84,8 @@ object SmallLocal {
             "2. read_file the file before you change it.\n" +
             "3. Change it. To ADD new code (a new feature, new event handlers), use edit_lines to insert after line N: start = N+1 and " +
                 "end = N, with N from read_file's line numbers; nothing has to be copied. To change existing lines, edit_file with search " +
-                "copied exactly from read_file's output (without the line numbers), whole lines, never \"...\". write_file for a new file.\n" +
+                "copied exactly from read_file's output (without the line numbers), whole lines, never \"...\". write_file for a new file; " +
+                "in a Node file, end it with module.exports = { … } naming what other files use.\n" +
             "4. Check it: run_command to run the tests or the program.\n" +
             "5. answer: what you changed and how you checked it. If you could not finish or check, say so.\n" +
             "For a question, read what you need and answer; change nothing.\n\n" + tools

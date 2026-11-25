@@ -294,11 +294,11 @@ class AgentHarness(
                 // the undefined-name check the phone runs in its hidden browser, run here with Node (1.5.103)
                 mustEdit = repair,
                 names = if (NodeNames.available) { p, t, cb -> Thread { val r = NodeNames.run(p, t); main.post { cb(r) } }.start() } else null,
-                question = Habits.isQuestion(request),
+                question = dev.pocketide.app.core.Intent.of(request) == dev.pocketide.app.core.Intent.Kind.QUESTION,   // as ChatPane decides it
                 // the scripted person: typed after request first-1 ended, read by the loop before the next one (as ChatPane's steer box)
                 steerTake = { if (steer != null && !steerGiven && requests >= steer.first - 1) { steerGiven = true; steer.second } else null },
                 steerPending = { steer != null && !steerGiven && requests >= steer.first - 1 },
-                reportOnly = !Habits.isQuestion(request) && Scope.reportOnly(request),
+                reportOnly = dev.pocketide.app.core.Intent.of(request) == dev.pocketide.app.core.Intent.Kind.REPORT,
                 askTest = testAnswer?.let { yes -> { _, _, allow, keep -> main.post { if (yes) allow() else keep() }; android.widget.TextView(ctx) } },
             )
             agentRef.run(system, if (history.isEmpty()) listOf(Tools.userText(false, request + extra + (if (premise && agent) dev.pocketide.app.core.PremiseCheck.probe(request, files.keys.toList()) { files[it] }.orEmpty() else ""))) else history + listOf(Tools.userText(false, extra.trim())))

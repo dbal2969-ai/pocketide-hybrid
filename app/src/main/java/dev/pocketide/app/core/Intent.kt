@@ -19,7 +19,16 @@ object Intent {
     }
 
     /** The kind of [text], in this order: a question, then run-and-report, then research, else a task. */
+    /**
+     * "Change nothing", "don't change anything", "make no changes" (not "…nothing else", not "without changing X"): the person
+     * says outright that nothing may change (1.5.184, local benchmark run 1: "Which file defines MAX_LIVES? Reply with the file
+     * name only. Change nothing." was taken as a task because of the word "change", and a correct answer was marked a failure).
+     */
+    private val NO_CHANGE = Regex("""(?i)\b((change|edit|modify|touch)\s+nothing|do(?:n'?t|\s+not)\s+(change|edit|modify|touch)\s+(anything|any\s+files?|the\s+files?|any\s+code|the\s+code)|make\s+no\s+changes)\b(?!\s+else)""")
+
     fun of(text: String): Kind = when {
+        NO_CHANGE.containsMatchIn(text) && !Scope.asksForChange(NO_CHANGE.replace(text, " ")) ->
+            if (Scope.reportOnly(NO_CHANGE.replace(text, " ")) || Regex("""(?i)^\s*(please\s+)?run\b""").containsMatchIn(text)) Kind.REPORT else Kind.QUESTION
         Habits.isQuestion(text) -> Kind.QUESTION
         Scope.reportOnly(text) -> Kind.REPORT
         Requirements.asksForResearch(text) -> Kind.RESEARCH
