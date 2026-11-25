@@ -99,4 +99,21 @@ class HybridAgentTest {
         check(m == "Something unexpected happened. (IOException: Connection reset by peer)") { m }
         check(HybridAi.explain(RuntimeException("plain")) == "plain")
     }
+
+    /** Hard run 3: gemini-3.8-flash and newer refuse the "function" role, and every task ended on that error. */
+    @Test fun contentsUseOnlyUserAndModelRolesAndAlternate() {
+        val fc = com.google.firebase.ai.type.FunctionCallPart("read_file", mapOf("path" to kotlinx.serialization.json.JsonPrimitive("a.js")))
+        HybridAgent.remember("k1", fc)
+        val msgs = listOf(
+            mapOf<String, Any?>("role" to "user", "content" to "Fix a.js"),
+            mapOf<String, Any?>("role" to "assistant", "content" to "", "tool_calls" to listOf(mapOf("id" to "k1", "type" to "function",
+                "function" to mapOf("name" to "read_file", "arguments" to "{\"path\":\"a.js\"}")))),
+            mapOf<String, Any?>("role" to "tool", "tool_call_id" to "k1", "content" to "1: let a = 1;"),
+            mapOf<String, Any?>("role" to "user", "content" to "Not finished: run the test."))
+        val c = HybridAgent.contents(msgs)
+        check(c.all { it.role == "user" || it.role == "model" }) { c.map { it.role }.toString() }
+        check(c.zipWithNext().none { (a, b) -> a.role == b.role }) { "turns alternate: " + c.map { it.role } }
+        check(c.last().parts.any { it is com.google.firebase.ai.type.FunctionResponsePart } && c.last().parts.any { it is com.google.firebase.ai.type.TextPart }) { "the result and the note are one user turn" }
+        check(!HybridAgent.transient(RuntimeException("Role 'function' is not supported. Please use a valid role: user, model."))) { "not retried" }
+    }
 }

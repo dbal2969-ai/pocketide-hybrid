@@ -57,4 +57,11 @@ class CloudTierTest {
         assertTrue(CloudTier.cutOff("Content generation stopped. Reason: MAX_TOKENS"))
         assertFalse(CloudTier.cutOff("Something unexpected happened."))
     }
+
+    /** Hard run 3: a request error ("Role 'function' is not supported") was read as "this model is not available". */
+    @Test fun aRequestErrorIsNotAMissingModel() {
+        assertFalse(CloudTier.unavailable("Role 'function' is not supported. Please use a valid role: user, model."))
+        assertFalse(CloudTier.unavailable("thinking_level is not supported for this request"))
+        assertTrue(CloudTier.unavailable("Model gemini-4-hydrogen is not found"))
+    }
 }

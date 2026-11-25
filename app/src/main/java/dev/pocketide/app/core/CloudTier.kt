@@ -73,7 +73,9 @@ object CloudTier {
 
     fun lower(t: Tier): Tier? = when (t) { Tier.BEST -> Tier.BALANCED; Tier.BALANCED -> Tier.FAST; Tier.FAST -> null }
 
-    private val UNAVAILABLE = Regex("""(?i)(model\S*\s+(is\s+)?not\s+found|not\s+found\s+for\s+api|is\s+not\s+(supported|available)|NOT_FOUND|\b404\b|Blaze|billing|pay-as-you-go|no\s+access\s+to\s+(the\s+)?model)""")
+    // 1.5.184 (hard run 3): "Role 'function' is not supported" matched a loose "is not supported" and Balanced was skipped for the
+    // session; only errors about the model itself count now
+    private val UNAVAILABLE = Regex("""(?i)(models?/\S+\s+(is\s+)?not\s+(found|supported|available)|model\s+\S*\s*(is\s+)?not\s+(found|available)|not\s+found\s+for\s+api|\bNOT_FOUND\b|\b404\b|Blaze|billing|pay-as-you-go|no\s+access\s+to\s+(the\s+)?model)""")
     private val THINKING = Regex("""(?i)thinking""")
 
     /** True when an error says this project cannot use the model (so the next tier down should answer). */

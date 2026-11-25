@@ -194,7 +194,7 @@ object HybridAgent {
     const val FAIL_LIMIT = 2
     @Volatile var RETRY_MS = 2500L
 
-    private val LASTING = Regex("""(?i)App Check|attestation|PERMISSION_DENIED|API has not been used|SERVICE_DISABLED|INVALID_ARGUMENT|API key|billing|not supported|unsupported|cancel""")
+    private val LASTING = Regex("""(?i)App Check|attestation|PERMISSION_DENIED|API has not been used|SERVICE_DISABLED|INVALID_ARGUMENT|valid role|API key|billing|not supported|unsupported|cancel""")
 
     /** True when a cloud failure may pass if tried again (a dropped connection, a server error, the SDK's unknown error). */
     fun transient(e: Throwable): Boolean {
@@ -391,7 +391,9 @@ object HybridAgent {
         val asText = HashSet<String>()
         val out = ArrayList<Content>()
         var pending = ArrayList<Part>()
-        fun flush() { if (pending.isNotEmpty()) { out.add(Content("function", pending)); pending = ArrayList() } }
+        // 1.5.184 (hard run 3): gemini-3.8-flash, gemini-3.5-flash-lite and gemini-4-hydrogen refuse the old "function" role
+        // ("Role 'function' is not supported. Please use a valid role: user, model."); tool results go back as the user's turn
+        fun flush() { if (pending.isNotEmpty()) { out.add(Content("user", pending)); pending = ArrayList() } }
         for (m in messages) {
             when (m["role"]) {
                 "user" -> {
@@ -425,8 +427,17 @@ object HybridAgent {
             }
         }
         flush()
-        return out
+        // turns alternate: neighbouring turns of the same role (a tool result, then the app's note) are joined into one
+        val joined = ArrayList<Content>()
+        for (c in out) {
+            val prev = joined.lastOrNull()
+            if (prev != null && prev.role == c.role) joined[joined.size - 1] = Content(c.role, prev.parts + c.parts) else joined.add(c)
+        }
+        return joined
     }
+
+    /** For tests: [part] as if the cloud model had sent it as call [id]. */
+    internal fun remember(id: String, part: FunctionCallPart) { synchronized(made) { made[id] = part } }
 
     /** The cloud reply as a turn for the agent. */
     fun turn(r: GenerateContentResponse): ToolTurn {
