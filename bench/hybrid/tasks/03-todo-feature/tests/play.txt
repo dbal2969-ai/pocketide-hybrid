@@ -1,0 +1,9 @@
+# clear completed removes only done items
+run document.getElementById('new').value = 'milk'
+tap "Add"
+run document.getElementById('new').value = 'eggs'
+tap "Add"
+tap "milk"
+tap "Clear completed"
+expect document.querySelectorAll('li').length === 1
+expect document.querySelector('li').textContent === 'eggs'
