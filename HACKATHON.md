@@ -94,20 +94,12 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
 3. Firebase console → **App Check** → register the app (Play Integrity); for a debug build, add the debug token shown in the
    app (Models → Hybrid AI → Copy App Check debug token) under *Manage debug tokens*.
 4. Firebase console → **Authentication** → Sign-in method → turn on **Anonymous**.
-5. Firebase console → **Firestore Database** → Create database, then Rules:
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{db}/documents {
-       match /users/{uid}/hybrid_runs/{run} {
-         allow read, create: if request.auth != null && request.auth.uid == uid;
-       }
-     }
-   }
-   ```
-6. Firebase console → **Remote Config** (optional; the app has defaults for all four): `hybrid_cloud_model` (string),
+5. Firebase console → **Firestore Database** → Create database, then paste `firestore.rules` from this repository into Rules
+   (or `npx -y firebase-tools@latest deploy --only firestore:rules`). Records are create-only, owner-only, typed and size-limited;
+   see `docs/FIREBASE-AGENT-SKILLS.md` for the audit.
+6. Firebase console → **Remote Config** (optional; the app has defaults for all five): `hybrid_cloud_model` (string),
    `hybrid_on_device_max_chars` (number), `hybrid_default_mode` (`PREFER_ON_DEVICE`, `PREFER_IN_CLOUD` or `ONLY_ON_DEVICE`),
-   `hybrid_cloud_enabled` (boolean).
+   `hybrid_cloud_enabled` (boolean), `hybrid_limited_use_app_check_tokens` (boolean, default true: App Check replay protection).
 7. `./gradlew assembleDebug` (needs the Android SDK and NDK; see `.github/workflows/build-apk.yml`).
 
 On-device inference needs a phone that supports Gemini Nano through Android AICore (for example recent Pixel and Samsung

@@ -565,6 +565,10 @@ class AppSettings(ctx: Context) {
     var workAnnounce: Boolean
         get() = sp.getBoolean("a11y.work_announce", true)
         set(v) { sp.edit().putBoolean("a11y.work_announce", v).apply() }
+    /** 1.5.185: notes in the chat that suggest another model (a larger one, a recommended one, the advisor). Off hides them all. */
+    var modelTips: Boolean
+        get() = sp.getBoolean("chat.model_tips", true)
+        set(v) { sp.edit().putBoolean("chat.model_tips", v).apply() }
     var editorWrap: Boolean
         get() = sp.getBoolean("editor.wrap", true)
         set(v) { sp.edit().putBoolean("editor.wrap", v).apply() }

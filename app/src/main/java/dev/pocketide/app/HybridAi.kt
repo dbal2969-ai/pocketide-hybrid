@@ -90,13 +90,20 @@ object HybridAi {
         FirebaseApp.getApps(ctx).isNotEmpty() || FirebaseApp.initializeApp(ctx) != null
     } catch (e: Exception) { false }
 
+    /**
+     * The Firebase AI Logic service. 1.5.185, from the firebase-ai-logic-basics agent skill: with App Check limited-use tokens, so every
+     * cloud request carries a fresh short-lived token that cannot be replayed (Remote Config hybrid_limited_use_app_check_tokens
+     * turns it off without a new build).
+     */
+    private fun ai(): FirebaseAI = FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI(), HybridCloud.limitedUseTokens())
+
     @Synchronized
     private fun model(ctx: Context, mode: Mode): GenerativeModel {
         check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
         val s = settings(ctx)
         return models.getOrPut(mode) {
-            FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
+            ai()
                 .generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s, tierOf(HybridCloud.cloudModel())),
                     onDeviceConfig = OnDeviceConfig(mode = mode.inference, maxOutputTokens = s.maxOutputTokens,
                         temperature = s.temperature, topK = s.topK,
@@ -135,7 +142,7 @@ object HybridAi {
         check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
         check(HybridCloud.cloudEnabled()) { "The cloud model is switched off right now (Remote Config: ${HybridCloud.KEY_CLOUD_ON}). Gemini Nano on the phone still works." }
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
-        return FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI()).generativeModel(
+        return ai().generativeModel(
             modelName = modelFor(tier), generationConfig = gen(settings(ctx), if (HybridCloud.pinnedModel() == null) tier else null, cloud = true),
             tools = if (tools.isEmpty()) null else listOf(Tool.functionDeclarations(tools)),
             toolConfig = if (tools.isEmpty()) null else ToolConfig(FunctionCallingConfig.auto()),

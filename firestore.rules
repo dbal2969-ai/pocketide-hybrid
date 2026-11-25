@@ -1,0 +1,24 @@
+rules_version = '2';
+// PocketIDE Hybrid: each signed-in (anonymous) user writes their own hybrid usage records and reads only their own.
+// Audited with Firebase's firebase-security-rules-auditor agent skill (docs/FIREBASE-AGENT-SKILLS.md): records are create-only,
+// owner-only, limited to the fields the app writes, typed and size-limited, and stamped with the server's time.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /users/{uid}/hybrid_runs/{run} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid && validRun(request.resource.data);
+      // no update or delete: a record is written once
+    }
+
+    function validRun(d) {
+      return d.keys().hasOnly(['where', 'seconds', 'reason', 'kind', 'model', 'at'])
+        && d.keys().hasAll(['where', 'seconds', 'kind', 'at'])
+        && d.where in ['phone', 'cloud', 'strong']
+        && d.seconds is number && d.seconds >= 0 && d.seconds <= 3600
+        && d.kind in ['chat', 'agent', 'try', 'quick']
+        && (!('reason' in d) || (d.reason is string && d.reason.size() <= 200))
+        && (!('model' in d) || (d.model is string && d.model.size() <= 80))
+        && d.at == request.time;
+    }
+  }
+}

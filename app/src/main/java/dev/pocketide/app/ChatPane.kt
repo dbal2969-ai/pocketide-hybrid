@@ -830,8 +830,26 @@ class ChatPane(
     }
     private var weakWarned = ""
 
+    /**
+     * 1.5.185 (the owner: "they can get to be annoying"): every model tip has "Hide model tips", which turns them all off (the same
+     * as ⚙ Settings › Assistant › "Show model tips in the chat").
+     */
+    private fun hideTipsChip(tip: View): View = Ui.chip(ctx, "Hide model tips") {
+        settings.modelTips = false; tip.visibility = View.GONE
+        toast("Model tips are off. Turn them back on in Settings › Assistant.")
+    }
+
+    /** A model tip as a note with "Hide model tips" under it. */
+    private fun tipNote(text: String): View {
+        val box = Ui.vertical(ctx)
+        box.addView(note(text, Ui.MUTED))
+        box.addView(hideTipsChip(box), Ui.lp(Ui.WRAP, Ui.WRAP).also { it.leftMargin = Ui.dp(ctx, 12) })
+        return box
+    }
+
     /** Once per model: a model of 8B or less often cannot edit documents, so say so and suggest others. */
     private fun weakModelWarning(request: String, files: List<FileAttach>) {
+        if (!settings.modelTips) return
         val p = settings.provider
         val model = settings.model(p).ifBlank { Providers.byId(p).model }
         if (!dev.pocketide.app.core.ModelSize.isWeakForFiles(model) || weakWarned == "$p/$model") return
@@ -844,6 +862,7 @@ class ChatPane(
             "so the change may fail or come out wrong. Try $ideas. Or skip the model: tap ✎ in the file's editor to edit Word, Excel and PowerPoint files directly.", Ui.MUTED))
         val row = Ui.horizontal(ctx)
         row.addView(Ui.chip(ctx, "Switch model") { ChatDialogs.model(ctx, settings) { refresh() } })
+        row.addView(hideTipsChip(box), Ui.lp(Ui.WRAP, Ui.WRAP).also { it.leftMargin = Ui.dp(ctx, 6) })
         box.addView(row)
         add(box, 4)
         scrollDown()
@@ -851,7 +870,7 @@ class ChatPane(
 
     /** Once per session: suggest a cloud model when a small local model is asked to build something big. */
     private fun smallModelHint(request: String) {
-        if (smallHintShown) return
+        if (smallHintShown || !settings.modelTips) return
         val p = settings.provider
         if (p != "ollama" && p != "llamacpp") return
         val model = settings.model(p)
@@ -863,6 +882,7 @@ class ChatPane(
             "doesn't build when asked for a whole program. For this kind of request a free cloud model (Groq, Gemini, OpenRouter) works much better.", Ui.MUTED))
         val row = Ui.horizontal(ctx)
         row.addView(Ui.chip(ctx, "Get a free key") { onHelp(dev.pocketide.app.core.HelpContent.KEYS) })
+        row.addView(hideTipsChip(box), Ui.lp(Ui.WRAP, Ui.WRAP).also { it.leftMargin = Ui.dp(ctx, 6) })
         box.addView(row)
         add(box, 4)
         scrollDown()
@@ -4002,6 +4022,7 @@ class ChatPane(
      * with a saved key), say so once per model and task, with the provider's own facts and a button to switch.
      */
     private fun recommendModel(text: String, images: Boolean) {
+        if (!settings.modelTips) return
         // a model the provider has refused tool calls for on this account would only switch to the text format: never suggest it
         val facts = dev.pocketide.app.core.ModelFacts.all().filter { !settings.toolsRejected(it.provider, it.id) }
         if (facts.isEmpty()) return
@@ -4024,6 +4045,9 @@ class ChatPane(
         }, "Don't suggest it" to {   // 1.5.128: a suggestion the person turned down is not made again
             dev.pocketide.app.core.ModelTrack.dismiss(rec.facts.provider, rec.facts.id)
             box.visibility = View.GONE
+        }, "Hide model tips" to {
+            settings.modelTips = false; box.visibility = View.GONE
+            toast("Model tips are off. Turn them back on in Settings › Assistant.")
         }), Ui.lp(Ui.MATCH, Ui.WRAP).also { it.topMargin = Ui.dp(ctx, 4) })
         add(box, 2)
     }
@@ -4058,7 +4082,7 @@ class ChatPane(
         for (m in sessionHistory()) history.add(mapOf("role" to m.role, "content" to m.content))
         run {
             val pid = settings.provider; val mdl = settings.model(pid).ifBlank { Providers.byId(pid).model }
-            if (advisedModels.add(pid + "/" + mdl)) dev.pocketide.app.core.ModelAdvice.note(pid, mdl, text.length > 400 || !lastBig.isNullOrBlank())?.let { add(note(it, Ui.MUTED), 2) }
+            if (settings.modelTips && advisedModels.add(pid + "/" + mdl)) dev.pocketide.app.core.ModelAdvice.note(pid, mdl, text.length > 400 || !lastBig.isNullOrBlank())?.let { add(tipNote(it), 2) }
         }
         recommendModel(text, images.isNotEmpty())
         sendBtn.text = "Stop"
@@ -4094,7 +4118,7 @@ class ChatPane(
                 val advisorPlan = settings.advisorPlan()
                 Tools.advisorEnabled = advisorPlan != null
                 // once: a stronger model has a key but only the weaker one works; say how to let the stronger one plan and review
-                if (advisorPlan == null && !settings.advisorTipShown && settings.advisorMode == dev.pocketide.app.core.Advisor.OFF &&
+                if (settings.modelTips && advisorPlan == null && !settings.advisorTipShown && settings.advisorMode == dev.pocketide.app.core.Advisor.OFF &&
                     settings.provider !in dev.pocketide.app.core.Advisor.STRONG_ORDER) settings.strongerOther()?.let { st ->
                     settings.advisorTipShown = true
                     note(dev.pocketide.app.core.Advisor.tip(Providers.byId(st.provider).name, Providers.byId(settings.provider).name), Ui.MUTED)

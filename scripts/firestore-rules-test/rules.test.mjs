@@ -1,0 +1,27 @@
+import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
+import { readFileSync } from 'fs';
+import { addDoc, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+const env = await initializeTestEnvironment({ projectId: 'demo-pocketide', firestore: { rules: readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8'), host: '127.0.0.1', port: 8085 } });
+const me = env.authenticatedContext('alice').firestore(), other = env.authenticatedContext('bob').firestore(), anon = env.unauthenticatedContext().firestore();
+const good = () => ({ where: 'phone', seconds: 1.5, reason: '', kind: 'agent', model: 'gemini-nano-fast', at: serverTimestamp() });
+const results = [];
+async function t(name, p) { try { await p; results.push('ok   ' + name); } catch (e) { results.push('FAIL ' + name + ': ' + e.message.slice(0, 120)); } }
+const mine = collection(me, 'users/alice/hybrid_runs');
+await t('owner creates a valid record', assertSucceeds(addDoc(mine, good())));
+await t('the app\'s records without reason/model', assertSucceeds(addDoc(mine, { where: 'cloud', seconds: 3, kind: 'chat', at: serverTimestamp() })));
+await t('owner reads own records', assertSucceeds(getDocs(mine)));
+await t('another user cannot read', assertFails(getDocs(collection(other, 'users/alice/hybrid_runs'))));
+await t('another user cannot write into it', assertFails(addDoc(collection(other, 'users/alice/hybrid_runs'), good())));
+await t('signed-out cannot write', assertFails(addDoc(collection(anon, 'users/alice/hybrid_runs'), good())));
+await t('extra field refused', assertFails(addDoc(mine, { ...good(), isAdmin: true })));
+await t('huge reason refused', assertFails(addDoc(mine, { ...good(), reason: 'x'.repeat(5000) })));
+await t('wrong where refused', assertFails(addDoc(mine, { ...good(), where: 'mars' })));
+await t('string seconds refused', assertFails(addDoc(mine, { ...good(), seconds: '5' })));
+await t('client time refused', assertFails(addDoc(mine, { ...good(), at: new Date(0) })));
+const ref = doc(me, 'users/alice/hybrid_runs/r1');
+await env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), 'users/alice/hybrid_runs/r1'), { where: 'phone', seconds: 1, kind: 'agent', at: new Date() }); });
+await t('update refused', assertFails(updateDoc(ref, { seconds: 999 })));
+await t('delete refused', assertFails(deleteDoc(ref)));
+await t('other paths closed', assertFails(setDoc(doc(me, 'users/alice'), { a: 1 })));
+console.log(results.join('\n'));
+await env.cleanup();

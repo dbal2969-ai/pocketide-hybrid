@@ -564,6 +564,30 @@ the files after the run, `transcript.txt` and `check.txt`.
   aBuildRequestNanoOnlyAnswersGoesToTheCloud, nanoHearsAboutTheStarterKit), AppSelfKnowledgeTest (+1). 1,316 tests, 0 failures.
 - **Evidence:** pocketide-hybrid-app-benchmark-1125-1338 and pocketide-hybrid-scratch-benchmark-1125-1218, with their analyses.
 
+### (next) · 2026-11-25 14:30 · Firebase agent skills: audit and fixes; a switch for model tips
+- **Why:** the owner asked to add Firebase's agent skills (encouraged by the hackathon) to see how they help and to say so in the
+  submission. They also asked for a toggle for suggestions, which "can get to be annoying" (chat model tips, chosen in the
+  question that followed).
+- **Change:**
+  - Firebase agent skills installed for the coding agent (`npx skills add firebase/agent-skills`), pinned in `skills-lock.json`.
+    The app was audited against firebase-ai-logic-basics, firebase-remote-config-basics, firebase-security-rules-auditor and
+    firebase-auth-basics; the full report is in docs/FIREBASE-AGENT-SKILLS.md.
+  - Cloud calls use App Check limited-use tokens (replay protection). The Remote Config key `hybrid_limited_use_app_check_tokens`
+    (default true) can turn this off without a new build.
+  - Remote Config real-time updates: console changes reach running apps at once.
+  - `firestore.rules` (new file, with `firebase.json`): owner-only and create-only as before, now limited to the app's fields, with
+    typed values, capped string lengths and the server's timestamp. 14 emulator tests in `scripts/firestore-rules-test`.
+    HACKATHON.md points to the file.
+  - New setting ⚙ Settings › Assistant › "Show model tips in the chat (suggestions to try another model)". Every model tip
+    (recommended model, small-model warnings, the advisor tip) has a "Hide model tips" chip that turns them all off.
+  - In-app benchmark app09 now asks to turn word wrap *off*, since it is on by default.
+- **Files:** HybridAi.kt (`ai()`), HybridCloud.kt (`KEY_LIMITED_TOKENS`, real-time listener), AppSettings.kt (`modelTips`),
+  ChatPane.kt (tip gates, `hideTipsChip`, `tipNote`), MainActivity.kt (setting), core/AppMapData.kt (regenerated),
+  core/HybridBenchTasks.kt; firestore.rules, firebase.json, scripts/firestore-rules-test/, skills-lock.json, .gitignore,
+  docs/FIREBASE-AGENT-SKILLS.md, HACKATHON.md, bench/hybrid/README.md.
+- **Tests:** 1,316 unit tests, 0 failures; Firestore rules 14 of 14 in the emulator (firebase-tools 15.37.0).
+- **Evidence:** the skills' checklists (docs/FIREBASE-AGENT-SKILLS.md).
+
 ---
 
 ## Outside the code
@@ -581,4 +605,6 @@ Changes and decisions that are not in a commit, kept here so the record is compl
   them with every benchmark run. The night of 2026-11-24 used up `gemini-3.8-flash`'s quota (runs from hard run 5 on used Fast
   instead). The app keeps working on Fast, but heavy runs should stop well before the judging period (2026-12-10 to 12-16), and
   more quota can be asked for through the hackathon's quota form (sprint 3 closes 2026-11-25, 10 AM PT).
+- **Firebase console to do (from the agent-skills audit):** paste `firestore.rules` into Firestore → Rules, and turn on App Check
+  enforcement for Cloud Firestore.
 - **Version label:** the app still reports 1.5.183-hybrid; builds are told apart by commit, as in the table above.

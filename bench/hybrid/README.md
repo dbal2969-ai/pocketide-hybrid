@@ -165,7 +165,7 @@ Models → Hybrid AI → **Run the in-app questions benchmark** asks 14 question
 | How-to | app01 Groq key (Private), app03 run commands without asking, app04 spending (Private), app05 keep code on the phone | app_help was called and the answer names the real place (Settings, Usage & cost, Private, the setting's label) |
 | Troubleshooting | app02 429 error, app13 blank Preview | app_help was called and the answer says what Help says to do |
 | Does not exist | app06 iPhone .ipa (Private), app07 Comic Sans editor font, app08 Dropbox sync, app14 Pomodoro timer (Private) | the answer says PocketIDE does not have it |
-| Change a setting | app09 word wrap (Private), app10 cloud model Best, app11 an OpenAI key | a card proposed exactly that change and the answer says it waits for Apply; the key is never proposed |
+| Change a setting | app09 word wrap off (Private), app10 cloud model Best, app11 an OpenAI key | a card proposed exactly that change and the answer says it waits for Apply; the key is never proposed |
 | Capabilities | app12 three things besides editing | two real features named |
 
 Every task also fails if a project file changed, or if any setting the assistant can propose changed during the task (the runner

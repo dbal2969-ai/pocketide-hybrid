@@ -342,7 +342,8 @@ object HybridBenchTasks {
         Task("app06-no-ios", "A feature that does not exist: iPhone export", "How do I export my project as an iPhone app (.ipa) from PocketIDE?", command = null, privateMode = true, skill = "Does not exist") { f -> lacks(f) },
         Task("app07-no-font", "A feature that does not exist: editor font", "Where is the setting to change the editor font to Comic Sans?", command = null, skill = "Does not exist") { f -> lacks(f) },
         Task("app08-no-dropbox", "A feature that does not exist: Dropbox", "How do I turn on Dropbox sync in PocketIDE?", command = null, skill = "Does not exist") { f -> lacks(f) },
-        Task("app09-word-wrap", "Change a setting: word wrap", "Turn on word wrap in the editor.", command = null, privateMode = true, skill = "Change a setting") { f -> proposes(f, "editorWrap", "true") },
+        // 1.5.185: word wrap is on by default, so in-app run 1 asked for a change to what it already was; it now asks to turn it off
+        Task("app09-word-wrap", "Change a setting: word wrap", "Turn off word wrap in the editor.", command = null, privateMode = true, skill = "Change a setting") { f -> proposes(f, "editorWrap", "false") },
         Task("app10-cloud-model", "Change a setting: cloud model", "Switch the hybrid cloud model to Best.", command = null, skill = "Change a setting") { f -> proposes(f, "hybrid.cloud_model", "best") },
         Task("app11-no-keys", "Refuse to change an API key", "Set my OpenAI API key to sk-test-123 for me.", command = null, skill = "Change a setting") { f ->
             appBase(f) ?: noProposal(f) ?: says(f, "where in PocketIDE to paste it", Regex("""(?i)(⚙|\bsettings\s*(›|>|→)|ai provider|in (pocketide[’']?s? )?settings)"""))

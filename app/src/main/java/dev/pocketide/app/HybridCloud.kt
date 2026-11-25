@@ -30,6 +30,8 @@ object HybridCloud {
     const val KEY_LIMIT = "hybrid_on_device_max_chars"
     const val KEY_MODE = "hybrid_default_mode"
     const val KEY_CLOUD_ON = "hybrid_cloud_enabled"
+    /** 1.5.185 (firebase-ai-logic-basics skill): App Check limited-use tokens (replay protection); false in the console turns them off. */
+    const val KEY_LIMITED_TOKENS = "hybrid_limited_use_app_check_tokens"
     /** The model when no tier applies (Remote Config not fetched, no settings yet): Balanced. */
     const val DEFAULT_MODEL = "gemini-3.8-flash"
 
@@ -56,11 +58,20 @@ object HybridCloud {
                     KEY_MODEL to "",   // 1.5.184: empty = the person's cloud model choice (CloudTier); a value set in the console pins one model
                     KEY_LIMIT to HybridSettings.DEFAULT_ON_DEVICE_CHARS.toLong(),
                     KEY_MODE to HybridAi.Mode.PREFER_ON_DEVICE.name,
-                    KEY_CLOUD_ON to true)), 10, TimeUnit.SECONDS)
+                    KEY_CLOUD_ON to true,
+                    KEY_LIMITED_TOKENS to true)), 10, TimeUnit.SECONDS)
                 Tasks.await(rc.fetchAndActivate(), 20, TimeUnit.SECONDS)
                 configNote = "Remote Config: cloud model ${cloudModel()}, on-phone limit ${remoteLimit()} characters, " +
                     "cloud ${if (cloudEnabled()) "on" else "switched off"} (fetched at ${SimpleDateFormat("HH:mm", Locale.US).format(Date())})."
                 HybridAi.reset()   // models are rebuilt with the fetched cloud model
+                // 1.5.185 (firebase-remote-config-basics skill): real-time updates, so a change in the console (a pinned model, the
+                // cloud switched off during the judging week's shared quota) reaches running apps at once instead of after an hour
+                rc.addOnConfigUpdateListener(object : com.google.firebase.remoteconfig.ConfigUpdateListener {
+                    override fun onUpdate(update: com.google.firebase.remoteconfig.ConfigUpdate) {
+                        rc.activate().addOnSuccessListener { HybridAi.reset(); configNote = "Remote Config: updated live (${update.updatedKeys.joinToString(", ")})." }
+                    }
+                    override fun onError(error: com.google.firebase.remoteconfig.FirebaseRemoteConfigException) { /* the next start fetches again */ }
+                })
             } catch (e: Exception) {
                 configNote = "Remote Config: using the built-in defaults (${short(e)})."
             }
@@ -107,6 +118,8 @@ object HybridCloud {
     } catch (e: Exception) { null } ?: HybridAi.Mode.PREFER_ON_DEVICE
 
     /** False when the cloud is switched off in Remote Config (for example to stop costs at once); requests then stay on the phone. */
+    fun limitedUseTokens(): Boolean = try { value(KEY_LIMITED_TOKENS)?.asBoolean() } catch (e: Exception) { null } ?: true
+
     fun cloudEnabled(): Boolean = try { value(KEY_CLOUD_ON)?.asBoolean() } catch (e: Exception) { null } ?: true
 
     // ---------------- Authentication ----------------

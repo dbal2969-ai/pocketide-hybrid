@@ -8,3 +8,7 @@ engine/work/
 
 # #BuildHybridAI: Firebase client config; CI writes it from the GOOGLE_SERVICES_JSON secret
 app/google-services.json
+
+# Firebase agent skills: restored from skills-lock.json (npx skills experimental_install); see docs/FIREBASE-AGENT-SKILLS.md
+.claude/skills/
+scripts/firestore-rules-test/node_modules/
