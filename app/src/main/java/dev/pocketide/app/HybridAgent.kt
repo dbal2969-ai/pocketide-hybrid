@@ -142,6 +142,14 @@ object HybridAgent {
                     dev.pocketide.app.core.CloudTier.cutOff(msg) && !HybridAi.bigOutput -> HybridAi.bigOutput = true
                     HybridCloud.pinnedModel() != null -> throw e
                     dev.pocketide.app.core.CloudTier.thinkingRefused(msg) && tier !in HybridAi.noThinking -> HybridAi.noThinking.add(tier)
+                    // 1.5.184 (hard run 5): the free quota ran out ("check your plan and billing details"); it refills, so a cool-down
+                    dev.pocketide.app.core.CloudTier.quota(msg) -> {
+                        HybridAi.coolUntil[tier] = System.currentTimeMillis() + dev.pocketide.app.core.CloudTier.QUOTA_COOLDOWN_MS
+                        val down = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
+                        fellBack = "${tier.label} (${tier.model}) used up its free request quota for now, so ${down.label} answers for the next " +
+                            "${dev.pocketide.app.core.CloudTier.QUOTA_COOLDOWN_MS / 60_000} minutes (${msg.take(100)})."
+                        tier = down
+                    }
                     // 1.5.184 (hard run 4): "high demand" is Google's servers, not the project; the next tier down answers this step only
                     dev.pocketide.app.core.CloudTier.busy(msg) -> {
                         val down = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
@@ -168,7 +176,7 @@ object HybridAgent {
         val said = mine.filter { it["role"] == "assistant" }.map { (it["content"] as? String).orEmpty() }   // raw: textOf drops the escalation line
         val results = mine.filter { it["role"] == "tool" }.map { textOf(it["content"]) }
         val notes = mine.filter { it["role"] == "user" }.drop(1).map { textOf(it["content"]) }
-        return dev.pocketide.app.core.CloudTier.pick(HybridAi.cloudChoice(ctx), said, results, notes, HybridAi.skipTiers.toSet())
+        return dev.pocketide.app.core.CloudTier.pick(HybridAi.cloudChoice(ctx), said, results, notes, HybridAi.skipNow())
     }
 
     /** When this step moved up to Best, the turn starts with the line that says so (kept in the chat, so the rest stays on Best). */

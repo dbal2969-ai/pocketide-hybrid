@@ -52,6 +52,15 @@ object HybridAi {
 
     /** Tiers this project could not use in this session (not available, or billing needed); the next one down answers. */
     val skipTiers: MutableSet<dev.pocketide.app.core.CloudTier.Tier> = java.util.Collections.synchronizedSet(HashSet())
+    /** Tiers whose quota ran out, with the time they may be tried again (CloudTier.quota). */
+    val coolUntil: MutableMap<dev.pocketide.app.core.CloudTier.Tier, Long> = java.util.concurrent.ConcurrentHashMap()
+
+    /** Tiers not to use now: unusable for the session, or cooling down after their quota ran out. */
+    fun skipNow(): Set<dev.pocketide.app.core.CloudTier.Tier> {
+        val now = System.currentTimeMillis()
+        return skipTiers.toSet() + coolUntil.filterValues { it > now }.keys
+    }
+
     /** Set after a cloud reply was cut off at its token limit (MAX_TOKENS): cloud replies get the largest limit from then on. */
     @Volatile var bigOutput = false
 
@@ -68,7 +77,7 @@ object HybridAi {
 
     /** The tier a request starts on (Auto starts on Balanced), skipping tiers this project cannot use. */
     fun startTier(ctx: Context): dev.pocketide.app.core.CloudTier.Tier =
-        dev.pocketide.app.core.CloudTier.pick(cloudChoice(ctx), emptyList(), emptyList(), emptyList(), skipTiers.toSet()).tier
+        dev.pocketide.app.core.CloudTier.pick(cloudChoice(ctx), emptyList(), emptyList(), emptyList(), skipNow()).tier
 
     /** The model name for [t]: the one Remote Config pins, else the tier's own. */
     fun modelFor(t: dev.pocketide.app.core.CloudTier.Tier): String = HybridCloud.pinnedModel() ?: t.model

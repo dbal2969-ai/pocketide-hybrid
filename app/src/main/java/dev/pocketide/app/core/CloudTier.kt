@@ -86,6 +86,17 @@ object CloudTier {
 
     private val BUSY = Regex("""(?i)high\s+demand|overloaded|try\s+again\s+later|\b503\b|\b429\b|RESOURCE_EXHAUSTED|rate\s+limit|quota|temporarily|UNAVAILABLE""")
 
+    private val QUOTA = Regex("""(?i)exceeded\s+your\s+current\s+quota|quota\s+exceeded|RESOURCE_EXHAUSTED|\b429\b|rate[-\s]limit""")
+
+    /** How long a tier whose quota ran out is left alone before it is tried again. */
+    const val QUOTA_COOLDOWN_MS = 10 * 60_000L
+
+    /**
+     * True when the free tier's request quota for this model ran out (hard run 5: "You exceeded your current quota, please check your
+     * plan and billing details"). It refills, so the tier cools down for [QUOTA_COOLDOWN_MS] instead of being dropped for the session.
+     */
+    fun quota(error: String): Boolean = QUOTA.containsMatchIn(error)
+
     /** True when the model is busy or rate-limited for now (it is not marked unusable; a lower tier answers this step). */
     fun busy(error: String): Boolean = BUSY.containsMatchIn(error) && !Regex("""(?i)not\s+found|billing|Blaze""").containsMatchIn(error)
 

@@ -72,4 +72,12 @@ class CloudTierTest {
         assertTrue(CloudTier.busy("429 RESOURCE_EXHAUSTED: quota exceeded"))
         assertFalse(CloudTier.busy("models/gemini-4-hydrogen is not found for API version v1beta"))
     }
+
+    /** Hard run 5: Balanced's free quota ran out, and the word "billing" in the message dropped it for the whole session. */
+    @Test fun aSpentQuotaCoolsDownInsteadOfDroppingTheModel() {
+        val e = "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits"
+        assertTrue(CloudTier.quota(e))
+        assertFalse(CloudTier.quota("This model requires the pay-as-you-go Blaze pricing plan"))
+        assertFalse(CloudTier.quota("models/x is not found"))
+    }
 }
