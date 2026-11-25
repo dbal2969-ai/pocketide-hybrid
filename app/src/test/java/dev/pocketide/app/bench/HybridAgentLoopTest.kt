@@ -320,4 +320,26 @@ class HybridAgentLoopTest {
         assertEquals(0, cloudCalls)
         assertTrue(o.result!!.text, o.result!!.ok)
     }
+
+    /** 1.5.184: in Auto the cloud starts on Balanced and passes a request that proves hard to Best, and says so. */
+    @Test fun aHardRequestMovesUpToTheStrongestCloudModelAndSaysWhy() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("hybrid_ai", 0).edit().putString("mode", HybridAi.Mode.PREFER_IN_CLOUD.name).commit()
+        val models = ArrayList<String>()
+        val q = ArrayDeque(listOf(
+            tools("edit_file", "path" to "app.js", "search" to "return a * b;", "replace" to "return a + b;"),
+            tools("edit_file", "path" to "app.js", "search" to "return a / b;", "replace" to "return a + b;"),
+            tools("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            tools("run_command", "command" to "node test.js")))
+        HybridAgent.testCloud = { _, msgs, _ -> cloudCalls++; models.add(HybridAgent.tierFor(RuntimeEnvironment.getApplication(), msgs).tier.model)
+            q.removeFirstOrNull() ?: ToolTurn("Fixed add. node test.js prints ok.", emptyList(), "stop") }
+        val o = run("Fix add in app.js so node test.js prints ok")
+        assertFalse("timed out", o.timedOut)
+        assertEquals(listOf("gemini-3.8-flash", "gemini-3.8-flash"), models.take(2))
+        assertTrue("Best from the third step on: $models", models.drop(2).all { it == "gemini-4-hydrogen" })
+        val s = shown(o)
+        assertTrue(s, s.contains("☁ Passing this to the strongest cloud model (gemini-4-hydrogen). Why: the last 2 tool calls failed."))
+        assertEquals("said once", 1, Regex("Passing this to the strongest").findAll(s).count())
+        assertTrue(s, s.contains("Ran in the cloud (gemini-4-hydrogen)"))
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+    }
 }

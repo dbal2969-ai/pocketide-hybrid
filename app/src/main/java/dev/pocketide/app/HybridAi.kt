@@ -44,9 +44,34 @@ object HybridAi {
         ONLY_ON_DEVICE("Only on this phone (never sends code out)", InferenceMode.ONLY_ON_DEVICE),
     }
 
-    class Reply(val text: String, val onDevice: Boolean, val seconds: Double, val note: String) {
-        val where: String get() = if (onDevice) "on this phone (Gemini Nano)" else "in the cloud (${HybridCloud.cloudModel()})"
+    class Reply(val text: String, val onDevice: Boolean, val seconds: Double, val note: String, val model: String = "") {
+        val where: String get() = if (onDevice) "on this phone (Gemini Nano)" else "in the cloud (${model.ifBlank { HybridCloud.cloudModel() }})"
     }
+
+    // ---------------- cloud tiers (CloudTier, 1.5.184) ----------------
+
+    /** Tiers this project could not use in this session (not available, or billing needed); the next one down answers. */
+    val skipTiers: MutableSet<dev.pocketide.app.core.CloudTier.Tier> = java.util.Collections.synchronizedSet(HashSet())
+    /** Set after a cloud reply was cut off at its token limit (MAX_TOKENS): cloud replies get the largest limit from then on. */
+    @Volatile var bigOutput = false
+
+    /** Tiers whose thinking setting was refused; they are asked without it. */
+    val noThinking: MutableSet<dev.pocketide.app.core.CloudTier.Tier> = java.util.Collections.synchronizedSet(HashSet())
+
+    fun cloudChoice(ctx: Context): dev.pocketide.app.core.CloudTier.Choice =
+        dev.pocketide.app.core.CloudTier.Choice.of(ctx.getSharedPreferences(PREFS, 0).getString("cloudTier", null))
+
+    fun saveCloudChoice(ctx: Context, c: dev.pocketide.app.core.CloudTier.Choice) {
+        ctx.getSharedPreferences(PREFS, 0).edit().putString("cloudTier", c.id).apply()
+        reset()
+    }
+
+    /** The tier a request starts on (Auto starts on Balanced), skipping tiers this project cannot use. */
+    fun startTier(ctx: Context): dev.pocketide.app.core.CloudTier.Tier =
+        dev.pocketide.app.core.CloudTier.pick(cloudChoice(ctx), emptyList(), emptyList(), emptyList(), skipTiers.toSet()).tier
+
+    /** The model name for [t]: the one Remote Config pins, else the tier's own. */
+    fun modelFor(t: dev.pocketide.app.core.CloudTier.Tier): String = HybridCloud.pinnedModel() ?: t.model
 
     private val models = HashMap<Mode, GenerativeModel>()
     @Volatile private var appCheckDone = false
@@ -63,15 +88,32 @@ object HybridAi {
         val s = settings(ctx)
         return models.getOrPut(mode) {
             FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI())
-                .generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s),
+                .generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s, tierOf(HybridCloud.cloudModel())),
                     onDeviceConfig = OnDeviceConfig(mode = mode.inference, maxOutputTokens = s.maxOutputTokens,
                         temperature = s.temperature, topK = s.topK,
                         modelOption = if (s.fullModel) OnDeviceModelOption.PREVIEW else OnDeviceModelOption.PREVIEW_FAST))
         }
     }
 
-    private fun gen(s: HybridSettings): GenerationConfig = GenerationConfig.builder().apply {
+    /** The tier whose model this is, or null (a model Remote Config pins). */
+    private fun tierOf(model: String) = dev.pocketide.app.core.CloudTier.Tier.values().firstOrNull { it.model == model }
+
+    /**
+     * The generation settings. A tier's cloud model also gets its thinking level (Best thinks hard); its output limit is raised so
+     * thinking and a whole file still fit (thinking tokens count against it). The phone's settings are the person's own.
+     */
+    private fun gen(s: HybridSettings, tier: dev.pocketide.app.core.CloudTier.Tier? = null, cloud: Boolean = tier != null): GenerationConfig = GenerationConfig.builder().apply {
         temperature = s.temperature; topK = s.topK; maxOutputTokens = s.maxOutputTokens
+        // 1.5.184 (hard run 2, h07): the cloud model stopped at MAX_TOKENS because the phone's 1,024-token setting applied to it too
+        if (cloud) maxOutputTokens = maxOf(s.maxOutputTokens, if (bigOutput) 32768 else 8192)
+        if (tier != null && tier !in noThinking) {
+            maxOutputTokens = maxOf(maxOutputTokens ?: 0, if (tier == dev.pocketide.app.core.CloudTier.Tier.BEST) 16384 else 8192)
+            thinkingConfig = com.google.firebase.ai.type.ThinkingConfig.Builder().setThinkingLevel(when (tier.thinking) {
+                "high" -> com.google.firebase.ai.type.ThinkingLevel.HIGH
+                "medium" -> com.google.firebase.ai.type.ThinkingLevel.MEDIUM
+                else -> com.google.firebase.ai.type.ThinkingLevel.LOW
+            }).build()
+        }
     }.build()
 
     /** One request on Gemini Nano only, never the cloud (the agent's phone path). Blocking; throws when Nano cannot run it. */
@@ -80,12 +122,12 @@ object HybridAi {
 
     /** The cloud model with PocketIDE's tools as functions (the agent's cloud path). Built per request, since the tools can change. */
     @Synchronized
-    fun cloudToolModel(ctx: Context, system: String, tools: List<FunctionDeclaration>): GenerativeModel {
+    fun cloudToolModel(ctx: Context, system: String, tools: List<FunctionDeclaration>, tier: dev.pocketide.app.core.CloudTier.Tier = startTier(ctx)): GenerativeModel {
         check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
         check(HybridCloud.cloudEnabled()) { "The cloud model is switched off right now (Remote Config: ${HybridCloud.KEY_CLOUD_ON}). Gemini Nano on the phone still works." }
         if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
         return FirebaseAI.getInstance(FirebaseApp.getInstance(), GenerativeBackend.googleAI()).generativeModel(
-            modelName = HybridCloud.cloudModel(), generationConfig = gen(settings(ctx)),
+            modelName = modelFor(tier), generationConfig = gen(settings(ctx), if (HybridCloud.pinnedModel() == null) tier else null, cloud = true),
             tools = if (tools.isEmpty()) null else listOf(Tool.functionDeclarations(tools)),
             toolConfig = if (tools.isEmpty()) null else ToolConfig(FunctionCallingConfig.auto()),
             systemInstruction = if (system.isBlank()) null else Content("system", listOf(TextPart(system))))
@@ -177,9 +219,28 @@ object HybridAi {
             note = "The cloud is switched off right now (Remote Config), so this stayed on the phone."
         }
         val t0 = System.nanoTime()
-        val r = HybridCloud.traced(if (use == Mode.ONLY_ON_DEVICE) "hybrid_phone" else "hybrid_chat") { runBlocking { model(ctx, use).generateContent(prompt) } }
+        fun once() = HybridCloud.traced(if (use == Mode.ONLY_ON_DEVICE) "hybrid_phone" else "hybrid_chat") { runBlocking { model(ctx, use).generateContent(prompt) } }
+        // 1.5.184: a cloud tier this project cannot use is skipped (the next one down answers); a refused thinking setting is dropped
+        var r: com.google.firebase.ai.type.GenerateContentResponse? = null
+        var tries = 0
+        while (r == null) {
+            try { r = once() } catch (e: Exception) {
+                val msg = explain(e)
+                val tier = tierOf(HybridCloud.cloudModel())
+                if (++tries > 3 || tier == null || use == Mode.ONLY_ON_DEVICE || HybridCloud.pinnedModel() != null) throw e
+                when {
+                    dev.pocketide.app.core.CloudTier.thinkingRefused(msg) && tier !in noThinking -> noThinking.add(tier)
+                    dev.pocketide.app.core.CloudTier.unavailable(msg) && dev.pocketide.app.core.CloudTier.lower(tier) != null -> {
+                        skipTiers.add(tier); note = listOf(note, "${tier.label} (${tier.model}) is not available to this project, so the next model down answered.").filter { it.isNotBlank() }.joinToString(" ")
+                    }
+                    else -> throw e
+                }
+                reset()
+            }
+        }
         val secs = (System.nanoTime() - t0) / 1e9
-        return Reply(r.text?.trim().orEmpty(), r.inferenceSource == InferenceSource.ON_DEVICE, secs, note)
+        val done = r!!
+        return Reply(done.text?.trim().orEmpty(), done.inferenceSource == InferenceSource.ON_DEVICE, secs, note, HybridCloud.cloudModel())
     }
 
     /** Gemini Nano on this phone: "AVAILABLE", "DOWNLOADABLE", "DOWNLOADING", "UNAVAILABLE" or an error. Blocking. */

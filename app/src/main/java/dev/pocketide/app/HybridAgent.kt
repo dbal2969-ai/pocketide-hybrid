@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong
  * - In the cloud: Gemini through Firebase AI Logic with native function calling and the full tool list.
  */
 object HybridAgent {
-    class Result(val turn: ToolTurn, val onDevice: Boolean, val seconds: Double, val note: String)
+    class Result(val turn: ToolTurn, val onDevice: Boolean, val seconds: Double, val note: String, val model: String = "")
 
     /**
      * What the phone did with one agent turn: [result] when it is answered here, else null and [reason], why it leaves
@@ -114,18 +114,60 @@ object HybridAgent {
 
     /** The turn on the cloud model through Firebase AI Logic, with every tool as a function. Blocking. */
     fun cloud(ctx: Context, system: String, messages: List<Map<String, Any?>>, tools: List<*>?): Result {
-        testCloud?.let { f -> return Result(f(system, messages, tools), false, 0.5, "") }
+        val pick = tierFor(ctx, messages)
+        testCloud?.let { f -> return withEscalation(Result(f(system, messages, tools), false, 0.5, "", pick.tier.model), pick) }
         val t0 = System.nanoTime()
-        val model = HybridAi.cloudToolModel(ctx, system, declarations(tools))
-        val ask = { HybridCloud.traced("hybrid_cloud") { runBlocking { model.generateContent(contents(messages)) } } }
-        // 1.5.184 (hard benchmark run 1, h07): one cloud call failed with the SDK's "Something unexpected happened." and the whole
-        // task ended before a step ran. A failure that may pass is tried once more after a short wait.
-        val r = try { ask() } catch (e: Exception) {
-            if (!transient(e)) throw e
-            Thread.sleep(RETRY_MS)
-            ask()
+        var tier = pick.tier
+        val decl = declarations(tools)
+        var lastError: Exception? = null
+        // a tier this project cannot use is skipped for the session and the next one down answers; a refused thinking setting is dropped
+        repeat(4) {
+            val model = HybridAi.cloudToolModel(ctx, system, decl, tier)
+            val ask = { HybridCloud.traced("hybrid_cloud") { runBlocking { model.generateContent(contents(messages)) } } }
+            try {
+                // 1.5.184 (hard benchmark run 1, h07): one cloud call failed with the SDK's "Something unexpected happened." and the whole
+                // task ended before a step ran. A failure that may pass is tried once more after a short wait.
+                val r = try { ask() } catch (e: Exception) {
+                    if (!transient(e)) throw e
+                    Thread.sleep(RETRY_MS)
+                    ask()
+                }
+                val note = if (tier != pick.tier) "${pick.tier.label} (${pick.tier.model}) is not available to this project, so ${tier.label} answered." else ""
+                return withEscalation(Result(turn(r), false, (System.nanoTime() - t0) / 1e9, note, HybridAi.modelFor(tier)), pick.copy(tier = tier))
+            } catch (e: Exception) {
+                lastError = e
+                val msg = HybridAi.explain(e)
+                when {
+                    dev.pocketide.app.core.CloudTier.cutOff(msg) && !HybridAi.bigOutput -> HybridAi.bigOutput = true
+                    HybridCloud.pinnedModel() != null -> throw e
+                    dev.pocketide.app.core.CloudTier.thinkingRefused(msg) && tier !in HybridAi.noThinking -> HybridAi.noThinking.add(tier)
+                    dev.pocketide.app.core.CloudTier.unavailable(msg) -> {
+                        HybridAi.skipTiers.add(tier)
+                        tier = dev.pocketide.app.core.CloudTier.lower(tier) ?: throw e
+                    }
+                    else -> throw e
+                }
+            }
         }
-        return Result(turn(r), false, (System.nanoTime() - t0) / 1e9, "")
+        throw lastError ?: IllegalStateException("No cloud model answered.")
+    }
+
+    /** The cloud tier for this step of the request (CloudTier.pick), from what has happened in it so far. */
+    fun tierFor(ctx: Context, messages: List<Map<String, Any?>>): dev.pocketide.app.core.CloudTier.Pick {
+        val since = messages.indexOfFirst { it["role"] == "user" }.coerceAtLeast(0)
+        val mine = messages.drop(since)
+        val said = mine.filter { it["role"] == "assistant" }.map { (it["content"] as? String).orEmpty() }   // raw: textOf drops the escalation line
+        val results = mine.filter { it["role"] == "tool" }.map { textOf(it["content"]) }
+        val notes = mine.filter { it["role"] == "user" }.drop(1).map { textOf(it["content"]) }
+        return dev.pocketide.app.core.CloudTier.pick(HybridAi.cloudChoice(ctx), said, results, notes, HybridAi.skipTiers.toSet())
+    }
+
+    /** When this step moved up to Best, the turn starts with the line that says so (kept in the chat, so the rest stays on Best). */
+    private fun withEscalation(r: Result, pick: dev.pocketide.app.core.CloudTier.Pick): Result {
+        val why = pick.why ?: return r
+        if (pick.tier != dev.pocketide.app.core.CloudTier.Tier.BEST) return r
+        val line = dev.pocketide.app.core.CloudTier.escalation(r.model.ifBlank { pick.tier.model }, why)
+        return Result(r.turn.copy(text = listOf(line, r.turn.text).filter { it.isNotBlank() }.joinToString("\n\n")), r.onDevice, r.seconds, r.note, r.model)
     }
 
     /** One agent turn, phone first, then the cloud model. Blocking. [tools] is the OpenAI-style tool list (Tools.body). */
@@ -133,7 +175,7 @@ object HybridAgent {
         val p = phone(ctx, messages, docs)
         p.result?.let { return it }
         val c = cloud(ctx, system, messages, tools)
-        return if (p.reason.isEmpty()) c else Result(c.turn, false, c.seconds, "Sent to the cloud: ${p.reason}.")
+        return if (p.reason.isEmpty()) c else Result(c.turn, false, c.seconds, "Sent to the cloud: ${p.reason}.", c.model)
     }
 
     /** What Gemini Nano says when it passes a request on: shown at once, and kept above the reply. */
@@ -418,7 +460,7 @@ object HybridAgent {
         try { Json.parseToJsonElement(json).jsonObject } catch (e: Exception) { emptyMap() }
 
     /** The where-it-ran line the app adds to replies; left out when the conversation is sent back to a model. */
-    private val LABEL = Regex("""(?m)^[ \t]*((⚡|☁) Ran (on this phone|in the cloud).*$\n?(Sent to the cloud:.*$\n?)?|⚡ Gemini Nano \(on this phone\): I'm passing this to.*$\n?)""")
+    private val LABEL = Regex("""(?m)^[ \t]*((⚡|☁) Ran (on this phone|in the cloud).*$\n?(Sent to the cloud:.*$\n?)?|⚡ Gemini Nano \(on this phone\): I'm passing this to.*$\n?|☁ Passing this to the strongest cloud model.*$\n?)""")
 
     private fun textOf(c: Any?): String {
         val raw = when (c) {

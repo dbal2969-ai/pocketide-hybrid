@@ -150,7 +150,7 @@ object HybridBench {
             act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             val hs = HybridAi.settings(act)
             val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
-                "on-phone limit ${hs.onDeviceMaxChars} characters · cloud model ${HybridCloud.cloudModel()}"
+                "on-phone limit ${hs.onDeviceMaxChars} characters · cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
             val report = HybridBenchTasks.report(results, about, problem, tasks.size, if (hard) "Hybrid AI benchmark (hard)" else "Hybrid AI benchmark")
             File(out, "report.md").writeText(report)
             val where = try {

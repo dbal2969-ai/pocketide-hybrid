@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
+import android.view.View
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -129,6 +130,21 @@ object HybridScreen {
             "Changes apply to the next request.", 12f, Ui.MUTED))
         for (box in listOf(tempBox, topKBox, outBox, charsBox)) setCard.addView(box, LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP))
         setCard.addView(fullBox)
+        // 1.5.184: the cloud model tier (CloudTier). Auto starts on Balanced and moves a hard request up to Best, and says so in the chat.
+        setCard.addView(Ui.text(ctx, "Cloud model (used when Gemini Nano passes a request on)", 14f, Ui.TEXT))
+        val tierGroup = android.widget.RadioGroup(ctx)
+        val choiceNow = HybridAi.cloudChoice(ctx)
+        for (c in dev.pocketide.app.core.CloudTier.Choice.values()) tierGroup.addView(android.widget.RadioButton(ctx).apply {
+            id = View.generateViewId(); tag = c
+            text = c.label + ": " + c.about; setTextColor(Ui.TEXT); isChecked = c == choiceNow
+        })
+        tierGroup.setOnCheckedChangeListener { g, id ->
+            val c = g.findViewById<View>(id)?.tag as? dev.pocketide.app.core.CloudTier.Choice ?: return@setOnCheckedChangeListener
+            HybridAi.saveCloudChoice(ctx, c); refresh()
+            toast("Cloud model: ${c.label}. The next request uses it.")
+        }
+        setCard.addView(tierGroup)
+        HybridCloud.pinnedModel()?.let { setCard.addView(Ui.text(ctx, "Remote Config pins the cloud model to $it, so this choice does not apply until that key is cleared in the console.", 12f, Ui.BAD)) }
         setCard.addView(warn)
         fun fill(s: HybridSettings) {
             tempBox.setText(s.temperature.toString()); topKBox.setText(s.topK.toString())
@@ -261,7 +277,7 @@ object HybridScreen {
 
     /** "On this phone (Gemini Nano) · 1.2 s" plus the routing note, if any. */
     fun label(r: HybridAi.Reply): String =
-        (if (r.onDevice) "⚡ Ran on this phone (Gemini Nano)" else "☁ Ran in the cloud (${HybridCloud.cloudModel()})") +
+        (if (r.onDevice) "⚡ Ran on this phone (Gemini Nano)" else "☁ Ran in the cloud (${r.model.ifBlank { HybridCloud.cloudModel() }})") +
             " · ${"%.1f".format(r.seconds)} s" + (if (r.note.isNotEmpty()) "\n" + r.note else "")
 
     /** Editor quick assist: one action on the selected lines, shown in a dialog with where it ran. */

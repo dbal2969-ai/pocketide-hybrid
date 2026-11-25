@@ -30,7 +30,8 @@ object HybridCloud {
     const val KEY_LIMIT = "hybrid_on_device_max_chars"
     const val KEY_MODE = "hybrid_default_mode"
     const val KEY_CLOUD_ON = "hybrid_cloud_enabled"
-    const val DEFAULT_MODEL = "gemini-3.1-flash-lite"
+    /** The model when no tier applies (Remote Config not fetched, no settings yet): Balanced. */
+    const val DEFAULT_MODEL = "gemini-3.8-flash"
 
     private val io = Executors.newSingleThreadExecutor()
 
@@ -52,7 +53,7 @@ object HybridCloud {
                 val rc = FirebaseRemoteConfig.getInstance()
                 Tasks.await(rc.setConfigSettingsAsync(FirebaseRemoteConfigSettings.Builder().setMinimumFetchIntervalInSeconds(3600).build()), 10, TimeUnit.SECONDS)
                 Tasks.await(rc.setDefaultsAsync(mapOf<String, Any>(
-                    KEY_MODEL to DEFAULT_MODEL,
+                    KEY_MODEL to "",   // 1.5.184: empty = the person's cloud model choice (CloudTier); a value set in the console pins one model
                     KEY_LIMIT to HybridSettings.DEFAULT_ON_DEVICE_CHARS.toLong(),
                     KEY_MODE to HybridAi.Mode.PREFER_ON_DEVICE.name,
                     KEY_CLOUD_ON to true)), 10, TimeUnit.SECONDS)
@@ -92,7 +93,11 @@ object HybridCloud {
         FirebaseRemoteConfig.getInstance().getValue(key).takeIf { it.source != FirebaseRemoteConfig.VALUE_SOURCE_STATIC }
     } catch (e: Exception) { null }
 
-    fun cloudModel(): String = try { value(KEY_MODEL)?.asString()?.trim()?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null } ?: DEFAULT_MODEL
+    /** A model Remote Config pins for every cloud step (set in the console), or null. */
+    fun pinnedModel(): String? = try { value(KEY_MODEL)?.asString()?.trim()?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null }
+
+    /** The cloud model a request starts on: the pinned one, else the person's choice (Auto starts on Balanced). */
+    fun cloudModel(): String = pinnedModel() ?: HybridAi.appContext?.let { HybridAi.startTier(it).model } ?: DEFAULT_MODEL
 
     fun remoteLimit(): Int = try { value(KEY_LIMIT)?.asLong()?.toInt()?.coerceIn(HybridSettings.CHARS_MIN, HybridSettings.CHARS_MAX) } catch (e: Exception) { null }
         ?: HybridSettings.DEFAULT_ON_DEVICE_CHARS
