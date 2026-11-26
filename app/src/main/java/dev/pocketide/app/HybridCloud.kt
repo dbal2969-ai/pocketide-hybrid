@@ -32,6 +32,12 @@ object HybridCloud {
     const val KEY_CLOUD_ON = "hybrid_cloud_enabled"
     /** 1.5.185 (firebase-ai-logic-basics skill): App Check limited-use tokens (replay protection); false in the console turns them off. */
     const val KEY_LIMITED_TOKENS = "hybrid_limited_use_app_check_tokens"
+    /** 1.5.197: tuning Gemini Nano from the console (see remoteconfig.template.json); the defaults are the app's built-in values. */
+    const val KEY_NANO_NOTE = "hybrid_nano_note"
+    const val KEY_PY_NOTE = "hybrid_python_note"
+    const val KEY_PY_EXAMPLES = "hybrid_python_examples"
+    const val KEY_PY_DEFAULT = "hybrid_python_helper_default"
+    const val KEY_PY_LINES = "hybrid_python_outline_lines"
     /** The model when no tier applies (Remote Config not fetched, no settings yet): Balanced. */
     const val DEFAULT_MODEL = "gemini-3.8-flash"
 
@@ -59,8 +65,14 @@ object HybridCloud {
                     KEY_LIMIT to HybridSettings.DEFAULT_ON_DEVICE_CHARS.toLong(),
                     KEY_MODE to HybridAi.Mode.PREFER_ON_DEVICE.name,
                     KEY_CLOUD_ON to true,
-                    KEY_LIMITED_TOKENS to true)), 10, TimeUnit.SECONDS)
+                    KEY_LIMITED_TOKENS to true,
+                    KEY_NANO_NOTE to "",
+                    KEY_PY_NOTE to "",   // empty = the built-in note (PyHelper.NOTE)
+                    KEY_PY_EXAMPLES to "",
+                    KEY_PY_DEFAULT to false,
+                    KEY_PY_LINES to dev.pocketide.app.core.PyHelper.LONG.toLong())), 10, TimeUnit.SECONDS)
                 Tasks.await(rc.fetchAndActivate(), 20, TimeUnit.SECONDS)
+                applyTuning()
                 configNote = "Remote Config: cloud model ${cloudModel()}, on-phone limit ${remoteLimit()} characters, " +
                     "cloud ${if (cloudEnabled()) "on" else "switched off"} (fetched at ${SimpleDateFormat("HH:mm", Locale.US).format(Date())})."
                 HybridAi.reset()   // models are rebuilt with the fetched cloud model
@@ -68,7 +80,7 @@ object HybridCloud {
                 // cloud switched off during the judging week's shared quota) reaches running apps at once instead of after an hour
                 rc.addOnConfigUpdateListener(object : com.google.firebase.remoteconfig.ConfigUpdateListener {
                     override fun onUpdate(update: com.google.firebase.remoteconfig.ConfigUpdate) {
-                        rc.activate().addOnSuccessListener { HybridAi.reset(); configNote = "Remote Config: updated live (${update.updatedKeys.joinToString(", ")})." }
+                        rc.activate().addOnSuccessListener { HybridAi.reset(); applyTuning(); configNote = "Remote Config: updated live (${update.updatedKeys.joinToString(", ")})." }
                     }
                     override fun onError(error: com.google.firebase.remoteconfig.FirebaseRemoteConfigException) { /* the next start fetches again */ }
                 })
@@ -103,6 +115,19 @@ object HybridCloud {
     private fun value(key: String): FirebaseRemoteConfigValue? = try {
         FirebaseRemoteConfig.getInstance().getValue(key).takeIf { it.source != FirebaseRemoteConfig.VALUE_SOURCE_STATIC }
     } catch (e: Exception) { null }
+
+    /** Copies the Nano tuning values into the code that uses them (after a fetch and after each live update). */
+    private fun applyTuning() {
+        try {
+            dev.pocketide.app.core.SmallLocal.remoteNote = value(KEY_NANO_NOTE)?.asString().orEmpty()
+            dev.pocketide.app.core.PyHelper.remoteNote = value(KEY_PY_NOTE)?.asString()
+            dev.pocketide.app.core.PyHelper.remoteExamples = value(KEY_PY_EXAMPLES)?.asString().orEmpty()
+            dev.pocketide.app.core.PyHelper.remoteLong = value(KEY_PY_LINES)?.asLong()?.toInt()
+        } catch (e: Exception) { /* the built-in values stay */ }
+    }
+
+    /** Whether the Python helper is on for a person who has not set it (Remote Config; off by default). */
+    fun pythonHelperDefault(): Boolean = try { value(KEY_PY_DEFAULT)?.asBoolean() } catch (e: Exception) { null } ?: false
 
     /** A model Remote Config pins for every cloud step (set in the console), or null. */
     fun pinnedModel(): String? = try { value(KEY_MODEL)?.asString()?.trim()?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null }

@@ -396,7 +396,8 @@ object HybridAgent {
         return SmallLocal.system(Tools.smallCatalogue(docs, SmallLocal.forApp(asked), chatHome)) +
             (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + kitNote(messages) +
             // 1.5.194: the Python helper's note, when NativeAgent put it in the system prompt (Settings › Assistant › Python helper)
-            (if (messages.any { it["role"] == "system" && textOf(it["content"]).contains(dev.pocketide.app.core.PyHelper.NOTE) }) "\n" + dev.pocketide.app.core.PyHelper.NOTE else "") +
+            (dev.pocketide.app.core.PyHelper.note().let { n -> if (messages.any { it["role"] == "system" && textOf(it["content"]).contains(n) }) "\n" + n else "" }) +
+            SmallLocal.remoteLine() +   // 1.5.197: Remote Config's hybrid_nano_note
             "\n\nThe conversation so far, oldest first:\n"
     }
     private const val TAIL = "\nYour reply, one JSON object:"

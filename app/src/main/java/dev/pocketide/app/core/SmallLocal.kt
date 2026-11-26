@@ -126,6 +126,15 @@ object SmallLocal {
         "\"reason\", \"tool\" and \"tool_args\"; to reply to the person, tool \"answer\" with tool_args {\"text\": your reply}."
 
     /** Added to [ASK] on the second try (1.5.188): most unreadable replies had a double quote or a line break left raw in a string. */
+    /**
+     * 1.5.197: extra instructions for Gemini Nano from Remote Config (hybrid_nano_note), added to its prompt for every request;
+     * blank (the default) adds nothing. A way to tune Nano for every phone at once without an app update.
+     */
+    @Volatile var remoteNote: String = ""
+
+    /** [remoteNote] as a line to add to the prompt, or "". */
+    fun remoteLine(): String = remoteNote.trim().takeIf { it.isNotEmpty() }?.let { "\n" + it.take(1500) }.orEmpty()
+
     const val QUOTES_NOTE = " Inside a JSON string, write a double quote as \\\" and a line break as \\n.\nYour reply, one JSON object:"
 
     /** One action read from a reply: the thought (shown as the reply text) and the tool call, or the answer text with no call. */

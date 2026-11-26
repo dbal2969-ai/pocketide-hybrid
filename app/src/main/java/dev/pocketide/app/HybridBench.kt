@@ -183,14 +183,14 @@ object HybridBench {
     fun beforeNow(act: MainActivity): Map<String, String> = AppSettings(act).let { s ->
         mapOf("provider" to s.provider, "workflow" to s.workflow, "agent" to s.agent.toString(), "mode" to s.mode,
             "draft" to s.savedSlot(true), "strong" to s.savedSlot(false), "hybridMode" to HybridScreen.mode(act).name, "project" to Projects.key(act),
-            "pythonHelper" to s.pythonHelper.toString())
+            "pythonHelper" to (s.pythonHelperChoice?.toString() ?: "default"))
     }
 
     fun restore(act: MainActivity, b: Map<String, String>) {
         if (b.isEmpty()) return
         val s = AppSettings(act)
         b["provider"]?.let { s.provider = it }; b["workflow"]?.let { s.workflow = it }; b["agent"]?.let { s.agent = it == "true" }
-        b["mode"]?.let { s.mode = it }; b["pythonHelper"]?.let { s.pythonHelper = it == "true" }; b["draft"]?.let { s.restoreSlot(true, it) }; b["strong"]?.let { s.restoreSlot(false, it) }
+        b["mode"]?.let { s.mode = it }; b["pythonHelper"]?.let { s.pythonHelperChoice = if (it == "default") null else it == "true" }; b["draft"]?.let { s.restoreSlot(true, it) }; b["strong"]?.let { s.restoreSlot(false, it) }
         b["hybridMode"]?.let { m -> HybridAi.Mode.values().firstOrNull { it.name == m }?.let { HybridScreen.setMode(act, it) } }
         b["project"]?.let { try { act.benchSwitch(it) } catch (e: Exception) { } }
     }

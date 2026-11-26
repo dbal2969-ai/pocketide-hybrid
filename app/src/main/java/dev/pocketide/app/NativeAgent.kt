@@ -719,8 +719,8 @@ class NativeAgent(
         val wasCheap = cheap != null
         var signal = false
         var over = false
-        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.NOTE else "") else (if (textTools) system + catalogue else system) +
-            (if (pyHelp) "\n\n" + dev.pocketide.app.core.PyHelper.NOTE else ""), messages, !textMode, object : NativeListener {
+        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.note() else "") + dev.pocketide.app.core.SmallLocal.remoteLine() else (if (textTools) system + catalogue else system) +
+            (if (pyHelp) "\n\n" + dev.pocketide.app.core.PyHelper.note() else ""), messages, !textMode, object : NativeListener {
             override fun onStatus(text: String) {
                 phase(text); if (text.contains("characters of reasoning")) signal = true
                 if (body.text.isEmpty() || body.text == "…" || body.text.startsWith("Thinking") || body.text.startsWith("Working") || body.text.startsWith("Waiting")) body.text = text

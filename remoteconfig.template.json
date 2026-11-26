@@ -1,0 +1,54 @@
+{
+  "parameters": {
+    "hybrid_cloud_model": {
+      "defaultValue": { "value": "" },
+      "description": "Pins one cloud model for every cloud step (e.g. gemini-3.5-flash-lite). Empty: the person's cloud tier choice.",
+      "valueType": "STRING"
+    },
+    "hybrid_on_device_max_chars": {
+      "defaultValue": { "value": "14000" },
+      "description": "Default on-phone limit: requests longer than this go to the cloud. The person's own setting wins.",
+      "valueType": "NUMBER"
+    },
+    "hybrid_default_mode": {
+      "defaultValue": { "value": "PREFER_ON_DEVICE" },
+      "description": "Default routing for new installs: PREFER_ON_DEVICE, PREFER_IN_CLOUD or ONLY_ON_DEVICE.",
+      "valueType": "STRING"
+    },
+    "hybrid_cloud_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "false switches the cloud off for everyone (Gemini Nano only), e.g. when the shared free quota runs out.",
+      "valueType": "BOOLEAN"
+    },
+    "hybrid_limited_use_app_check_tokens": {
+      "defaultValue": { "value": "true" },
+      "description": "App Check limited-use tokens on every cloud call (replay protection). false turns them off.",
+      "valueType": "BOOLEAN"
+    },
+    "hybrid_nano_note": {
+      "defaultValue": { "value": "" },
+      "description": "Extra instructions added to Gemini Nano's prompt for every request (up to 1,500 characters). Empty adds nothing.",
+      "valueType": "STRING"
+    },
+    "hybrid_python_note": {
+      "defaultValue": { "value": "" },
+      "description": "The Python helper's note to Gemini Nano. Empty: the built-in note (core/PyHelper.kt NOTE).",
+      "valueType": "STRING"
+    },
+    "hybrid_python_examples": {
+      "defaultValue": { "value": "" },
+      "description": "Worked examples added after the Python helper's note (for example a correct edit_lines call). Empty adds nothing.",
+      "valueType": "STRING"
+    },
+    "hybrid_python_helper_default": {
+      "defaultValue": { "value": "false" },
+      "description": "Whether the Python helper for Gemini Nano is on for people who have not set it in Settings > Assistant.",
+      "valueType": "BOOLEAN"
+    },
+    "hybrid_python_outline_lines": {
+      "defaultValue": { "value": "300" },
+      "description": "Python files longer than this many lines are shown to Gemini Nano as an outline with the relevant function (50 to 5000).",
+      "valueType": "NUMBER"
+    }
+  }
+}

@@ -19,6 +19,22 @@ object PyHelper {
     /** Files longer than this are answered with an outline when read whole. */
     const val LONG = 300
 
+    /**
+     * 1.5.197: Remote Config overrides, set by HybridCloud after a fetch or a live update (keys hybrid_python_note,
+     * hybrid_python_examples, hybrid_python_outline_lines). Blank or null means the built-in value, so the app behaves the same
+     * until a value is published in the Firebase console.
+     */
+    @Volatile var remoteNote: String? = null
+    @Volatile var remoteExamples: String = ""
+    @Volatile var remoteLong: Int? = null
+
+    /** The note Nano is given: Remote Config's text or [NOTE], then any worked examples. */
+    fun note(): String = (remoteNote?.trim()?.takeIf { it.isNotEmpty() } ?: NOTE) +
+        remoteExamples.trim().takeIf { it.isNotEmpty() }?.let { "\nWorked examples:\n$it" }.orEmpty()
+
+    /** The length at which a Python file is outlined. */
+    fun long(): Int = remoteLong?.takeIf { it in 50..5000 } ?: LONG
+
     fun isPython(path: String) = path.endsWith(".py", ignoreCase = true)
 
     /** Whether the helper applies: the project has Python files or the request is about Python. */
@@ -121,7 +137,7 @@ object PyHelper {
      * [again]: the file was outlined before in this request, so real code is shown instead of the outline: that function with 60 lines
      * either side, or the first 150 lines. Null when the file is short enough to read whole.
      */
-    fun outline(path: String, text: String, long: Int = LONG, request: String = "", again: Boolean = false): String? {
+    fun outline(path: String, text: String, long: Int = long(), request: String = "", again: Boolean = false): String? {
         val lines = text.split("\n")
         if (lines.size <= long) return null
         val at = relevantDef(text, request)

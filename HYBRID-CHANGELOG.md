@@ -940,6 +940,28 @@ the files after the run, `transcript.txt` and `check.txt`.
   a reliability run (its title ends "(Gemini Nano)").
 - **Files:** HybridBench.kt, HybridScreen.kt; app/build.gradle.kts (1.5.196-hybrid, code 244). 1,353 unit tests, 0 failures.
 
+
+### (next) · 2026-11-26 16:40 · Gemini Nano tuned from Remote Config; 1.5.197
+
+- **Why:** the owner asked to use Remote Config more: Nano cannot be fine-tuned (Firebase AI Logic does not support tuned models,
+  and AICore takes no app-supplied LoRA), so the way to teach it is its instructions, and Remote Config ships those to every phone
+  at once without an app update.
+- **New keys** (HybridCloud `KEY_NANO_NOTE`, `KEY_PY_NOTE`, `KEY_PY_EXAMPLES`, `KEY_PY_DEFAULT`, `KEY_PY_LINES`; copied into the code
+  by `applyTuning()` after each fetch and each real-time update):
+  - `hybrid_nano_note`: extra instructions added to Nano's prompt for every request (`SmallLocal.remoteLine`, up to 1,500 characters;
+    in small local model mode and in HybridAgent's prompt for Nano);
+  - `hybrid_python_note` and `hybrid_python_examples`: the Python helper's note and worked examples after it (`PyHelper.note()`);
+  - `hybrid_python_helper_default`: whether the helper is on for people who have not set it (`AppSettings.pythonHelper` reads it
+    until the person chooses; saving Settings without changing the box keeps following it, and a benchmark run puts it back unset);
+  - `hybrid_python_outline_lines`: the length at which a Python file is outlined (`PyHelper.long()`, 50 to 5,000).
+  Every default is the app's built-in value, so nothing changes until a value is published in the console.
+- **remoteconfig.template.json** lists all ten keys with their defaults and descriptions; firebase.json points to it, so
+  `firebase deploy --only remoteconfig` publishes it.
+- **Files:** HybridCloud.kt, AppSettings.kt, MainActivity.kt, HybridBench.kt, NativeAgent.kt, HybridAgent.kt, core/PyHelper.kt,
+  core/SmallLocal.kt, remoteconfig.template.json (new), firebase.json; app/build.gradle.kts (1.5.197-hybrid, code 245).
+- **Tests:** RemoteTuningTest (3): the defaults are the built-in values, remote values change what Nano sees (and out-of-range ones
+  are ignored), and the template lists exactly the app's keys with its defaults. 1,356 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

@@ -1090,7 +1090,7 @@ class MainActivity : Activity() {
                 settings.editorTheme = if (edLight.isChecked) "light" else "dark"  // v0.4 W1
                 if (appLightBox.isChecked != settings.appLight) { settings.appLight = appLightBox.isChecked; editor.save(); window.decorView.post { recreate() } }
                 settings.modelTips = tipsBox.isChecked
-                settings.pythonHelper = pyBox.isChecked
+                if (pyBox.isChecked != settings.pythonHelper) settings.pythonHelper = pyBox.isChecked   // 1.5.197: unchanged stays Remote Config's default
                 settings.editorWrap = edWrap.isChecked
                 settings.workAnnounce = announceBox.isChecked
                 settings.autoComplete = edAuto.isChecked

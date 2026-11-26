@@ -571,8 +571,13 @@ class AppSettings(ctx: Context) {
         set(v) { sp.edit().putBoolean("chat.model_tips", v).apply() }
     /** 1.5.194: the Python helper for Gemini Nano (core/PyHelper): a Python note, edits re-indented, outlines, where a test failed. */
     var pythonHelper: Boolean
-        get() = sp.getBoolean("hybrid.python_helper", false)
+        // 1.5.197: until the person sets it, Remote Config's hybrid_python_helper_default decides (off by default)
+        get() = if (sp.contains("hybrid.python_helper")) sp.getBoolean("hybrid.python_helper", false) else HybridCloud.pythonHelperDefault()
         set(v) { sp.edit().putBoolean("hybrid.python_helper", v).apply() }
+    /** The person's own choice of the Python helper, or null when Remote Config's default applies; null clears it. */
+    var pythonHelperChoice: Boolean?
+        get() = if (sp.contains("hybrid.python_helper")) sp.getBoolean("hybrid.python_helper", false) else null
+        set(v) { sp.edit().apply { if (v == null) remove("hybrid.python_helper") else putBoolean("hybrid.python_helper", v) }.apply() }
     var editorWrap: Boolean
         get() = sp.getBoolean("editor.wrap", true)
         set(v) { sp.edit().putBoolean("editor.wrap", v).apply() }
