@@ -267,6 +267,8 @@ class MainActivity : Activity() {
         }
         root.addView(bar, Ui.lp(Ui.MATCH, Ui.WRAP))
         setContentView(root)
+        // 1.5.188: a benchmark run cut off when PocketIDE was closed or killed: put the settings back, zip its finished tasks, offer to resume
+        root.post { try { HybridBench.recover(this) } catch (e: Exception) { dev.pocketide.app.core.AppLog.add("bench", "recovering an interrupted run failed: ${e.message}") } }
 
         if (Build.VERSION.SDK_INT >= 30) {
             window.setDecorFitsSystemWindows(false)

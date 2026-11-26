@@ -718,6 +718,34 @@ the files after the run, `transcript.txt` and `check.txt`.
   repeats a search that is not a bare name. 1,328 unit tests, 0 failures.
 - **Evidence:** pocketide-hybrid-benchmark-reliable-1125-1815.
 
+
+### (next) · 2026-11-25 22:45 · Interrupted benchmark runs keep their finished tasks, and resume; 1.5.188
+
+- **Why:** the owner asked that an interrupted run not be a loss: the tasks that finished should still give a zip, and the task
+  that was running should be rotated when the run carries on. A full reliability run is 141 tasks over an evening, and until now a
+  run cut off at task 120 (PocketIDE closed, Android stopping it, the phone restarting) saved nothing and left the benchmark's
+  settings (Hybrid AI, Single model, Agent mode, a bench project) in place.
+- **Progress is saved after every task** (core/BenchResume.kt, HybridBench `Run.save`): run.properties in the run's results folder
+  (the task order, the finished ids, the task running now, the person's settings and project from before the run, and the
+  reliability suite's left-out tasks and deselected tests), and result.properties beside each task's check.txt.
+- **Cut off (PocketIDE closed or killed):** when PocketIDE next starts (MainActivity → `HybridBench.recover`), a run still marked as
+  going on is treated as interrupted. The settings and project are put back, report.md says how far it got, the finished tasks
+  are zipped as `pocketide-<suite>-benchmark-<stamp>-partial-<done>of<total>.zip` in Downloads/PocketIDE, and a dialog offers
+  Resume.
+- **Stopped by the person:** while a run goes on, any benchmark button reads "tap to stop" and offers "Stop and save": the running
+  request is stopped, and the same partial zip is made.
+- **Resume:** the same benchmark button offers "Resume the interrupted run?" (or "Start a new run", which drops it). Resuming keeps
+  the run's stamp, folder, results, Python checks and settings snapshot, and runs the rest. The task that was running when it was
+  interrupted goes to the back of the queue (rotated), since it may be what stopped the run; a task the run was interrupted during
+  twice is recorded as failed ("interrupted during this task 2 times") so a run cannot get stuck on it. The final zip has every
+  task, as a run that was never interrupted.
+- **Files:** core/BenchResume.kt (new), HybridBench.kt (`resume`, `stop`, `recover`, `paused`, `abandon`, `tasksFor`,
+  `savedResults`, `reportText`, `savePartial`; the report, zip and Downloads helpers moved out of `Run` to be shared), HybridScreen.kt
+  (stop and resume dialogs), MainActivity.kt; app/build.gradle.kts (1.5.188-hybrid, code 236).
+- **Tests:** BenchResumeTest (4): the progress file round-trips (tabs, newlines, commas in pytest ids), an interrupted task moves to
+  the back, a task interrupted twice is given up, an interruption between tasks charges no task, saved results and the partial zip's
+  name. 1,332 unit tests, 0 failures. Not yet tried on the phone.
+
 ---
 
 ## Outside the code

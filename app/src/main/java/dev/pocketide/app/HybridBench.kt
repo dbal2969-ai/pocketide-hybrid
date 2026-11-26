@@ -9,6 +9,7 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.view.WindowManager
 import android.widget.Toast
+import dev.pocketide.app.core.BenchResume
 import dev.pocketide.app.core.HybridBenchTasks
 import java.io.File
 import java.io.OutputStream
@@ -23,6 +24,9 @@ import java.util.zip.ZipOutputStream
  * as a person would: each task gets a fresh project with its starting files, its prompt is sent in Agent mode with Hybrid AI,
  * and when the assistant is idle the task's check runs (node test.js, and the files and chat log). The results, every
  * project's files and chat log go into one zip in Downloads/PocketIDE. The person's settings and project are put back.
+ *
+ * 1.5.188: progress is saved after every task (BenchResume). A run that is stopped, or cut off because PocketIDE was closed or
+ * killed, still zips the tasks that finished, and can be resumed with the interrupted task moved to the back of the queue.
  */
 object HybridBench {
     @Volatile var running = false
@@ -53,7 +57,148 @@ object HybridBench {
     fun start(act: MainActivity, suite: Suite = Suite.STANDARD, helping: Boolean = false, runs: Int = 1, python: Boolean = true) {
         if (running) return
         running = true
-        Run(act, suite, helping, runs, python).begin()
+        Run(act, suite, helping, runs, python).also { current = it }.begin()
+    }
+
+    /** The run going on now, for [stop]. */
+    @Volatile private var current: Run? = null
+
+    /** Carries on with an interrupted run (1.5.188): its finished tasks are kept, and the interrupted task goes to the back. */
+    fun resume(act: MainActivity, s: BenchResume.State) {
+        if (running) return
+        val kind = Suite.values().firstOrNull { it.id == s.suite } ?: return
+        running = true
+        Run(act, kind, s.helping, s.runs, s.python, s).also { current = it }.begin()
+    }
+
+    /** Stops the run now (1.5.188): the finished tasks are zipped, and the run can be resumed later. */
+    fun stop() { current?.stop() }
+
+    fun resultsDir(ctx: android.content.Context) = File(ctx.filesDir, "bench-results")
+
+    /** Every run that saved its progress (1.5.188 on), newest first. */
+    fun states(ctx: android.content.Context): List<Pair<File, BenchResume.State>> =
+        (resultsDir(ctx).listFiles() ?: emptyArray()).mapNotNull { d ->
+            val f = File(d, BenchResume.FILE)
+            if (!f.isFile) null else BenchResume.decode(try { f.readText() } catch (e: Exception) { "" })?.let { d to it }
+        }.sortedByDescending { it.first.lastModified() }
+
+    /** The newest interrupted run of [suite] that can be resumed, or null. */
+    fun paused(ctx: android.content.Context, suite: Suite): BenchResume.State? =
+        states(ctx).firstOrNull { it.second.suite == suite.id && it.second.resumable }?.second
+
+    /** The person chose to start a new run instead: the interrupted one is no longer offered. */
+    fun abandon(ctx: android.content.Context, s: BenchResume.State) = save(File(resultsDir(ctx), "${s.suite}-${s.stamp}"), s.copy(finished = true))
+
+    private fun save(dir: File, s: BenchResume.State) = try { File(dir, BenchResume.FILE).writeText(BenchResume.encode(s)) } catch (e: Exception) { }
+
+    /**
+     * Called when PocketIDE starts (1.5.188). A run still marked as going on while no run is going on was cut off: PocketIDE was
+     * closed, or Android stopped it. The person's settings and project are put back, the tasks that finished are zipped, and the
+     * person can resume it.
+     */
+    fun recover(act: MainActivity) {
+        if (running) return
+        for ((dir, s0) in states(act).filter { it.second.active && !it.second.finished }) {
+            val s = BenchResume.interrupt(s0)
+            save(dir, s)
+            restore(act, s.before)
+            val kind = Suite.values().firstOrNull { it.id == s.suite } ?: continue
+            val where = savePartial(act, dir, kind, s, "PocketIDE was closed or stopped by Android")
+            AlertDialog.Builder(act).setTitle(kind.title + " was interrupted")
+                .setMessage("PocketIDE was closed or stopped while the benchmark ran, after ${s.done.size} of ${s.order.size} tasks. " +
+                    "The finished tasks are saved: $where\n\nYour settings and project were put back. Resume carries on with the rest; " +
+                    "the task that was running goes to the back of the queue.")
+                .setPositiveButton("Resume") { _, _ -> resume(act, s) }
+                .setNegativeButton("Later", null).show()
+            return   // one at a time; any other shows next start
+        }
+    }
+
+    /** The tasks of a run of [kind], before any are left out. */
+    fun tasksFor(ctx: android.content.Context, kind: Suite, runs: Int, python: Boolean): List<HybridBenchTasks.Task> = when (kind) {
+        Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL
+        Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.APP -> HybridBenchTasks.APP; Suite.STANDARD -> HybridBenchTasks.ALL
+        Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs) }
+
+    /** The settings a run changes, as they are now, to put back afterwards. */
+    fun beforeNow(act: MainActivity): Map<String, String> = AppSettings(act).let { s ->
+        mapOf("provider" to s.provider, "workflow" to s.workflow, "agent" to s.agent.toString(), "mode" to s.mode,
+            "draft" to s.savedSlot(true), "strong" to s.savedSlot(false), "hybridMode" to HybridScreen.mode(act).name, "project" to Projects.key(act))
+    }
+
+    fun restore(act: MainActivity, b: Map<String, String>) {
+        if (b.isEmpty()) return
+        val s = AppSettings(act)
+        b["provider"]?.let { s.provider = it }; b["workflow"]?.let { s.workflow = it }; b["agent"]?.let { s.agent = it == "true" }
+        b["mode"]?.let { s.mode = it }; b["draft"]?.let { s.restoreSlot(true, it) }; b["strong"]?.let { s.restoreSlot(false, it) }
+        b["hybridMode"]?.let { m -> HybridAi.Mode.values().firstOrNull { it.name == m }?.let { HybridScreen.setMode(act, it) } }
+        b["project"]?.let { try { act.benchSwitch(it) } catch (e: Exception) { } }
+    }
+
+    /** The results saved in [dir] for the tasks [s] lists as done, in the order they finished. */
+    fun savedResults(ctx: android.content.Context, dir: File, kind: Suite, s: BenchResume.State): ArrayList<HybridBenchTasks.Result> {
+        val byId = try { tasksFor(ctx, kind, s.runs, s.python).associateBy { it.id } } catch (e: Exception) { emptyMap() }
+        val out = ArrayList<HybridBenchTasks.Result>()
+        for (id in s.done) {
+            val t = byId[id] ?: continue
+            val d = File(dir, id)
+            val r = File(d, BenchResume.RESULT).takeIf { it.isFile }?.let { BenchResume.parseResult(it.readText()) }
+                ?: File(d, "check.txt").takeIf { it.isFile }?.let { BenchResume.fromCheck(it.readText()) } ?: continue
+            val transcript = File(d, "transcript.txt").takeIf { it.isFile }?.readText().orEmpty()
+            out.add(HybridBenchTasks.Result(t, r.passed, r.why, HybridBenchTasks.counts(transcript), r.seconds, r.ended))
+        }
+        return out
+    }
+
+    /** The report for [results]: the suite's report, and for the reliability suite its pass@1 and pass^k summary. */
+    fun reportText(ctx: android.content.Context, kind: Suite, helping: Boolean, stamp: String, results: List<HybridBenchTasks.Result>, problem: String?,
+                   total: Int, runs: Int, pythonNote: String, deselect: Map<String, List<String>>, unsound: Map<String, String>): String {
+        val strong = if (helping) helperStrong(AppSettings(ctx)) else null
+        val hs = HybridAi.settings(ctx)
+        val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
+            "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
+            (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(ctx).let { it.label + " (" + it.about + ")" }}"
+        return HybridBenchTasks.report(results, about, problem, if (kind == Suite.RELIABLE) results.size else total, kind.title + if (helping) " · hybrid helping a strong model" else "") +
+            (if (kind != Suite.RELIABLE) "" else dev.pocketide.app.core.ReliableBench.summary(results) +
+                (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
+                (if (deselect.isEmpty()) "" else "\nHidden tests left out because they fail on this phone even with the reference fix:\n" + deselect.entries.joinToString("\n") { "- ${it.key}: ${it.value.joinToString()}" } + "\n") +
+                (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n"))
+    }
+
+    /** Zips the tasks an interrupted run finished (report-partial.md says so), and says where the zip went. */
+    fun savePartial(ctx: android.content.Context, dir: File, kind: Suite, s: BenchResume.State, how: String): String {
+        val results = savedResults(ctx, dir, kind, s)
+        val note = BenchResume.interruptedNote(s, s.order.size, how)
+        return try {
+            File(dir, "report.md").writeText(reportText(ctx, kind, s.helping, s.stamp, results, note, s.order.size, s.runs, s.pythonNote, s.deselect, s.unsound))
+            saveToDownloads(ctx, BenchResume.partialName(s.suite, s.helping, s.stamp, results.size, s.order.size)) { os -> zipDir(dir, os) }
+        } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${dir.absolutePath}" }
+    }
+
+    fun zipDir(dir: File, os: OutputStream) = ZipOutputStream(os).use { z ->
+        dir.walkTopDown().filter { it.isFile }.forEach { f ->
+            z.putNextEntry(ZipEntry(f.relativeTo(dir).invariantSeparatorsPath))
+            f.inputStream().use { it.copyTo(z) }
+            z.closeEntry()
+        }
+    }
+
+    /** Saves a file to Downloads/PocketIDE (MediaStore, no permission needed); before Android 10, the app's own files. */
+    fun saveToDownloads(ctx: android.content.Context, fileName: String, write: (OutputStream) -> Unit): String {
+        if (Build.VERSION.SDK_INT >= 29) {
+            val v = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "application/zip")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PocketIDE")
+            }
+            val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v) ?: error("Downloads refused the file")
+            ctx.contentResolver.openOutputStream(uri)!!.use(write)
+            return "Downloads/PocketIDE/$fileName"
+        }
+        val f = File(ctx.getExternalFilesDir(null), fileName)
+        f.outputStream().use(write)
+        return f.absolutePath
     }
 
     /** The reliability suite's tasks: the local suite (dev), the held-out Node tasks and the Python track, from the assets. */
@@ -72,29 +217,35 @@ object HybridBench {
         return rb.devTasks(devHidden) + node + py
     }
 
-    private class Run(val act: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true) {
+    private class Run(val act: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true,
+                      val resume: BenchResume.State? = null) {
         val main = Handler(Looper.getMainLooper())
         val settings = AppSettings(act)
-        val before = Triple(settings.provider, settings.workflow, settings.agent)
-        val chatModeBefore = settings.mode
-        val draftBefore = settings.savedSlot(true)
-        val strongBefore = settings.savedSlot(false)
+        /** The person's settings and project to put back; on resume, the ones saved before the run first started. */
+        val before: Map<String, String> = resume?.before ?: beforeNow(act)
         val strong = if (helping) helperStrong(settings) else null
-        val modeBefore = HybridScreen.mode(act)
-        val projectBefore = Projects.key(act)
-        val stamp: String = SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
+        val stamp: String = resume?.stamp ?: SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
         val suite = kind.id
-        val out = File(act.filesDir, "bench-results/$suite-$stamp").apply { mkdirs() }
-        val results = ArrayList<HybridBenchTasks.Result>()
-        val tasks: MutableList<HybridBenchTasks.Task> = when (kind) { Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL
-            Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.APP -> HybridBenchTasks.APP; Suite.STANDARD -> HybridBenchTasks.ALL
-            Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(act, python), runs) }.toMutableList()
+        val out = File(resultsDir(act), "$suite-$stamp").apply { mkdirs() }
+        val all = tasksFor(act, kind, runs, python)
+        val byId = all.associateBy { it.id }
+        val results: ArrayList<HybridBenchTasks.Result> = if (resume == null) ArrayList() else savedResults(act, out, kind, resume)
+        val tasks: MutableList<HybridBenchTasks.Task> = (if (resume == null) all else BenchResume.remaining(resume).mapNotNull { byId[it] }).toMutableList()
         /** Reliability suite: tasks whose reference fix does not pass on this phone (its packages differ), left out of the scores. */
-        val unsound = LinkedHashMap<String, String>()
+        val unsound = LinkedHashMap<String, String>(resume?.unsound ?: emptyMap())
         /** Python hidden tests that fail on this phone even with the reference fix (its packages differ): left out of that task's hidden check. */
-        val deselect = HashMap<String, List<String>>()
-        val checked = HashSet<String>()
-        var pythonNote = ""
+        val deselect = HashMap<String, List<String>>(resume?.deselect ?: emptyMap())
+        val checked = HashSet<String>(unsound.keys + deselect.keys)
+        var pythonNote = resume?.pythonNote ?: ""
+        /** The run's progress, saved after every task (1.5.188). */
+        var state = resume?.copy(active = true, current = null) ?: BenchResume.State(suite, stamp, helping, runs, python, all.map { it.id }, before = before)
+        /** Set by [stop]: late callbacks from the task that was running record nothing. */
+        @Volatile var stopped = false
+
+        fun save(current: String?) {
+            state = state.copy(current = current, done = results.map { it.task.id }, unsound = LinkedHashMap(unsound), deselect = HashMap(deselect), pythonNote = pythonNote)
+            save(out, state)
+        }
         /** Gemini Nano's exchanges in the current task (HybridAgent.recorder), saved as nano.jsonl. */
         val nanoLog = StringBuilder()
         var i = 0
@@ -103,6 +254,16 @@ object HybridBench {
 
         fun begin() {
             act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            // 1.5.188: a task the run was interrupted during LIMIT times is recorded as failed, so a run can never get stuck on it
+            if (resume != null) for (id in BenchResume.givenUp(resume)) byId[id]?.let { t ->
+                if (results.none { it.task.id == id }) {
+                    val why = BenchResume.givenUpWhy(id)
+                    results.add(HybridBenchTasks.Result(t, false, why, HybridBenchTasks.counts(""), 0, "interrupted"))
+                    try { File(out, id).apply { mkdirs() }.let { d -> File(d, BenchResume.RESULT).writeText(BenchResume.resultText(BenchResume.Saved(false, why, 0, "interrupted"))); File(d, "check.txt").writeText("Result: $why\n") } } catch (e: Exception) { }
+                }
+            }
+            save(null)
+            if (resume != null) toast("Resuming: ${results.size} of ${state.order.size} tasks already done")
             settings.provider = "hybrid"
             settings.workflow = dev.pocketide.app.core.Workflow.SINGLE
             if (helping) {
@@ -141,6 +302,7 @@ object HybridBench {
                                 if (code2 != 0) {
                                     pythonNote = "The Python track was left out: Python and its packages could not be installed (" + out.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160) + ")."
                                     tasks.removeAll { it.track == "Python" }
+                                    state = state.copy(order = state.order.filter { byId[it]?.track != "Python" })
                                 }
                                 next()
                             }
@@ -197,9 +359,11 @@ object HybridBench {
         var settingsBefore: Map<String, String?> = emptyMap()
 
         fun next() {
+            if (stopped) return
             if (i >= tasks.size) { finish(null); return }
             val t = tasks[i]
-            toast("Hybrid benchmark ${i + 1} of ${tasks.size}: ${t.title}")
+            save(t.id)
+            toast("Hybrid benchmark ${results.size + 1} of ${state.order.size}: ${t.title}")
             if (t.entry == HybridBenchTasks.Entry.CHAT) { fromChat(t); return }
             val name = Projects.create(act, "bench $stamp ${t.id.replace('#', '-')}", dev.pocketide.app.core.Templates.EMPTY)
             val root = File(Projects.root(act), name)
@@ -208,7 +372,7 @@ object HybridBench {
                 soundHere(t, root) { if (dev.pocketide.app.core.ReliableBench.baseId(t.id) in unsound) { i++; main.postDelayed({ next() }, 500) } else startTask(t, name, root) }
                 return
             }
-            if (dev.pocketide.app.core.ReliableBench.baseId(t.id) in unsound) { i++; main.postDelayed({ next() }, 500); return }
+            if (dev.pocketide.app.core.ReliableBench.baseId(t.id) in unsound) { save(null); i++; main.postDelayed({ next() }, 500); return }
             startTask(t, name, root)
         }
 
@@ -289,27 +453,31 @@ object HybridBench {
         }
 
         fun after(t: HybridBenchTasks.Task, name: String, root: File, t0: Long, ended: String, extra: List<String> = emptyList()) {
+            if (stopped) return
             val files = readTexts(root)
             // 1.5.184 (run 6, task 08): the model changed test.js. The check always runs the task's own test, put back if it changed.
             val tampered = dev.pocketide.app.core.Scope.namedChecks(t.prompt).filter { p -> t.files[p] != null && files[p] != t.files[p] }
             for (p in tampered) try { File(root, p).writeText(t.files.getValue(p)) } catch (e: Exception) { }
             val tamperNote = if (tampered.isEmpty()) "" else "The model changed ${tampered.joinToString(", ")}; the task's own version was put back before the check.\n"
             val transcript = (extra + name).joinToString("\n\n") { transcripts(it, t0) }
-            val record = { code: Int?, text: String ->
+            val record = record@{ code: Int?, text: String ->
+                if (stopped) return@record
                 val now = settingsNow()
                 val changedSettings = if (settingsBefore.isEmpty()) emptyList() else now.keys.filter { now[it] != settingsBefore[it] }.map { "$it: ${settingsBefore[it]} → ${now[it]}" }
                 val facts = HybridBenchTasks.Facts(files, t.files, code, text, transcript, ended, changedSettings, lastHidden.first, lastHidden.second)
                 lastHidden = null to ""
                 val why = try { t.judge(facts) } catch (e: Exception) { "the check failed: ${e.message}" }
-                results.add(HybridBenchTasks.Result(t, why == null, why.orEmpty(), HybridBenchTasks.counts(transcript),
-                    (System.currentTimeMillis() - t0) / 1000, ended))
+                val secs = (System.currentTimeMillis() - t0) / 1000
+                results.add(HybridBenchTasks.Result(t, why == null, why.orEmpty(), HybridBenchTasks.counts(transcript), secs, ended))
                 try {
                     val dir = File(out, t.id).apply { mkdirs() }
                     for ((p, s) in files) File(dir, "files/$p").apply { parentFile?.mkdirs(); writeText(s) }
                     File(dir, "transcript.txt").writeText(transcript)
                     synchronized(nanoLog) { if (nanoLog.isNotEmpty()) File(dir, "nano.jsonl").writeText(nanoLog.toString()) }
+                    File(dir, BenchResume.RESULT).writeText(BenchResume.resultText(BenchResume.Saved(why == null, why.orEmpty(), secs, ended)))
                     File(dir, "check.txt").writeText(tamperNote + (if (changedSettings.isEmpty()) "" else "Settings changed during the task: " + changedSettings.joinToString("; ") + "\n") + (t.command?.let { "$ $it\nexit $code\n$text\n\n" } ?: "") + "Result: " + (why ?: "passed") + "\n")
                 } catch (e: Exception) { /* the report still has the result */ }
+                save(null)
                 i++
                 main.postDelayed({ next() }, 3000)
             }
@@ -349,56 +517,40 @@ object HybridBench {
 
         fun finish(problem: String?) {
             HybridAgent.recorder = null
-            settings.provider = before.first; settings.workflow = before.second; settings.agent = before.third; settings.mode = chatModeBefore
-            settings.restoreSlot(true, draftBefore); settings.restoreSlot(false, strongBefore)
-            HybridScreen.setMode(act, modeBefore)
+            restore(act, before)
             act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            val hs = HybridAi.settings(act)
-            val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
-                "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
-                (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
-            val report = HybridBenchTasks.report(results, about, problem, if (kind == Suite.RELIABLE) results.size else tasks.size, kind.title + if (helping) " · hybrid helping a strong model" else "") +
-                (if (kind != Suite.RELIABLE) "" else dev.pocketide.app.core.ReliableBench.summary(results) +
-                    (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
-                    (if (deselect.isEmpty()) "" else "\nHidden tests left out because they fail on this phone even with the reference fix:\n" + deselect.entries.joinToString("\n") { "- ${it.key}: ${it.value.joinToString()}" } + "\n") +
-                    (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n"))
+            state = state.copy(active = false, finished = true); save(null)
+            val report = reportText(act, kind, helping, stamp, results, problem, state.order.size, runs, pythonNote, deselect, unsound)
             File(out, "report.md").writeText(report)
             val where = try {
-                saveToDownloads("pocketide-$suite${if (helping) "-helping" else ""}-benchmark-$stamp.zip") { os -> zipDir(out, os) }
+                saveToDownloads(act, "pocketide-$suite${if (helping) "-helping" else ""}-benchmark-$stamp.zip") { os -> zipDir(out, os) }
             } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${out.absolutePath}" }
-            act.benchSwitch(projectBefore)
-            running = false
+            running = false; current = null
             val passed = results.count { it.passed }
             AlertDialog.Builder(act).setTitle(kind.title + " finished")
-                .setMessage((problem?.let { "Stopped early: $it\n\n" } ?: "") + "Passed $passed of ${if (kind == Suite.RELIABLE) results.size else tasks.size}.\n\n" +
+                .setMessage((problem?.let { "Stopped early: $it\n\n" } ?: "") + "Passed $passed of ${if (kind == Suite.RELIABLE) results.size else state.order.size}.\n\n" +
                     results.joinToString("\n") { (if (it.passed) "✓ " else "✗ ") + it.task.title + (if (it.passed) "" else ": " + it.why) } +
                     "\n\nResults: $where")
                 .setPositiveButton("OK", null).show()
         }
 
-        fun zipDir(dir: File, os: OutputStream) = ZipOutputStream(os).use { z ->
-            dir.walkTopDown().filter { it.isFile }.forEach { f ->
-                z.putNextEntry(ZipEntry(f.relativeTo(dir).invariantSeparatorsPath))
-                f.inputStream().use { it.copyTo(z) }
-                z.closeEntry()
-            }
-        }
-
-        /** Saves a file to Downloads/PocketIDE (MediaStore, no permission needed); before Android 10, the app's own files. */
-        fun saveToDownloads(fileName: String, write: (OutputStream) -> Unit): String {
-            if (Build.VERSION.SDK_INT >= 29) {
-                val v = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "application/zip")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PocketIDE")
-                }
-                val uri = act.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v) ?: error("Downloads refused the file")
-                act.contentResolver.openOutputStream(uri)!!.use(write)
-                return "Downloads/PocketIDE/$fileName"
-            }
-            val f = File(act.getExternalFilesDir(null), fileName)
-            f.outputStream().use(write)
-            return f.absolutePath
+        /** The person stopped the run (1.5.188): the finished tasks are zipped and the run can be resumed, the running task last. */
+        fun stop() {
+            if (stopped) return
+            stopped = true
+            try { act.benchChat().stopNow() } catch (e: Exception) { }
+            HybridAgent.recorder = null
+            save(state.current)   // the task running now (set when it starts, cleared when its result is saved): it goes to the back
+            state = BenchResume.interrupt(state); save(out, state)
+            restore(act, before)
+            act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            running = false; current = null
+            val where = savePartial(act, out, kind, state, "stopped by you")
+            AlertDialog.Builder(act).setTitle(kind.title + " stopped")
+                .setMessage("Stopped after ${state.done.size} of ${state.order.size} tasks. The finished tasks are saved: $where\n\n" +
+                    "Your settings and project were put back. To finish the run later, tap the same benchmark button and choose Resume; " +
+                    "the task that was running goes to the back of the queue.")
+                .setPositiveButton("OK", null).show()
         }
     }
 }

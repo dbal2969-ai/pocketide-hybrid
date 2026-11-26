@@ -206,7 +206,28 @@ object HybridScreen {
             setTextColor(Ui.TEXT)
         }
         benchCard.addView(helpBox)
-        fun startBench(suite: HybridBench.Suite) {
+        // 1.5.188: while a run goes on, a benchmark button offers to stop it (the finished tasks are zipped); an interrupted run of
+        // the same suite is offered for resuming before a new one starts
+        fun offerStop() {
+            AlertDialog.Builder(ctx).setTitle("Stop the benchmark?")
+                .setMessage("The tasks that finished are saved in a zip in Downloads/PocketIDE, and your settings are put back. " +
+                    "You can resume the run later from the same button; the task that is running now goes to the back of the queue.")
+                .setPositiveButton("Stop and save") { _, _ -> fs.dialog.dismiss(); HybridBench.stop() }
+                .setNegativeButton("Keep running", null).show()
+        }
+        fun orResume(suite: HybridBench.Suite, fresh: () -> Unit) {
+            val m = activity as? MainActivity
+            val p = HybridBench.paused(ctx, suite)
+            if (m == null || p == null) { fresh(); return }
+            AlertDialog.Builder(ctx).setTitle("Resume the interrupted run?")
+                .setMessage("The run from ${p.stamp} stopped after ${p.done.size} of ${p.order.size} tasks" +
+                    (if (suite == HybridBench.Suite.RELIABLE) " (${p.runs} ${if (p.runs == 1) "run" else "runs"} per task, Python ${if (p.python) "included" else "left out"})" else "") +
+                    ". Resume keeps its finished tasks and runs the rest, with the task it stopped during moved to the back. The final zip has every task.")
+                .setPositiveButton("Resume") { _, _ -> fs.dialog.dismiss(); HybridBench.resume(m, p) }
+                .setNeutralButton("Start a new run") { _, _ -> HybridBench.abandon(ctx, p); fresh() }
+                .setNegativeButton("Cancel", null).show()
+        }
+        fun startBenchNew(suite: HybridBench.Suite) {
             if (helpBox.isChecked) HybridBench.helperProblem(dev.pocketide.app.AppSettings(ctx))?.let { toast(it); return }
             val hard = suite != HybridBench.Suite.STANDARD
             val m = activity as? MainActivity
@@ -225,7 +246,12 @@ object HybridScreen {
                     .setNegativeButton("Cancel", null).show()
             }
         }
-        fs.buttonRow(benchCard, Ui.button(ctx, if (HybridBench.running) "Benchmark running…" else "Run the hybrid benchmark", true) { startBench(HybridBench.Suite.STANDARD) })
+        fun startBench(suite: HybridBench.Suite) {
+            if (HybridBench.running) { offerStop(); return }
+            if (HybridBench.paused(ctx, suite) != null && !helpBox.isChecked) { orResume(suite) { startBenchNew(suite) }; return }
+            startBenchNew(suite)
+        }
+        fs.buttonRow(benchCard, Ui.button(ctx, if (HybridBench.running) "Benchmark running… (tap to stop)" else "Run the hybrid benchmark", true) { startBench(HybridBench.Suite.STANDARD) })
         benchCard.addView(Ui.text(ctx, "The hard benchmark has ${dev.pocketide.app.core.HybridBenchTasks.HARD.size} tasks that need several files, " +
             "a spec, async code, a refactor, a very long file, the web, or Private mode with several rules.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Run the hard benchmark") { startBench(HybridBench.Suite.HARD) })
@@ -245,7 +271,7 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "The on-device reliability benchmark runs Gemini Nano alone (Private mode, no cloud quota): the local suite's 20 tasks " +
             "it is tuned on, 24 held-out tasks it never was, and real Python fixes from the rich and requests libraries, each checked by a test " +
             "and a hidden check. Quick runs each task once (about an hour); Full runs each 3 times to measure how reliable it is (an evening).", 13f, Ui.MUTED))
-        fun startReliable(runs: Int) {
+        fun startReliableNew(runs: Int) {
             val m = activity as? MainActivity
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
@@ -260,6 +286,11 @@ object HybridScreen {
                         .setNegativeButton("Cancel", null).show()
                 }
             }
+        }
+        fun startReliable(runs: Int) {
+            if (HybridBench.running) { offerStop(); return }
+            if (HybridBench.paused(ctx, HybridBench.Suite.RELIABLE) != null) { orResume(HybridBench.Suite.RELIABLE) { startReliableNew(runs) }; return }
+            startReliableNew(runs)
         }
         fs.buttonRow(benchCard, Ui.button(ctx, "Reliability: quick") { startReliable(1) }, Ui.button(ctx, "Reliability: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS) })
 
