@@ -963,7 +963,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   are ignored), and the template lists exactly the app's keys with its defaults. 1,356 unit tests, 0 failures.
 
 
-### (next) · 2026-11-26 16:45 · Everything tunable in Gemini Nano and hybrid routing comes from Remote Config; 1.5.198
+### 92a611b · 2026-11-26 16:45 · Everything tunable in Gemini Nano and hybrid routing comes from Remote Config; 1.5.198
 
 - **Why:** the owner asked to use Remote Config for everything it can tune.
 - **core/Tuning.kt** (new) holds every tunable value with the app's built-in default; HybridCloud's `applyTuning()` fills it after
