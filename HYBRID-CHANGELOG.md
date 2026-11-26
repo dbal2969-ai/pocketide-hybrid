@@ -885,7 +885,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1126-0816.
 
 
-### (next) · 2026-11-26 13:50 · The Python helper for Gemini Nano (optional); 1.5.194
+### a9688e6 · 2026-11-26 13:50 · The Python helper for Gemini Nano (optional); 1.5.194
 
 - **Why:** the owner asked for a way to make Gemini Nano competent with Python, as an optional toggle. PocketSWE (the Kaggle entry,
   full E4B on a GPU) resolved about 6% of hidden tasks on Kaggle and 16 of 114 practice tasks; Nano in PocketIDE passed 1 of 87
