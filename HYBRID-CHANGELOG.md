@@ -848,6 +848,20 @@ the files after the run, `transcript.txt` and `check.txt`.
   a not-yet-run suite. All unit tests pass; analyze.py was tried on a total zip made of the runs 1126-0628 and 1126-0731. The total
   run itself needs the phone.
 
+
+### (next) · 2026-11-26 11:40 · Judges' release workflow; PocketSWE prompt tried in Nano's prompt and taken back
+
+- **Why:** the owner asked to finish the open hackathon work; the judges' build (HACKATHON.md, "Try it" step 1) had no release yet,
+  and it needs an App Check debug token that must stay out of git and out of chats.
+- **Judges' release** (.github/workflows/judges-release.yml, run by hand with a tag such as judges-1.5.192): checks the
+  GOOGLE_SERVICES_JSON and JUDGE_APPCHECK_TOKEN repository secrets, runs the unit tests, builds the APK packaged from scratch with
+  the token (app/build.gradle.kts reads JUDGE_APPCHECK_TOKEN), and publishes it on the Releases page with install notes.
+- **Tried and taken back (not committed):** the working method of the Kaggle entry PocketSWE (0.06 with E4B: the most specific name
+  first, read the test before the fix, short searches, no repeated failed edit, check the change against the request) written into
+  Gemini Nano's system prompt (core/SmallLocal.kt). It made the prompt about 700 characters longer, and HybridAgentLoopTest
+  `aMidSizedResultIsShownToNanoWhole` failed: an 8,292-character file no longer fitted Nano's 14,000-character prompt whole. Its
+  benefit was unmeasured (PocketSWE ran the full model on a GPU, in another harness), so the change was reverted.
+
 ---
 
 ## Outside the code

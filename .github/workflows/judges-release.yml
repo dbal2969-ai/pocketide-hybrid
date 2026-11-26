@@ -1,0 +1,70 @@
+name: Judges' release
+
+# #BuildHybridAI: builds the judges' APK and publishes it on the Releases page. Run it by hand (Actions → Judges' release →
+# Run workflow). It needs two repository secrets, so neither ever appears in git or in a chat:
+#   GOOGLE_SERVICES_JSON  the Firebase client config (already used by "Build Android APK")
+#   JUDGE_APPCHECK_TOKEN  one App Check debug token, registered in the Firebase console (App Check → Apps → Manage debug tokens),
+#                         so every judge's phone can reach the cloud model
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. judges-1.5.192"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Cache the engine build
+        id: engine-cache
+        uses: actions/cache@v6
+        with:
+          path: engine/out
+          key: engine-${{ hashFiles('engine/build-llama.sh', 'engine/SOURCES.json') }}
+
+      - name: Build the engine with the NDK
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y -qq ninja-build > /dev/null || true
+          bash engine/build-llama.sh
+
+      - name: Check the secrets
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          JUDGE_APPCHECK_TOKEN: ${{ secrets.JUDGE_APPCHECK_TOKEN }}
+        run: |
+          [ -n "$GOOGLE_SERVICES_JSON" ] || { echo "::error::Add the GOOGLE_SERVICES_JSON repository secret"; exit 1; }
+          [ -n "$JUDGE_APPCHECK_TOKEN" ] || { echo "::error::Add the JUDGE_APPCHECK_TOKEN repository secret (an App Check debug token registered in the Firebase console)"; exit 1; }
+          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+
+      - name: Build the judges' APK
+        env:
+          JUDGE_APPCHECK_TOKEN: ${{ secrets.JUDGE_APPCHECK_TOKEN }}
+        run: |
+          chmod +x gradlew
+          rm -f app/build/outputs/apk/debug/*.apk
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "PocketIDE-Hybrid-${{ inputs.tag }}.apk"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.tag }}" "PocketIDE-Hybrid-${{ inputs.tag }}.apk" \
+            --title "PocketIDE Hybrid: judges' build (${{ inputs.tag }})" \
+            --notes "The judges' build for #BuildHybridAI. Install the APK (Android 8 or later; it is a debug build, so allow installing from your browser or file manager), then open Models → Hybrid AI. See HACKATHON.md for what to try. Gemini Nano needs a phone with Android AICore (for example recent Pixel and Samsung Galaxy S phones); every other phone uses the cloud model."
