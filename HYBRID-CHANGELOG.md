@@ -719,7 +719,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-benchmark-reliable-1125-1815.
 
 
-### (next) · 2026-11-25 22:45 · Interrupted benchmark runs keep their finished tasks, and resume; 1.5.188
+### 9811c6a · 2026-11-25 22:45 · Interrupted benchmark runs keep their finished tasks, and resume; 1.5.188
 
 - **Why:** the owner asked that an interrupted run not be a loss: the tasks that finished should still give a zip, and the task
   that was running should be rotated when the run carries on. A full reliability run is 141 tasks over an evening, and until now a
