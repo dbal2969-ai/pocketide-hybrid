@@ -849,7 +849,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   run itself needs the phone.
 
 
-### (next) · 2026-11-26 11:40 · Judges' release workflow; PocketSWE prompt tried in Nano's prompt and taken back
+### 957266a · 2026-11-26 11:40 · Judges' release workflow; PocketSWE prompt tried in Nano's prompt and taken back
 
 - **Why:** the owner asked to finish the open hackathon work; the judges' build (HACKATHON.md, "Try it" step 1) had no release yet,
   and it needs an App Check debug token that must stay out of git and out of chats.
