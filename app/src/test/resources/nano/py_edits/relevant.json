@@ -1,0 +1,105 @@
+[
+ {
+  "id": "requests_7427",
+  "fix": "src/requests/utils.py",
+  "lines": 1154,
+  "changed": [
+   "get_proxy"
+  ]
+ },
+ {
+  "id": "requests_6644",
+  "fix": "src/requests/adapters.py",
+  "lines": 538,
+  "changed": [
+   "request_url"
+  ]
+ },
+ {
+  "id": "requests_7315",
+  "fix": "src/requests/adapters.py",
+  "lines": 698,
+  "changed": [
+   "request_url"
+  ]
+ },
+ {
+  "id": "rich_3894",
+  "fix": "rich/_inspect.py",
+  "lines": 269,
+  "changed": [
+   "_get_signature"
+  ]
+ },
+ {
+  "id": "rich_3518",
+  "fix": "rich/table.py",
+  "lines": 1008,
+  "changed": [
+   "add_cell"
+  ]
+ },
+ {
+  "id": "rich_3006",
+  "fix": "rich/repr.py",
+  "lines": 150,
+  "changed": [
+   "auto_rich_repr"
+  ]
+ },
+ {
+  "id": "rich_3718",
+  "fix": "rich/panel.py",
+  "lines": 319,
+  "changed": [
+   "__rich_console__",
+   "align_text"
+  ]
+ },
+ {
+  "id": "rich_3454",
+  "fix": "rich/highlighter.py",
+  "lines": 233,
+  "changed": [
+   "ReprHighlighter"
+  ]
+ },
+ {
+  "id": "rich_3067",
+  "fix": "rich/highlighter.py",
+  "lines": 233,
+  "changed": [
+   "ReprHighlighter"
+  ]
+ },
+ {
+  "id": "rich_4077",
+  "fix": "rich/file_proxy.py",
+  "lines": 58,
+  "changed": [
+   "fileno"
+  ]
+ },
+ {
+  "id": "rich_3882",
+  "fix": "rich/prompt.py",
+  "lines": 401,
+  "changed": [
+   "on_validate_error"
+  ]
+ },
+ {
+  "id": "rich_3043",
+  "fix": "rich/_export_format.py",
+  "lines": 77,
+  "changed": []
+ },
+ {
+  "id": "rich_2943",
+  "fix": "rich/style.py",
+  "lines": 797,
+  "changed": [
+   "clear_meta_and_links"
+  ]
+ }
+]

@@ -58,6 +58,29 @@ class PyHelperTest {
         assertEquals("        x = 1", PyHelper.reindentLines(cur, 3, 2, "x = 1"))
     }
 
+    /** 1.5.195: on the 13 real Python tasks, the function picked from the request is the one the reference fix changes. */
+    @Test fun theRelevantFunctionIsTheOneTheFixChanges() {
+        assumeTrue(tasks.isDirectory)
+        val assets = File("src/main/assets/bench/reliable")
+        val py = ReliableBench.pythonTasks(File(assets, "python.json").readText()) { id -> emptyMap() }.associateBy { it.id }
+        val want = MiniJson.parse(File("src/test/resources/nano/py_edits/relevant.json").readText()) as List<*>
+        var hit = 0; var scored = 0; val report = ArrayList<String>()
+        for (w in want) {
+            val m = w as Map<*, *>
+            val id = m["id"] as String; val changed = (m["changed"] as List<*>).map { it.toString() }
+            if (changed.isEmpty()) continue
+            val text = File(tasks, "$id/${m["fix"]}").readText()
+            val at = PyHelper.relevantDef(text, py.getValue(id).prompt)
+            val name = at?.let { Regex("""(?:def|class)\s+(\w+)""").find(text.split("\n")[it - 1])?.groupValues?.get(1) }
+            val trail = at?.let { PyHelper.callees(text, it).map { c -> c.substringBefore(" (") } }.orEmpty()
+            scored++; if (name in changed || trail.any { it in changed }) hit++
+            report.add("$id: picked $name, calls $trail, fix changes $changed")
+        }
+        println("relevant function or its callees: $hit of $scored\n" + report.joinToString("\n"))
+        // most of these requests never name the code the fix is in (the rest are found by reading); a floor, not a target
+        assertTrue(report.joinToString("\n"), hit >= 4)
+    }
+
     @Test fun outlinesAndWhereItFailed() {
         val long = (1..400).joinToString("\n") { if (it % 50 == 0) "def f$it():" else "    x = $it" }
         val o = PyHelper.outline("big.py", long)!!

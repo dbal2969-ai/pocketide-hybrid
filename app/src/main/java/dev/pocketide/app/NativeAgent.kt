@@ -459,6 +459,9 @@ class NativeAgent(
     private val smallMissed = HashMap<String, String>()
     private val smallReshown = HashMap<String, Int>()
 
+    /** Long Python files already answered with an outline: a second whole read shows code (1.5.195). */
+    private val pyOutlined = HashSet<String>()
+
     /** 1.5.194: the Python helper (Settings › Assistant), for Nano's steps in a Python project. */
     private val pyHelp: Boolean by lazy { (small || settings.provider == "hybrid") && settings.pythonHelper &&
         dev.pocketide.app.core.PyHelper.applies(try { paths() } catch (e: Exception) { emptyList() }, request) }
@@ -2311,7 +2314,10 @@ class NativeAgent(
                     reply(AgentActions.read(if (text != null) paths() + p else paths(), { q -> staged[q] ?: store.readForAi(q) }, p, from, intArg(a["end"]), resultCap())); return
                 }
                 // 1.5.194: the Python helper answers a whole read of a long Python file with its outline (Nano's prompt holds ~350 lines)
-                if (pyHelp && text != null && dev.pocketide.app.core.PyHelper.isPython(p)) dev.pocketide.app.core.PyHelper.outline(p, text)?.let { reply(it, "$label (outline)"); return }
+                if (pyHelp && text != null && dev.pocketide.app.core.PyHelper.isPython(p)) {
+                    val again = !pyOutlined.add(p)
+                    dev.pocketide.app.core.PyHelper.outline(p, text, request = request, again = again)?.let { reply(it, "$label (${if (again) "excerpt" else "outline"})"); return }
+                }
                 if (text != null && readFiles[p] == stamp) reply(smallReread(p, text) ?: dev.pocketide.app.core.ReadPlan.seen(p, null, null), "$label (unchanged)")
                 else {
                     val shown = AgentActions.read(if (text != null) paths() + p else paths(), { q -> staged[q] ?: store.readForAi(q) }, p, cap = resultCap())  // a real file is readable even if the capped list missed it
@@ -2707,7 +2713,7 @@ class NativeAgent(
                     // a command (rm, mv, a script) can leave the page loading a file that is gone: say so at once
                     val gone = try { dev.pocketide.app.core.PageRefs.missing(paths().toList(), { p -> store.read(p) }, { p -> store.size(p) }) } catch (e: Exception) { emptyList() }
                     val r = AgentActions.runResult(cmd, code, out) + (if (gone.isEmpty()) "" else "\n\nAfter this command the page is broken: " + gone.joinToString(" ") + " Put it back or recreate it now, before anything else.")
-                        .let { r0 -> if (pyHelp && code != 0) dev.pocketide.app.core.PyHelper.whereFailed(out) { q -> staged[q] ?: store.readForAi(q) }?.let { r0 + "\n\n" + it } ?: r0 else r0 }
+                        .let { r0 -> if (pyHelp && code != 0) dev.pocketide.app.core.PyHelper.whereFailed(out, paths()) { q -> staged[q] ?: store.readForAi(q) }?.let { r0 + "\n\n" + it } ?: r0 else r0 }
                     reply(r, label + if (code == 0) "" else " (exit $code)")
                 }
                 if (!agent && staged.isNotEmpty()) {

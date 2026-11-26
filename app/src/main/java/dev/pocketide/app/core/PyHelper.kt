@@ -83,15 +83,61 @@ object PyHelper {
 
     private val DEF = Regex("""^(\s*)(async\s+def|def|class)\s+(\w+)""")
 
-    /** A long Python file's classes and functions with their line numbers, or null when the file is short enough to read whole. */
-    fun outline(path: String, text: String, long: Int = LONG): String? {
+    /**
+     * The line (1-based) of the def or class in [text] that [request] is most likely about: the one whose name the request (with the
+     * failing test's code in it) mentions most, longer names first on a tie. Null when it names none.
+     */
+    fun relevantDef(text: String, request: String): Int? {
+        val lines = text.split("\n")
+        var best = -1; var score = 0
+        for ((i, l) in lines.withIndex()) {
+            val m = DEF.find(l) ?: continue
+            val name = m.groupValues[3]
+            if (name.length < 3 || name == "__init__") continue
+            val n = Regex("""\b${Regex.escape(name)}\b""").findAll(request).count()
+            if (n == 0) continue
+            // a named function before a whole class (1.5.195: picking classes such as Panel or Style showed Nano too much)
+            val s = (if (m.groupValues[2] == "class") 0 else 10_000) + n * 100 + name.length
+            if (s > score) { score = s; best = i }
+        }
+        return if (best >= 0) best + 1 else null
+    }
+
+    /** The functions in [text] that the function at [at] calls, with their lines: the trail when the bug is one call deeper. */
+    fun callees(text: String, at: Int, max: Int = 8): List<String> {
+        val lines = text.split("\n")
+        val defs = lines.mapIndexedNotNull { i, l -> DEF.find(l)?.let { it.groupValues[3] to i + 1 } }.toMap()
+        val i = (at - 1).coerceIn(0, maxOf(0, lines.size - 1))
+        val base = indentOf(lines[i]); var e = i + 1
+        while (e < lines.size && (lines[e].isBlank() || indentOf(lines[e]) > base)) e++
+        val own = DEF.find(lines[i])?.groupValues?.get(3)
+        return Regex("""(?:self\.|\b)(\w+)\(""").findAll(lines.subList(i + 1, e).joinToString("\n")).map { it.groupValues[1] }
+            .filter { it != own && it in defs }.distinct().take(max).map { "$it (line ${defs.getValue(it)})" }.toList()
+    }
+
+    /**
+     * A long Python file read whole (1.5.195, run 1126-1352: a bare outline made Nano give up and ask for "the relevant code snippet",
+     * or ask for the file again 42 times): its classes and functions with line numbers, then the function [request] is about, numbered.
+     * [again]: the file was outlined before in this request, so real code is shown instead of the outline: that function with 60 lines
+     * either side, or the first 150 lines. Null when the file is short enough to read whole.
+     */
+    fun outline(path: String, text: String, long: Int = LONG, request: String = "", again: Boolean = false): String? {
         val lines = text.split("\n")
         if (lines.size <= long) return null
+        val at = relevantDef(text, request)
+        if (again) {
+            val from = if (at != null) maxOf(0, at - 61) else 0
+            val to = minOf(lines.size, if (at != null) at + 60 else 150)
+            return "$path, lines ${from + 1}-$to of ${lines.size} (read_file with start and end for others):\n" +
+                (from until to).joinToString("\n") { "${it + 1}: ${lines[it]}" }
+        }
         val items = lines.mapIndexedNotNull { i, l -> DEF.find(l)?.let { "${i + 1}: ${l.trimEnd().take(100)}" } }
         if (items.isEmpty()) return null
         return "$path has ${lines.size} lines, too many to show whole. Its classes and functions, with line numbers:\n" +
             items.take(120).joinToString("\n") + (if (items.size > 120) "\n… and ${items.size - 120} more" else "") +
-            "\nRead the one you need with read_file start and end (from its line to the next one's)."
+            (if (at != null) "\n\nThe function your request is most likely about:\n" + functionAt(text, at, 70) +
+                callees(text, at).let { c -> if (c.isEmpty()) "" else "\nIt calls, in this file: " + c.joinToString(", ") + ". The bug may be in one of them." } else "") +
+            "\nRead any other with read_file start and end (from its line to the next one's)."
     }
 
     /** The lines of the function around line [at] (1-based) of [text], numbered, at most [max] lines. */
@@ -115,11 +161,33 @@ object PyHelper {
      * After a failing pytest run: the deepest frame in a source file (not a test), with the lines of its function, so Nano sees
      * where to fix without reading the whole file. Null when the output names no source frame.
      */
-    fun whereFailed(output: String, read: (String) -> String?): String? {
+    fun whereFailed(output: String, paths: Collection<String> = emptyList(), read: (String) -> String?): String? {
         if (!Regex("""(?i)\bfailed\b|\berror\b|Traceback""").containsMatchIn(output)) return null
         val frames = FRAME.findAll(output).map { it.groupValues[1].removePrefix("./") to it.groupValues[2].toInt() }.toList()
-        val src = frames.lastOrNull { !TEST_PATH.containsMatchIn(it.first) } ?: return null
-        val text = read(src.first) ?: return null
-        return "Where it failed in the code: ${src.first} line ${src.second}, in these lines:\n" + functionAt(text, src.second)
+        val src = frames.lastOrNull { !TEST_PATH.containsMatchIn(it.first) }
+        if (src != null) read(src.first)?.let { text -> return "Where it failed in the code: ${src.first} line ${src.second}, in these lines:\n" + functionAt(text, src.second) }
+        return calledDef(output, paths, read)
+    }
+
+    private val CALL = Regex("""(?:\.|\b)([A-Za-z_]\w{2,})\(""")
+    private val NOT_CALLS = setOf("assert", "print", "len", "str", "int", "repr", "isinstance", "list", "dict", "set", "tuple", "range",
+        "super", "type", "getattr", "setattr", "hasattr", "sorted", "open", "Column", "raises", "approx", "fixture", "mark", "parametrize")
+
+    /**
+     * 1.5.195 (run 1126-1352: 0 of 33 failing pytest runs had a source frame; the assertion is in the test): the function the
+     * failing test calls, found in the project's source files, the one called last before the failing line first.
+     */
+    fun calledDef(output: String, paths: Collection<String>, read: (String) -> String?): String? {
+        val block = output.substringAfter("FAILURES", "").ifEmpty { return null }
+        val shown = block.lines().takeWhile { !it.startsWith("E ") && !it.startsWith("E\t") }.joinToString("\n")
+        val names = CALL.findAll(shown).map { it.groupValues[1] }.filter { it !in NOT_CALLS && !it.startsWith("test_") }.toList().distinct().reversed()
+        if (names.isEmpty()) return null
+        val sources = paths.filter { isPython(it) && !TEST_PATH.containsMatchIn(it) }
+        for (name in names) for (p in sources) {
+            val text = read(p) ?: continue
+            val i = text.split("\n").indexOfFirst { l -> DEF.find(l)?.groupValues?.get(3) == name }
+            if (i >= 0) return "The failing test calls $name, defined in $p line ${i + 1}:\n" + functionAt(text, i + 1, 60)
+        }
+        return null
     }
 }
