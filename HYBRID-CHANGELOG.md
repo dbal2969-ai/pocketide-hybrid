@@ -58,6 +58,8 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | `5d47c35` |
 | reliable 1125-1815 (reliability run 1, full, 3 runs) | `5d47c35` | **116 of 141 runs on Nano Full (E4B) alone**; dev pass@1 91% (pass^3 16 of 20), held-out 75%, Node 87%, Python 0 of 9; analysis 110 clean, 6 with problems, 25 failed | 996 of 996 (median 3.6 s) | 141 edits refused as "NOT SAVED: syntax error": with `all: true` and a function's first line as the search, the replace-all skipped the brace repair; r20 bare-name renames refused as ambiguous; r03 run 2 edited a file on a "do not fix anything" task; l13 run 3 passed its visible test but broke behaviour (dev tasks had no hidden checks on the phone); the Python statements were too short ("port bpo-39057"); 10 rich tasks' hidden tests fail on the phone with the reference fix; 5 analyzer false alarms on report-only tasks | `c2a5662` |
 | reliable 1125-2053 (reliability run 2, full, 3 runs, Python included) | `c2a5662` (1.5.187) | **114 of 171 on Nano Full alone**; dev pass@1 88% (pass^3 14 of 20), held-out 54%, Node 86% (114 of 132), Python 0 of 39; analysis 113 clean, 1 with problems, 57 failed | 1,529 of 1,529 | PocketIDE left the screen at 00:33: the last 10 rich runs (and rich_3043 run 2) each waited 10 minutes for AICore's "Background usage is blocked" with no step taken; 16 Nano replies thrown away as "not one JSON action" were the right action in broken JSON (unescaped quotes, `r"..."` values, YAML), and in Private mode each one ended the request (rich_3006 and rich_3067 never edited); every Python edit that broke the tests was a SyntaxError or IndentationError saved as written; Node: l05 and l06 hard-coded the visible test's value (caught by the new dev hidden checks), r14 `'grape',,`, r18 wrong JSON shape, r07 never fixed in 41 steps, r23 edited the wrong helper | `15c2dbd` |
+| scratch 1126-0628 (from scratch, hybrid) | `15c2dbd` (1.5.189) | **9 of 10**; analysis 6 clean, 3 with problems, 1 failed | 93 of 180 | every cloud step ran on Gemini 3.5 Flash-Lite (Balanced was out of its daily quota); s05 passed with an index.html that loads no script (the to-do list does nothing) and s09 with a script looking up #tipResult on a page whose element is id="result" (the app's page checks saw neither); s06 does not keep the list after a reload; s03 failed honestly (a broken inline onclick, finish budget spent); s01 was run again once because PocketIDE left the screen (the 1.5.189 pause worked) | `(next)` |
+| reliable-cloud 1126-0731 (cloud only, quick; partial 13 of 57) | `565065e` (1.5.190) | **13 of 13 in the cloud** (dev l01–l13), analysis 13 clean | 0 of 77 | all 77 steps on Gemini 3.5 Flash-Lite; the run stopped at task 14 when every cloud model was out of free quota until 3:00 AM Eastern and saved the partial zip (the 1.5.190 quota stop worked); l01 waited 3 minutes for Balanced's quota answer before Flash-Lite took it | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -802,6 +804,24 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** HybridBench.kt, HybridScreen.kt, MainActivity.kt, core/ReliableBench.kt, bench/hybrid/analyze.py,
   app/build.gradle.kts (1.5.190-hybrid, code 238).
 - **Tests:** ReliableBenchTest `cloudOnlyChecks` and `sideBySide`. 1,340 unit tests, 0 failures.
+
+
+### (next) · 2026-11-26 08:10 · Page wiring checks; the report names the cloud models that really ran; 1.5.191
+
+- **Why:** the from-scratch run 1126-0628 (1.5.189) and the first cloud-only run 1126-0731 (1.5.190, stopped by the quota after 13 of
+  57). Both zips were read in full and analyze.py reran every check; the findings are in the benchmark history rows above.
+- **Pages wired up wrong are found** (core/PageRefs.kt `wiring`, part of `problems`, so the model is told to fix them after its
+  work, and the app's ✓ outcome needs them fixed): a page with no script at all while a script sits beside it that nothing loads
+  (s05), and a script a page runs looking up an id (getElementById, querySelector('#…')) that no page or script gives (s09). Ids
+  a script creates (el.id = …, setAttribute, id="…" in a string) count.
+- **The from-scratch check uses it too** (HybridBenchTasks `built`): a page that is wired up wrong fails the task, even if the app's
+  checks passed.
+- **The report names the cloud models that answered** (HybridBench `reportText`): "cloud steps actually ran on: gemini-3.5-flash-lite
+  ×77", read from the transcripts, beside the setting (both runs said Auto (Balanced) while Balanced was out of its daily quota).
+- **Files:** core/PageRefs.kt, core/HybridBenchTasks.kt, HybridBench.kt; app/build.gradle.kts (1.5.191-hybrid, code 239).
+- **Tests:** PageWiringTest (3): the run's own s05 and s09 pages (app/src/test/resources/pages/), fixed versions and script-made
+  ids pass, and no false alarm on any benchmark project or starter. 1,343 unit tests, 0 failures.
+- **Evidence:** pocketide-hybrid-scratch-benchmark-1126-0628, pocketide-hybrid-reliable-cloud-benchmark-1126-0731-partial-13of57.
 
 ---
 

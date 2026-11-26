@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        h1 {
+            text-align: center;
+        }
+        #todo-list {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .done span {
+            text-decoration: line-through;
+            color: #888;
+        }
+        button, .action-btn {
+            min-height: 44px;
+            min-width: 44px;
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-left: 5px;
+        }
+        button:hover, .action-btn:hover {
+            background-color: #0056b3;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        #taskInput {
+            flex: 1;
+            min-height: 44px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>To-Do List</h1>
+    <ul id="todo-list">
+        <!-- To-do items will be inserted here by JavaScript -->
+    </ul>
+    <div class="input-container">
+        <input type="text" id="taskInput" placeholder="Enter a new task">
+        <button id="addBtn">Add Task</button>
+    </div>
+</html>

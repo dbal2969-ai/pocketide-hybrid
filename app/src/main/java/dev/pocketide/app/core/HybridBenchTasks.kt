@@ -375,7 +375,8 @@ object HybridBenchTasks {
         f.ended.startsWith("never built") -> "the chat never turned into a project"
         f.files.keys.none { it.endsWith(".html") } -> "no page was built (no .html file)"
         !f.transcript.contains("outcome: ✓") -> "the app's checks did not pass (no ✓ outcome)"
-        else -> null
+        // 1.5.190 (from-scratch run 1126-0628, s05 and s09 passed with a page that loaded no script, or looked up an id it lacked)
+        else -> PageRefs.wiring(f.files.keys.toList()) { f.files[it] }.firstOrNull()?.let { "the page is wired up wrong: $it" }
     }
 
     /** A game task passed when [code] changed, the play tests are as given, and the app's checks passed (the play tests run there). */

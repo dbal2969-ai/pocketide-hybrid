@@ -116,6 +116,48 @@ object PageRefs {
             if (missing.isNotEmpty()) out.add("$h calls ${missing.take(6).joinToString(", ") { "$it()" }}${if (missing.size > 6) " and ${missing.size - 6} more" else ""} but no file defines ${if (missing.size == 1) "it" else "them"}.")
         }
         out.addAll(moduleProblems(paths, htmls, read))
+        out.addAll(wiring(paths, read))
         return out.distinct().take(max)
+    }
+
+    private val SCRIPT_OPEN = Regex("""<script\b""", RegexOption.IGNORE_CASE)
+    private val INLINE = Regex("""<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
+    private val LOOKUP = Regex("""getElementById\(\s*["'`]([\w-]+)["'`]\s*\)|querySelector(?:All)?\(\s*["'`]#([\w-]+)["'`]\s*\)""")
+    /** An id given anywhere: id="x" in a page or in a string in a script, el.id = "x", setAttribute("id", "x"). */
+    private val ID = Regex("""\bid\s*=\s*\\?["'`]([\w-]+)|\.id\s*=\s*["'`]([\w-]+)|setAttribute\(\s*["']id["']\s*,\s*["'`]([\w-]+)""", RegexOption.IGNORE_CASE)
+    private fun skipped(p: String) = p.startsWith(".") || p.split('/').any { it == "node_modules" || it == "tests" || it == "test" || it == "__tests__" } ||
+        Regex("""(?i)(\.test|\.spec|\.config|^sw|service-worker|playtests)\.m?js$|(^|/)test\.js$""").containsMatchIn(p.substringAfterLast('/'))
+
+    /**
+     * A page that is wired up wrong (1.5.190, from-scratch run 1126-0628, where the app's checks passed both): index.html loading no
+     * script while script.js sits beside it (s05: the to-do list did nothing), and a script looking up an id that no page or script
+     * gives (s09: getElementById('tipResult') on a page whose element is id="result", so the total never showed).
+     */
+    fun wiring(paths: List<String>, read: (String) -> String?): List<String> {
+        val out = ArrayList<String>()
+        val htmls = paths.filter { it.endsWith(".html", true) && !skipped(it) }
+        if (htmls.isEmpty()) return out
+        val pages = htmls.associateWith { read(it).orEmpty() }
+        val loaded = LinkedHashSet<String>()
+        for ((h, html) in pages) for (m in REF.findAll(html)) { val r = m.groupValues[1]; if (r.isNotEmpty()) resolve(h, r)?.let { loaded.add(it) } }
+        val js = paths.filter { (it.endsWith(".js", true) || it.endsWith(".mjs", true)) && !skipped(it) }
+        // a page with no script at all, and a script beside it that nothing loads
+        for ((h, html) in pages) {
+            if (SCRIPT_OPEN.containsMatchIn(html)) continue
+            val dir = h.substringBeforeLast('/', "")
+            val beside = js.filter { it.substringBeforeLast('/', "") == dir && it !in loaded }
+            if (beside.isNotEmpty()) out.add("$h loads no script, so ${beside.first().substringAfterLast('/')} never runs and the page does nothing. " +
+                "Add <script src=\"${beside.first().substringAfterLast('/')}\"></script> before </body>.")
+        }
+        // ids looked up by the scripts the pages run that nothing gives
+        val sources = loaded.filter { it in js } .associateWith { read(it).orEmpty() } + pages.mapValues { (_, html) -> INLINE.findAll(html).joinToString("\n") { it.groupValues[1] } }
+        val ids = HashSet<String>()
+        for (text in pages.values + js.map { read(it).orEmpty() }) for (m in ID.findAll(text)) ids.add(m.groupValues.drop(1).first { it.isNotEmpty() })
+        for ((src, text) in sources) {
+            val missing = LOOKUP.findAll(text).map { it.groupValues[1].ifEmpty { it.groupValues[2] } }.filter { it !in ids }.distinct().toList()
+            if (missing.isNotEmpty()) out.add("${src.substringAfterLast('/')} looks up ${missing.take(6).joinToString(", ") { "#$it" }}${if (missing.size > 6) " and ${missing.size - 6} more" else ""} " +
+                "but no page has an element with ${if (missing.size == 1) "that id" else "those ids"}, so ${if (missing.size == 1) "it is" else "they are"} null. Use the ids the page has, or add the elements.")
+        }
+        return out
     }
 }

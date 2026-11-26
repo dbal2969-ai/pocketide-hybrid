@@ -195,13 +195,21 @@ object HybridBench {
 
     /** The report for [results]: the suite's report, and for the reliability suite its pass@1 and pass^k summary. */
     fun reportText(ctx: android.content.Context, kind: Suite, helping: Boolean, stamp: String, results: List<HybridBenchTasks.Result>, problem: String?,
-                   total: Int, runs: Int, pythonNote: String, deselect: Map<String, List<String>>, unsound: Map<String, String>, notes: String = ""): String {
+                   total: Int, runs: Int, pythonNote: String, deselect: Map<String, List<String>>, unsound: Map<String, String>, notes: String = "",
+                   dir: File? = null): String {
         val strong = if (helping) helperStrong(AppSettings(ctx)) else null
         val hs = HybridAi.settings(ctx)
         val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
             "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
             (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(ctx).let { it.label + " (" + it.about + ")" }}"
-        return HybridBenchTasks.report(results, about, problem, if (kind.reliable) results.size else total, kind.title + if (helping) " · hybrid helping a strong model" else "") +
+        // 1.5.190 (runs 1126-0628 and 0731): the setting said Auto (Balanced) while every cloud step ran on Flash-Lite, Balanced being out
+        // of its daily quota; the report says which models really answered
+        val ran = java.util.TreeMap<String, Int>()
+        dir?.walkTopDown()?.filter { it.name == "transcript.txt" }?.forEach { f ->
+            try { Regex("""☁ Ran in the cloud \(([^)]+)\)""").findAll(f.readText()).forEach { m -> ran.merge(m.groupValues[1], 1, Int::plus) } } catch (e: Exception) { }
+        }
+        val ranLine = if (ran.isEmpty()) "" else " · cloud steps actually ran on: " + ran.entries.joinToString(", ") { "${it.key} ×${it.value}" }
+        return HybridBenchTasks.report(results, about + ranLine, problem, if (kind.reliable) results.size else total, kind.title + if (helping) " · hybrid helping a strong model" else "") +
             (if (!kind.reliable) "" else (if (kind == Suite.RELIABLE_BOTH) dev.pocketide.app.core.ReliableBench.sideBySide(results) else dev.pocketide.app.core.ReliableBench.summary(results)) +
                 (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
                 (if (deselect.isEmpty()) "" else "\nHidden tests left out because they fail on this phone even with the reference fix:\n" + deselect.entries.joinToString("\n") { "- ${it.key}: ${it.value.joinToString()}" } + "\n") +
@@ -214,7 +222,7 @@ object HybridBench {
         val results = savedResults(ctx, dir, kind, s)
         val note = BenchResume.interruptedNote(s, s.order.size, how)
         return try {
-            File(dir, "report.md").writeText(reportText(ctx, kind, s.helping, s.stamp, results, note, s.order.size, s.runs, s.pythonNote, s.deselect, s.unsound))
+            File(dir, "report.md").writeText(reportText(ctx, kind, s.helping, s.stamp, results, note, s.order.size, s.runs, s.pythonNote, s.deselect, s.unsound, dir = dir))
             saveToDownloads(ctx, BenchResume.partialName(s.suite, s.helping, s.stamp, results.size, s.order.size)) { os -> zipDir(dir, os) }
         } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${dir.absolutePath}" }
     }
@@ -614,7 +622,7 @@ object HybridBench {
             state = state.copy(active = false, finished = true); save(null)
             val report = reportText(act, kind, helping, stamp, results, problem, state.order.size, runs, pythonNote, deselect, unsound,
                 if (reruns.isEmpty()) "" else "Run again because PocketIDE left the screen during them (Gemini Nano only runs while it is shown; not scored): " +
-                    reruns.entries.joinToString(", ") { "${it.key} (${it.value}×)" } + ".")
+                    reruns.entries.joinToString(", ") { "${it.key} (${it.value}×)" } + ".", out)
             File(out, "report.md").writeText(report)
             val where = try {
                 saveToDownloads(act, "pocketide-$suite${if (helping) "-helping" else ""}-benchmark-$stamp.zip") { os -> zipDir(out, os) }
