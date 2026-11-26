@@ -322,6 +322,42 @@ object EditBlocks {
     }
 
     /** "; the closest text is at lines 40-46: …" when at least half of the search lines appear there. */
+    private val QUOTES = Regex("""["'`]""")
+    private fun loose(s: String) = s.trim().replace(SPACES, " ").replace(QUOTES, "\"")
+    private fun bigrams(s: String): Map<String, Int> = (0 until maxOf(0, s.length - 1)).groupingBy { s.substring(it, it + 2) }.eachCount()
+
+    /** How alike two lines are, 0 to 1 (Dice on character pairs, after [loose]). */
+    fun similarity(a: String, b: String): Double {
+        val x = bigrams(loose(a)); val y = bigrams(loose(b))
+        val tx = x.values.sum(); val ty = y.values.sum()
+        if (tx + ty == 0) return if (loose(a) == loose(b)) 1.0 else 0.0
+        val both = x.entries.sumOf { (k, v) -> minOf(v, y[k] ?: 0) }
+        return 2.0 * both / (tx + ty)
+    }
+
+    /** The line of [cl] most like [want]: the same text with other quotes or spacing first, else the most similar line (at least 0.6). */
+    fun similarLine(cl: List<String>, want: String): Int? {
+        val w = loose(want)
+        if (w.length < 6) return null
+        cl.indexOfFirst { loose(it) == w }.takeIf { it >= 0 }?.let { return it }
+        cl.indexOfFirst { loose(it).contains(w.take(40)) }.takeIf { it >= 0 }?.let { return it }
+        var best = -1; var score = 0.0
+        for ((i, l) in cl.withIndex()) { if (l.isBlank()) continue; val s = similarity(l, want); if (s > score) { score = s; best = i } }
+        return if (best >= 0 && score >= 0.6) best else null
+    }
+
+    /**
+     * The numbered lines around where [search] was aimed in [cur] (1.5.193): what Gemini Nano is shown when it rereads a file after an
+     * edit that was not found, since the whole file may no longer fit in its prompt. Null when nothing is close.
+     */
+    fun excerpt(cur: String, search: String, around: Int = 12): String? {
+        val cl = cur.split("\n")
+        val anchor = search.split("\n").map { it.trim() }.filter { it.length >= 6 }.maxByOrNull { it.length } ?: return null
+        val at = similarLine(cl, anchor) ?: return null
+        val from = maxOf(0, at - around); val to = minOf(cl.size, at + around + 1)
+        return (from until to).joinToString("\n") { "${it + 1}: ${cl[it]}" }
+    }
+
     fun closest(cl: List<String>, sl: List<String>): String {
         val q = sl.map { it.trim().replace(SPACES, " ") }
         val want = q.count { it.isNotEmpty() }
@@ -336,8 +372,10 @@ object EditBlocks {
         if (best < 0 || bestScore * 2 < want) {
             // fall back to the single most specific line
             val anchor = q.filter { it.length >= 8 }.maxByOrNull { it.length } ?: return ""
-            val at = cl.indexOfFirst { it.contains(anchor.take(40)) }
-            if (at < 0) return ""
+            // 1.5.193 (reliability run 1126-0816, rich_3067): Gemini Nano wrote r'(?P<url>…' where the file has r"(?P<url>…", the exact
+            // match on the line's start failed, the hint was empty, and Nano reread the file until its steps ran out (18 of 38 Python
+            // fails). Quotes and spacing are ignored, then the most similar line is taken.
+            val at = cl.indexOfFirst { it.contains(anchor.take(40)) }.takeIf { it >= 0 } ?: similarLine(cl, anchor) ?: return ""
             best = (at - q.indexOf(anchor)).coerceIn(0, maxOf(0, cl.size - n))
         }
         val end = minOf(cl.size, best + n + 2).coerceAtMost(best + 30)

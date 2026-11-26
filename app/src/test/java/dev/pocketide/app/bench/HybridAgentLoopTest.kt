@@ -65,6 +65,25 @@ class HybridAgentLoopTest {
     private fun shown(o: AgentHarness.Outcome): String =
         o.messages.filter { it["role"] == "assistant" }.joinToString("\n") { it["content"]?.toString().orEmpty() } + "\n" + o.result?.text.orEmpty()
 
+    /** 1.5.193 (reliability run 1126-0816, rich_3067): after a missed edit, Nano's reread shows the lines it aimed at, not a refusal. */
+    @Test fun nanosRereadAfterAMissedEditShowsTheLines() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("hybrid_ai", 0).edit().putString("mode", HybridAi.Mode.ONLY_ON_DEVICE.name).commit()
+        nano(action("read_file", "path" to "app.js"),
+            action("edit_file", "path" to "app.js", "search" to "return a  -  b ;", "replace" to "return a + b;"),
+            action("read_file", "path" to "app.js"),
+            action("read_file", "path" to "app.js"),
+            action("read_file", "path" to "app.js"),
+            action("read_file", "path" to "app.js"))
+        cloud()
+        val o = AgentHarness(app, "Fix add in app.js so the test passes", ModelGateway.NETWORK, provider = "hybrid", modelName = "", timeoutSeconds = 60).run()
+        val reads = o.resultsOf("read_file")
+        assertTrue(reads.toString(), reads[1].startsWith("These are the lines of app.js your last edit was aimed at"))
+        assertTrue(reads[1], reads[1].contains(": function add(a, b) { return a - b; }") || reads[1].contains("return a - b"))
+        assertTrue(reads.toString(), reads[2].startsWith("Here is app.js again."))
+        assertTrue(reads.toString(), reads[3].startsWith("Here is app.js again."))
+        assertTrue(reads.toString(), !reads[4].startsWith("Here is app.js again."))   // at most twice; then refused as before
+    }
+
     @Test fun nanoDoesTheWholeFixOnThePhone() {
         nano(action("read_file", "path" to "app.js"),
             action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),

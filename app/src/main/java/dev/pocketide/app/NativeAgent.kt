@@ -451,6 +451,32 @@ class NativeAgent(
     private var smallRead = false
     private var smallEdited = false
     private val smallReadPaths = LinkedHashSet<String>()
+    /**
+     * 1.5.193 (reliability run 1126-0816): Gemini Nano's rereads of an unchanged file were refused ("use the copy you already have"),
+     * but in its short prompt that copy may be gone; 18 of 38 Python fails ended rereading until the steps ran out. For Nano a reread
+     * shows the lines its last missed edit was aimed at ([smallMissed]), else the file again, up to [SMALL_RESHOWS] times a file.
+     */
+    private val smallMissed = HashMap<String, String>()
+    private val smallReshown = HashMap<String, Int>()
+
+    /**
+     * Nano working with no cloud to hand to: small local model mode, or the hybrid provider in Private mode or with the cloud out of
+     * quota. Otherwise repeated rereads stay refused, so HybridAgent hands the rest to the cloud after two of them, as before.
+     */
+    private val nanoLike: Boolean get() = small || (settings.provider == "hybrid" &&
+        (HybridAi.cloudOut() || try { HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE } catch (e: Exception) { false }))
+
+    /** Nano's reread of an unchanged file: the reply to send, or null to refuse as before. */
+    private fun smallReread(p: String, text: String): String? {
+        if (!nanoLike) return null
+        smallMissed.remove(p)?.let { s -> dev.pocketide.app.core.EditBlocks.excerpt(text, s)?.let { ex ->
+            return "These are the lines of $p your last edit was aimed at (with line numbers). Copy the search text exactly from them, without the numbers, " +
+                "or use edit_lines with these line numbers:\n$ex" } }
+        val n = (smallReshown[p] ?: 0) + 1
+        if (n > SMALL_RESHOWS) return null
+        smallReshown[p] = n
+        return "Here is $p again.\n" + AgentActions.read(paths() + p, { q -> staged[q] ?: store.readForAi(q) }, p, cap = resultCap())
+    }
     private var smallTarget: String? = null
     private var smallLooked = false
     private var smallProposed = false
@@ -1167,6 +1193,8 @@ class NativeAgent(
      * 1.5.185: the card for an app_settings proposal. Nothing changes until the person taps Apply; during a benchmark the card
      * declines itself, so a run never changes the phone's settings, and the decision is written to the chat's record.
      */
+    private val SMALL_RESHOWS = 2
+
     private val RENAME = Regex("""(?i)\brename\b""")
 
     private fun settingsCard(c: dev.pocketide.app.core.AppSettingsTool.Check.Ok, now: String, why: String) {
@@ -2226,7 +2254,8 @@ class NativeAgent(
                 return
             }
         }
-        if (c.name != "update_plan" && c.name != "advisor" && loop.repeated(c.name, c.arguments)) {
+        // 1.5.193: Nano's repeated read goes on to read_file, which shows it the text again (smallReread) instead of a refusal
+        if (c.name != "update_plan" && c.name != "advisor" && !(nanoLike && c.name == "read_file") && loop.repeated(c.name, c.arguments)) {
             val msg = if (c.name == "read_file") "You already read this file and nothing has changed since. Use the copy you already have in this conversation." else ToolLoop.MESSAGE
             reply(msg, "$label (repeated)"); return
         }
@@ -2269,14 +2298,14 @@ class NativeAgent(
                     // 1.5.99: a piece of a file that fits in one reply is answered with the whole file (once per version). In the logs
                     // the model read a 900-line main.js 40 to 45 times a request in 150-line pieces, with a long think before each.
                     val whole = settings.readWhole && (text?.let { dev.pocketide.app.core.ReadPlan.whole(it, resultCap()) } ?: false)
-                    if (text != null && whole && readFiles[p] == stamp) { reply(dev.pocketide.app.core.ReadPlan.seen(p, from, intArg(a["end"])), "$label (unchanged)"); return }
+                    if (text != null && whole && readFiles[p] == stamp) { reply(smallReread(p, text) ?: dev.pocketide.app.core.ReadPlan.seen(p, from, intArg(a["end"])), "$label (unchanged)"); return }
                     if (text != null && whole) {
                         val shown = AgentActions.read(paths() + p, { q -> staged[q] ?: store.readForAi(q) }, p, cap = resultCap())
                         if (!shown.contains(AgentActions.MORE)) { readFiles[p] = stamp; reply(dev.pocketide.app.core.ReadPlan.wholeNote(p, text, from, intArg(a["end"])) + shown); return }
                     }
                     reply(AgentActions.read(if (text != null) paths() + p else paths(), { q -> staged[q] ?: store.readForAi(q) }, p, from, intArg(a["end"]), resultCap())); return
                 }
-                if (text != null && readFiles[p] == stamp) reply(dev.pocketide.app.core.ReadPlan.seen(p, null, null), "$label (unchanged)")
+                if (text != null && readFiles[p] == stamp) reply(smallReread(p, text) ?: dev.pocketide.app.core.ReadPlan.seen(p, null, null), "$label (unchanged)")
                 else {
                     val shown = AgentActions.read(if (text != null) paths() + p else paths(), { q -> staged[q] ?: store.readForAi(q) }, p, cap = resultCap())  // a real file is readable even if the capped list missed it
                     // only a whole read counts as "seen": a cut one may be read again for the rest
@@ -2415,7 +2444,10 @@ class NativeAgent(
                     if (r.text == null && !every && RENAME.containsMatchIn(request)) EditBlocks.renameAll(cur, block) ?: r else r }
                 val escNote = if (escaped || search != rawSearch) dev.pocketide.app.core.OverEscaped.NOTE else ""
                 val newText = res.text
-                if (newText == null) { reply("Edit not applied to $p: ${res.error ?: "the search text was not found"}. Read the file again and copy the text exactly.", "$label (failed)"); return }
+                if (newText == null) {
+                    if (nanoLike) smallMissed[p] = search   // 1.5.193: a reread then shows the lines this edit was aimed at
+                    reply("Edit not applied to $p: ${res.error ?: "the search text was not found"}. Read the file again and copy the text exactly.", "$label (failed)"); return
+                }
                 testGate(p, cur, newText, job)?.let { if (askTestNow(p, newText, label) { r, s -> reply(r, s) }) return; reply(it, "$label (refused)"); return }
                 readFiles.remove(p)
                 if (agent) {

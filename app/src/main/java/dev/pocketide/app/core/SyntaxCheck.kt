@@ -127,7 +127,7 @@ object SyntaxCheck {
     /** The reply when a broken write was undone ([existed]: the old text was put back; otherwise the new file was not kept). */
     fun refused(path: String, error: String, existed: Boolean): String =
         "NOT SAVED: $path has a syntax error at $error" + (if (cutOff(error)) " (the text stops early: your reply was cut off while writing it)" else "") + ". " +
-            (if (existed) "The file was put back exactly as it was before this write, so the game keeps working." else "The new file was not kept.") +
+            (if (existed) "The file was put back exactly as it was before this write, so it still works." else "The new file was not kept.") +
             " Write it again correctly. For a long file, change it in small parts with edit_file or edit_lines instead of rewriting it whole."
 
     fun note(path: String, error: String): String =
