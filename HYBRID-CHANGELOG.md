@@ -779,7 +779,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-benchmark-reliable-1125-2053.
 
 
-### (next) · 2026-11-26 06:45 · Cloud-only and side-by-side reliability benchmarks; "Stop and save" no longer crashes; 1.5.190
+### 565065e · 2026-11-26 06:45 · Cloud-only and side-by-side reliability benchmarks; "Stop and save" no longer crashes; 1.5.190
 
 - **Why:** the owner asked for a cloud-only benchmark and then for the full benchmark with both cloud and local; and reported a
   crash on "Stop and save" (1.5.189, Galaxy S24+, Android 17): `WindowManager$BadTokenException: Unable to add window -- token …
