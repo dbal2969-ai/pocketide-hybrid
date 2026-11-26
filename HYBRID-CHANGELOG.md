@@ -930,7 +930,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1126-1352.
 
 
-### (next) · 2026-11-26 16:25 · Python-only reliability runs; 1.5.196
+### 5a145a1 · 2026-11-26 16:25 · Python-only reliability runs; 1.5.196
 
 - **Why:** the owner asked to run just the Python tests, to measure the Python helper quickly.
 - **What:** a "Python only: quick" and "Python only: full (3 runs)" pair of buttons in the benchmark section (Suite `RELIABLE_PY`,
