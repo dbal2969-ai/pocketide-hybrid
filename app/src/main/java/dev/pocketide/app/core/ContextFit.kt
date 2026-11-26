@@ -59,6 +59,9 @@ object ContextFit {
      * Characters one tool result (a file read, a search) may use: 15% of the window, never below the old 8,000 and never above
      * [MAX_RESULT_CAP]. A 262K model reads about 118,000 characters in one call; a 32K model about 14,000.
      */
+    /** One tool result for Gemini Nano: 55% of its prompt ([onPhoneChars], the on-phone limit), never below the usual 8,000. */
+    fun nanoResultCap(onPhoneChars: Int): Int = (onPhoneChars * 55 / 100).coerceAtLeast(Tools.MAX_RESULT)
+
     fun resultCap(contextTokens: Int?): Int =
         if (contextTokens == null || contextTokens <= 0) DEFAULT_RESULT_CAP
         else (contextTokens.toLong() * CHARS_PER_TOKEN * 15 / 100).toInt().coerceIn(Tools.MAX_RESULT, MAX_RESULT_CAP)

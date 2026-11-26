@@ -472,7 +472,9 @@ object HybridAgent {
         val tail = TAIL
         val lastTool = if (messages.lastOrNull()?.get("role") == "tool") messages.size - 1 else -1
         val room = resultRoom(docs, messages, limit)
-        val lines = messages.mapIndexedNotNull { i, m -> line(m, if (i == lastTool) room else 2000) }
+        // 1.5.199: older results keep a seventh of the prompt (2,000 characters at the default 14,000; more when AICore allows more)
+        val older = maxOf(2000, limit / 7)
+        val lines = messages.mapIndexedNotNull { i, m -> line(m, if (i == lastTool) room else older) }
         if (lines.isEmpty()) return null
         val first = lines.first()
         var budget = limit - head.length - tail.length - first.length - 40

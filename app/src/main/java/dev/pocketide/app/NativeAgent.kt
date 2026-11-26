@@ -808,6 +808,10 @@ class NativeAgent(
 
     /** Characters one tool result may use: sized to the model's window (ContextFit.resultCap). */
     private fun resultCap(): Int {
+        // 1.5.199: when Gemini Nano has no cloud to hand to (Private mode, cloud out), a result is sized to fit its prompt (55% of the
+        // on-phone limit), so a long read arrives as a clean section with a "read more from line N" note instead of being cut wherever
+        // the prompt ran out. With the cloud available the usual size stays, so a file too long for the phone still goes to the cloud.
+        if (settings.provider == "hybrid" && nanoLike) return dev.pocketide.app.core.ContextFit.nanoResultCap(HybridAi.settings(ctx).onDeviceMaxChars)
         val prov = settings.provider
         val model = settings.model(prov).ifBlank { dev.pocketide.app.core.Providers.byId(prov).model }
         return dev.pocketide.app.core.ContextFit.resultCap(dev.pocketide.app.core.ModelFacts.context(prov, model, settings.baseFor(prov)))
@@ -2314,7 +2318,7 @@ class NativeAgent(
                 // 1.5.194: the Python helper answers a whole read of a long Python file with its outline (Nano's prompt holds ~350 lines)
                 if (pyHelp && text != null && dev.pocketide.app.core.PyHelper.isPython(p)) {
                     val again = !pyOutlined.add(p)
-                    dev.pocketide.app.core.PyHelper.outline(p, text, request = request, again = again)?.let { reply(it, "$label (${if (again) "excerpt" else "outline"})"); return }
+                    dev.pocketide.app.core.PyHelper.outline(p, text, long = maxOf(dev.pocketide.app.core.PyHelper.long(), resultCap() / 40), request = request, again = again)?.let { reply(it, "$label (${if (again) "excerpt" else "outline"})"); return }
                 }
                 if (text != null && readFiles[p] == stamp) reply(smallReread(p, text) ?: dev.pocketide.app.core.ReadPlan.seen(p, null, null), "$label (unchanged)")
                 else {

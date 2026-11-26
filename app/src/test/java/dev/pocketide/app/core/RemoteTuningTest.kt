@@ -50,6 +50,14 @@ class RemoteTuningTest {
         }
     }
 
+    /** 1.5.199: Gemini Nano's file reads grow with the on-phone limit (AICore can allow 8,000 tokens). */
+    @Test fun nanoReadsGrowWithTheOnPhoneLimit() {
+        assertEquals(Tools.MAX_RESULT, ContextFit.nanoResultCap(HybridSettings.DEFAULT_ON_DEVICE_CHARS))   // the default: as before
+        assertEquals(13200, ContextFit.nanoResultCap(HybridSettings.NANO_8K_CHARS))
+        assertTrue(HybridSettings.warning(HybridSettings(onDeviceMaxChars = 24000))!!.contains("up to 8,000 tokens"))
+        assertEquals(null, HybridSettings.warning(HybridSettings()))
+    }
+
     /** 1.5.198: Nano's defaults, thresholds and switches from Remote Config. */
     @Test fun tuningValues() {
         try {

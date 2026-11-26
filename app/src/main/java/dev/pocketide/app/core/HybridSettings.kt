@@ -31,6 +31,8 @@ data class HybridSettings(
 
         /** Above this, Gemini Nano may read only the start of a request (its documented limit is 4,000 tokens). */
         const val NANO_SAFE_CHARS = 14000
+        /** 1.5.199: the on-phone limit for a phone whose AICore allows Gemini Nano 8,000 tokens, leaving room for a 1,024-token reply. */
+        const val NANO_8K_CHARS = 24000
 
         val DEFAULT = HybridSettings()
 
@@ -55,7 +57,9 @@ data class HybridSettings(
         /** A note to show under the settings when a value may cause trouble, or null. */
         fun warning(s: HybridSettings): String? =
             if (s.onDeviceMaxChars > NANO_SAFE_CHARS)
-                "Above $NANO_SAFE_CHARS characters Gemini Nano may read only the start of a request, or the request may fail on the phone. Gemini Nano's documented limit is 4,000 tokens."
+                "Above $NANO_SAFE_CHARS characters Gemini Nano may read only the start of a request, or the request may fail on the phone: its " +
+                    "documented limit is 4,000 tokens. If you raised Gemini Nano's limit in AICore's settings (up to 8,000 tokens), up to about " +
+                    "$NANO_8K_CHARS characters works and leaves room for its reply."
             else null
     }
 }

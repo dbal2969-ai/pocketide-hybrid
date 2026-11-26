@@ -982,6 +982,25 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** RemoteTuningTest `tuningValues` (each value changes behaviour; out-of-range values fall back) and the template check now
   covers all 24 keys and their defaults. 1,357 unit tests, 0 failures.
 
+
+### (next) · 2026-11-26 17:05 · Larger on-phone limit for phones where AICore allows 8,000 tokens; 1.5.199
+
+- **Why:** the owner's phone lets AICore's Gemma 4 E2B take up to 8,000 tokens instead of the default 4,000. The on-phone limit
+  (Models › Hybrid AI) already goes to 30,000 characters, but the setting's warning only spoke of the 4,000-token default, and a
+  long read in Private mode was cut wherever Nano's prompt ran out rather than at a clean section.
+- **Change:**
+  - With no cloud to hand to (Private mode, or the cloud out of quota), one tool result is sized to 55% of the on-phone limit
+    (`ContextFit.nanoResultCap`, at least 8,000 characters), so at about 24,000 characters a 13,000-character file is shown whole;
+    a longer one arrives as a section with a "read more from line N" note. With the cloud available nothing changes, so a file too
+    long for the phone still goes to the cloud (`aFileTooLongForThePhoneIsPassedOnWithTheReason`).
+  - Older tool results in Nano's prompt keep a seventh of the limit instead of a fixed 2,000 characters (2,000 at the default
+    14,000; about 3,400 at 24,000).
+  - The Python outline appears for files longer than the larger of its Remote Config threshold and the result size / 40 lines.
+  - The on-phone limit warning names 24,000 characters (`HybridSettings.NANO_8K_CHARS`) as safe once AICore is raised to 8,000.
+  - The limit is set per phone, not by Remote Config: phones left at AICore's default would overflow Nano's prompt.
+- **Files:** NativeAgent.kt, HybridAgent.kt, core/ContextFit.kt, core/HybridSettings.kt; app/build.gradle.kts (1.5.199-hybrid, code 247).
+- **Tests:** RemoteTuningTest `nanoReadsGrowWithTheOnPhoneLimit`. 1,358 unit tests, 0 failures.
+
 ---
 
 ## Outside the code
