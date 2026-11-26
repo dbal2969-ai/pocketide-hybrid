@@ -823,6 +823,31 @@ the files after the run, `transcript.txt` and `check.txt`.
   ids pass, and no false alarm on any benchmark project or starter. 1,343 unit tests, 0 failures.
 - **Evidence:** pocketide-hybrid-scratch-benchmark-1126-0628, pocketide-hybrid-reliable-cloud-benchmark-1126-0731-partial-13of57.
 
+
+### (next) · 2026-11-26 08:30 · The total benchmark: every suite in one run; 1.5.192
+
+- **Why:** the owner asked for a total benchmark.
+- **What it does** (HybridBench `startTotal`, `Total`, `totalReport`; core/BenchTotal.kt): one button, "Total benchmark (every suite)",
+  opens a dialog to pick the suites (Standard, Hard, Games, Local model, From scratch, In-app questions, all ticked), the reliability
+  suite (Nano and the cloud side by side, the default; Nano only; Cloud only; or left out), quick or full reliability, and the Python
+  track. The suites run one after another, each exactly as on its own and into its own folder inside the total's folder, with its own
+  report.md. The zip (`pocketide-hybrid-total-benchmark-<stamp>.zip`) has a report.md at the top with a line per suite (passed, pass
+  rate, steps on the phone and in the cloud, folder) and all suites together.
+- **Stop, Resume and a closed PocketIDE work across the whole run:** total.properties keeps which suite it is on, and the suite that
+  was running keeps its own progress. Stop and save (or the cloud quota stopping a cloud reliability run) zips everything so far as
+  `…-partial-<suites done>of<suites>.zip`; the total button then offers Resume, which carries on with that suite where it stopped. If
+  PocketIDE was closed mid-run, the next start puts the settings back, zips everything so far and offers Resume.
+- **analyze.py** reads a total zip (it has total.properties) suite folder by suite folder, and writes one analysis with a section per
+  suite.
+- **APK size:** debug builds are now packaged from scratch (the old APK is deleted before each build), so sizes compare between
+  versions. 1.5.190's APK was 1.49 MB bigger than 1.5.191's only because the incremental packager had left two unused gaps where old
+  copies of classes8.dex and classes6.dex had been; the files inside were the same.
+- **Files:** core/BenchTotal.kt (new), HybridBench.kt (`Run` takes the suite's folder and its total; `savePartial` can skip the
+  zip), HybridScreen.kt, bench/hybrid/analyze.py; app/build.gradle.kts (1.5.192-hybrid, code 240).
+- **Tests:** BenchTotalTest (2): the progress file round-trips and says when it can be resumed; the summary table with a stopped and
+  a not-yet-run suite. All unit tests pass; analyze.py was tried on a total zip made of the runs 1126-0628 and 1126-0731. The total
+  run itself needs the phone.
+
 ---
 
 ## Outside the code

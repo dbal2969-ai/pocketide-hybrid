@@ -311,6 +311,49 @@ object HybridScreen {
         fs.buttonRow(benchCard, Ui.button(ctx, "Cloud only: quick") { startReliable(1, HybridBench.Suite.RELIABLE_CLOUD) }, Ui.button(ctx, "Cloud only: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_CLOUD) })
         benchCard.addView(Ui.text(ctx, "Side by side runs each task on Gemini Nano and then in the cloud, and the report compares the two.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Nano + cloud: quick") { startReliable(1, HybridBench.Suite.RELIABLE_BOTH) }, Ui.button(ctx, "Nano + cloud: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_BOTH) })
+        // 1.5.192: the total benchmark, every chosen suite in one run and one zip, with a summary of them all
+        fun startTotalNew() {
+            val m = activity as? MainActivity ?: run { toast("Open this from PocketIDE's main screen."); return }
+            val box = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(Ui.dp(ctx, 20), Ui.dp(ctx, 8), Ui.dp(ctx, 20), 0) }
+            val picks = HybridBench.TOTAL_SUITES.map { k -> k to CheckBox(ctx).also { it.text = k.title.removePrefix("Hybrid AI benchmark").trim().trim('(', ')').ifEmpty { "Standard" }.replaceFirstChar { c -> c.uppercase() }; it.isChecked = true; box.addView(it) } }
+            box.addView(Ui.text(ctx, "Reliability suite:", 14f, Ui.MUTED))
+            val group = android.widget.RadioGroup(ctx)
+            val engines = listOf("Gemini Nano and the cloud, side by side" to HybridBench.Suite.RELIABLE_BOTH, "Gemini Nano only (no quota)" to HybridBench.Suite.RELIABLE,
+                "Cloud only" to HybridBench.Suite.RELIABLE_CLOUD, "Leave it out" to null)
+            val radios = engines.map { (label, _) -> android.widget.RadioButton(ctx).also { it.text = label; it.id = android.view.View.generateViewId(); group.addView(it) } }
+            radios[0].isChecked = true
+            box.addView(group)
+            val full = CheckBox(ctx).also { it.text = "Full reliability (3 runs per task); otherwise quick (1 run)"; box.addView(it) }
+            val py = CheckBox(ctx).also { it.text = "Include the Python track"; it.isChecked = true; box.addView(it) }
+            AlertDialog.Builder(ctx).setTitle("Run the total benchmark?")
+                .setMessage("Every suite you pick runs one after another in one run, each in its own folder with its own report, and the zip has a summary of " +
+                    "them all. The hybrid suites and the reliability cloud runs use the free cloud quota: if it runs out, the hybrid suites carry on with " +
+                    "Gemini Nano alone and a cloud reliability run stops (resume it after midnight Pacific time). A full total run takes most of a day; " +
+                    "keep PocketIDE on screen and plugged in. Stop and save works at any time, and Resume carries on where it stopped.")
+                .setView(android.widget.ScrollView(ctx).also { it.addView(box) })
+                .setPositiveButton("Start") { _, _ ->
+                    val rel = engines[radios.indexOfFirst { it.isChecked }.coerceAtLeast(0)].second
+                    val suites = picks.filter { it.second.isChecked }.map { it.first } + listOfNotNull(rel)
+                    if (suites.isEmpty()) { toast("Pick at least one suite."); return@setPositiveButton }
+                    fs.dialog.dismiss()
+                    HybridBench.startTotal(m, suites, if (full.isChecked) dev.pocketide.app.core.ReliableBench.RUNS else 1, py.isChecked)
+                }
+                .setNegativeButton("Cancel", null).show()
+        }
+        fun startTotal() {
+            if (HybridBench.running) { offerStop(); return }
+            val m = activity as? MainActivity
+            val p = HybridBench.pausedTotal(ctx)
+            if (m == null || p == null) { startTotalNew(); return }
+            AlertDialog.Builder(ctx).setTitle("Resume the interrupted total benchmark?")
+                .setMessage("The total run from ${p.stamp} stopped during suite ${p.index + 1} of ${p.suites.size}. Resume keeps everything finished and carries on " +
+                    "with that suite where it stopped. The final zip has every suite.")
+                .setPositiveButton("Resume") { _, _ -> fs.dialog.dismiss(); HybridBench.resumeTotal(m, p) }
+                .setNeutralButton("Start a new run") { _, _ -> HybridBench.abandonTotal(ctx, p); startTotalNew() }
+                .setNegativeButton("Cancel", null).show()
+        }
+        benchCard.addView(Ui.text(ctx, "The total benchmark runs every suite you pick, one after another, into one zip with a summary.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Total benchmark (every suite)") { startTotal() })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

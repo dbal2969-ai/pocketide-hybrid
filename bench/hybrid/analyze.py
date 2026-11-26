@@ -361,4 +361,29 @@ def main():
     print(verdict_line); print("\n".join(head)); print("written", dest)
 
 
-main()
+def total(zpath):
+    """1.5.192: a total benchmark zip holds one folder per suite, each with its own report.md: each is analyzed as its own run."""
+    work = tempfile.mkdtemp(prefix="analyze-total-")
+    zipfile.ZipFile(zpath).extractall(work)
+    base = os.path.splitext(zpath)[0]
+    parts = [open(os.path.join(work, "report.md")).read() if os.path.exists(os.path.join(work, "report.md")) else ""]
+    for d in sorted(os.listdir(work)):
+        sub = os.path.join(work, d)
+        if not os.path.isfile(os.path.join(sub, "report.md")): continue
+        sz = os.path.join(work, d + ".zip")
+        with zipfile.ZipFile(sz, "w") as z:
+            for root, _, fs in os.walk(sub):
+                for f in fs: z.write(os.path.join(root, f), os.path.relpath(os.path.join(root, f), sub))
+        print("==", d)
+        subprocess.run([sys.executable, os.path.abspath(__file__), sz] + sys.argv[2:], check=False)
+        a = os.path.splitext(sz)[0] + "-analysis.md"
+        if os.path.exists(a): parts.append(f"\n\n---\n\n# Suite folder {d}/\n\n" + open(a).read())
+    dest = base + "-analysis.md"
+    try: open(dest, "w").write("".join(parts))
+    except Exception: dest = os.path.join(work, "analysis.md"); open(dest, "w").write("".join(parts))
+    print("written", dest)
+
+
+if __name__ == "__main__":
+    if "total.properties" in zipfile.ZipFile(sys.argv[1]).namelist(): total(sys.argv[1])
+    else: main()

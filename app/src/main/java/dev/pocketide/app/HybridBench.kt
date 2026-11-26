@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import android.view.WindowManager
 import android.widget.Toast
 import dev.pocketide.app.core.BenchResume
+import dev.pocketide.app.core.BenchTotal
 import dev.pocketide.app.core.HybridBenchTasks
 import java.io.File
 import java.io.OutputStream
@@ -142,6 +143,18 @@ object HybridBench {
      */
     fun recover(act: MainActivity) {
         if (running) return
+        // 1.5.192: a total run cut off: its running suite is interrupted as a single run would be, then the total is zipped so far
+        for ((dir, t0) in totals(act).filter { it.second.active && !it.second.finished }) {
+            val t = t0.copy(active = false)
+            saveTotal(dir, t)
+            t.suites.getOrNull(t.index)?.let { id -> val d = File(dir, id); readRun(d)?.takeIf { it.active }?.let { s -> val s2 = BenchResume.interrupt(s); save(d, s2); restore(act, s2.before)
+                Suite.values().firstOrNull { it.id == id }?.let { k -> savePartial(act, d, k, s2, "PocketIDE was closed or stopped by Android", zip = false) } } }
+            val where = totalPartial(act, dir, t, "PocketIDE was closed or stopped by Android")
+            alert(act, "Total benchmark was interrupted", "PocketIDE was closed or stopped while the total benchmark ran (suite ${t.index + 1} of ${t.suites.size}). " +
+                "Everything so far is saved: $where\n\nYour settings and project were put back. Resume carries on with the suite that was running.",
+                "Resume", { a -> resumeTotal(a, t) }, "Later")
+            return
+        }
         for ((dir, s0) in states(act).filter { it.second.active && !it.second.finished }) {
             val s = BenchResume.interrupt(s0)
             save(dir, s)
@@ -218,11 +231,12 @@ object HybridBench {
     }
 
     /** Zips the tasks an interrupted run finished (report-partial.md says so), and says where the zip went. */
-    fun savePartial(ctx: android.content.Context, dir: File, kind: Suite, s: BenchResume.State, how: String): String {
+    fun savePartial(ctx: android.content.Context, dir: File, kind: Suite, s: BenchResume.State, how: String, zip: Boolean = true): String {
         val results = savedResults(ctx, dir, kind, s)
         val note = BenchResume.interruptedNote(s, s.order.size, how)
         return try {
             File(dir, "report.md").writeText(reportText(ctx, kind, s.helping, s.stamp, results, note, s.order.size, s.runs, s.pythonNote, s.deselect, s.unsound, dir = dir))
+            if (!zip) return ""
             saveToDownloads(ctx, BenchResume.partialName(s.suite, s.helping, s.stamp, results.size, s.order.size)) { os -> zipDir(dir, os) }
         } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${dir.absolutePath}" }
     }
@@ -268,8 +282,105 @@ object HybridBench {
         return rb.devTasks(devHidden) + node + py
     }
 
+    // ---- 1.5.192: the total benchmark ----
+
+    /** The suites a total run can include, in the order they run; one reliability suite is chosen (Nano, cloud, or both). */
+    val TOTAL_SUITES = listOf(Suite.STANDARD, Suite.HARD, Suite.GAMES, Suite.LOCAL, Suite.SCRATCH, Suite.APP)
+
+    fun totalDir(ctx: android.content.Context, stamp: String) = File(resultsDir(ctx), "${BenchTotal.ID}-$stamp")
+
+    private fun readTotal(dir: File): BenchTotal.State? = File(dir, BenchTotal.FILE).takeIf { it.isFile }?.let { BenchTotal.decode(try { it.readText() } catch (e: Exception) { "" }) }
+
+    private fun readRun(dir: File): BenchResume.State? = File(dir, BenchResume.FILE).takeIf { it.isFile }?.let { BenchResume.decode(try { it.readText() } catch (e: Exception) { "" }) }
+
+    /** Every total run that saved its progress, newest first. */
+    private fun totals(ctx: android.content.Context): List<Pair<File, BenchTotal.State>> =
+        (resultsDir(ctx).listFiles() ?: emptyArray()).filter { it.name.startsWith(BenchTotal.ID + "-") }.mapNotNull { d -> readTotal(d)?.let { d to it } }
+            .sortedByDescending { it.first.lastModified() }
+
+    fun pausedTotal(ctx: android.content.Context): BenchTotal.State? = totals(ctx).firstOrNull { it.second.resumable }?.second
+
+    fun abandonTotal(ctx: android.content.Context, s: BenchTotal.State) = saveTotal(totalDir(ctx, s.stamp), s.copy(finished = true))
+
+    private fun saveTotal(dir: File, s: BenchTotal.State) = try { File(dir.apply { mkdirs() }, BenchTotal.FILE).writeText(BenchTotal.encode(s)) } catch (e: Exception) { }
+
+    fun startTotal(act: MainActivity, suites: List<Suite>, runs: Int, python: Boolean) {
+        if (running || suites.isEmpty()) return
+        running = true
+        Total(act, BenchTotal.State(SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date()), suites.map { it.id }, 0, runs, python)).startSuite()
+    }
+
+    fun resumeTotal(act: MainActivity, s: BenchTotal.State) {
+        if (running) return
+        running = true
+        Total(act, s.copy(active = true)).startSuite()
+    }
+
+    /** The total report: what was run, the summary table, and where each suite's own report is. */
+    fun totalReport(ctx: android.content.Context, dir: File, s: BenchTotal.State, note: String?): String {
+        val rows = s.suites.mapNotNull { id ->
+            val kind = Suite.values().firstOrNull { it.id == id } ?: return@mapNotNull null
+            val d = File(dir, id)
+            val st = readRun(d) ?: return@mapNotNull BenchTotal.Row(kind.title, id, 0, 0, 0, 0, ran = false)
+            val rs = savedResults(ctx, d, kind, st)
+            BenchTotal.Row(kind.title, id, rs.count { it.passed }, if (kind.reliable) rs.size else st.order.size, rs.sumOf { it.counts.phone }, rs.sumOf { it.counts.cloud },
+                when { st.finished && rs.size < st.order.size && !kind.reliable -> "stopped early (see its report)"; !st.finished -> "stopped after ${st.done.size} of ${st.order.size} tasks"; else -> "" })
+        }
+        val hs = HybridAi.settings(ctx)
+        return "# Total benchmark (every suite)\n\n${dev.pocketide.app.core.BuildTag.userAgent} · run ${s.stamp} · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
+            "cloud models: ${HybridAi.cloudChoice(ctx).label} · reliability runs per task: ${s.runs} · Python track: ${if (s.python) "included" else "left out"}\n\n" +
+            (note?.let { "**$it**\n\n" } ?: "") + BenchTotal.table(rows) +
+            "\nEach suite's folder has its own report.md (with every task's result and why) and a folder per task (files/, transcript.txt, check.txt).\n"
+    }
+
+    /** Runs the suites of [state] one after another (1.5.192). */
+    private class Total(val startAct: MainActivity, var state: BenchTotal.State) {
+        val act: MainActivity get() = usable(live) ?: startAct
+        val dir = totalDir(startAct, state.stamp).apply { mkdirs() }
+        val main = Handler(Looper.getMainLooper())
+
+        fun startSuite() {
+            saveTotal(dir, state)
+            if (state.index >= state.suites.size) { finish(); return }
+            val kind = Suite.values().firstOrNull { it.id == state.suites[state.index] }
+            if (kind == null) { state = state.copy(index = state.index + 1); startSuite(); return }
+            val d = File(dir, kind.id)
+            val prev = readRun(d)
+            if (prev != null && prev.finished) { state = state.copy(index = state.index + 1); startSuite(); return }
+            try { Toast.makeText(act.applicationContext, "Total benchmark: ${kind.title} (${state.index + 1} of ${state.suites.size})", Toast.LENGTH_LONG).show() } catch (e: Exception) { }
+            val runs = if (kind.reliable) state.runs else 1
+            Run(act, kind, false, runs, state.python, prev?.takeIf { it.resumable }, d, this).also { current = it }.begin()
+        }
+
+        fun suiteDone() { state = state.copy(index = state.index + 1); saveTotal(dir, state); main.postDelayed({ startSuite() }, 3000) }
+
+        fun finish() {
+            state = state.copy(active = false, finished = true); saveTotal(dir, state)
+            val text = totalReport(act, dir, state, null)
+            File(dir, "report.md").writeText(text)
+            val where = try { saveToDownloads(act, "pocketide-${BenchTotal.ID}-benchmark-${state.stamp}.zip") { os -> zipDir(dir, os) } }
+                catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${dir.absolutePath}" }
+            running = false; current = null
+            alert(act, "Total benchmark finished", text.substringAfter("| Suite |").let { "| Suite |" + it }.substringBefore("\nEach suite").take(1500) + "\n\nResults: $where")
+        }
+
+        /** The suite that was running was stopped (by the person, or the cloud quota): the total is zipped so far and can be resumed. */
+        fun stopped(how: String) {
+            state = state.copy(active = false); saveTotal(dir, state)
+            val where = totalPartial(act, dir, state, how)
+            alert(act, "Total benchmark stopped", "Stopped during suite ${state.index + 1} of ${state.suites.size} ($how). Everything so far is saved: $where\n\n" +
+                "To carry on later, tap the total benchmark button and choose Resume; the suite that was running continues where it stopped.")
+        }
+    }
+
+    /** Writes the total report so far and zips the total's folder as a partial result. */
+    fun totalPartial(ctx: android.content.Context, dir: File, s: BenchTotal.State, how: String): String = try {
+        File(dir, "report.md").writeText(totalReport(ctx, dir, s, "Interrupted ($how) during suite ${s.index + 1} of ${s.suites.size}. These are the results so far; resume to finish."))
+        saveToDownloads(ctx, "pocketide-${BenchTotal.ID}-benchmark-${s.stamp}-partial-${s.index}of${s.suites.size}.zip") { os -> zipDir(dir, os) }
+    } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${dir.absolutePath}" }
+
     private class Run(val startAct: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true,
-                      val resume: BenchResume.State? = null) {
+                      val resume: BenchResume.State? = null, val outDir: File? = null, val total: Total? = null) {
         /** The screen showing now, or the one the run started on (1.5.190: Android may rebuild it during a run). */
         val act: MainActivity get() = usable(live) ?: startAct
         val main = Handler(Looper.getMainLooper())
@@ -277,9 +388,10 @@ object HybridBench {
         /** The person's settings and project to put back; on resume, the ones saved before the run first started. */
         val before: Map<String, String> = resume?.before ?: beforeNow(act)
         val strong = if (helping) helperStrong(settings) else null
-        val stamp: String = resume?.stamp ?: SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
+        val stamp: String = resume?.stamp ?: total?.state?.stamp ?: SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
         val suite = kind.id
-        val out = File(resultsDir(act), "$suite-$stamp").apply { mkdirs() }
+        /** In a total run (1.5.192), the suite's folder inside the total's folder. */
+        val out = (outDir ?: File(resultsDir(act), "$suite-$stamp")).apply { mkdirs() }
         val all = tasksFor(act, kind, runs, python)
         val byId = all.associateBy { it.id }
         val results: ArrayList<HybridBenchTasks.Result> = if (resume == null) ArrayList() else savedResults(act, out, kind, resume)
@@ -624,6 +736,8 @@ object HybridBench {
                 if (reruns.isEmpty()) "" else "Run again because PocketIDE left the screen during them (Gemini Nano only runs while it is shown; not scored): " +
                     reruns.entries.joinToString(", ") { "${it.key} (${it.value}×)" } + ".", out)
             File(out, "report.md").writeText(report)
+            // 1.5.192: in a total run the suite's report stays in its folder and the next suite starts; the total zips them all at the end
+            if (total != null) { current = null; total.suiteDone(); return }
             val where = try {
                 saveToDownloads(act, "pocketide-$suite${if (helping) "-helping" else ""}-benchmark-$stamp.zip") { os -> zipDir(out, os) }
             } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${out.absolutePath}" }
@@ -648,6 +762,7 @@ object HybridBench {
             restore(act, before)
             act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             running = false; current = null
+            if (total != null) { savePartial(act, out, kind, state, how, zip = false); total.stopped(how); return }
             val where = savePartial(act, out, kind, state, how)
             alert(act, kind.title + " stopped", "Stopped after ${state.done.size} of ${state.order.size} tasks ($how). The finished tasks are saved: $where\n\n" +
                     "Your settings and project were put back. To finish the run later, tap the same benchmark button and choose Resume" +
