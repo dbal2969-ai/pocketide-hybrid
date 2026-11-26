@@ -221,7 +221,7 @@ object HybridScreen {
             if (m == null || p == null) { fresh(); return }
             AlertDialog.Builder(ctx).setTitle("Resume the interrupted run?")
                 .setMessage("The run from ${p.stamp} stopped after ${p.done.size} of ${p.order.size} tasks" +
-                    (if (suite == HybridBench.Suite.RELIABLE) " (${p.runs} ${if (p.runs == 1) "run" else "runs"} per task, Python ${if (p.python) "included" else "left out"})" else "") +
+                    (if (suite.reliable) " (${p.runs} ${if (p.runs == 1) "run" else "runs"} per task, Python ${if (p.python) "included" else "left out"})" else "") +
                     ". Resume keeps its finished tasks and runs the rest, with the task it stopped during moved to the back. The final zip has every task.")
                 .setPositiveButton("Resume") { _, _ -> fs.dialog.dismiss(); HybridBench.resume(m, p) }
                 .setNeutralButton("Start a new run") { _, _ -> HybridBench.abandon(ctx, p); fresh() }
@@ -271,28 +271,46 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "The on-device reliability benchmark runs Gemini Nano alone (Private mode, no cloud quota): the local suite's 20 tasks " +
             "it is tuned on, 24 held-out tasks it never was, and real Python fixes from the rich and requests libraries, each checked by a test " +
             "and a hidden check. Quick runs each task once (about an hour); Full runs each 3 times to measure how reliable it is (an evening).", 13f, Ui.MUTED))
-        fun startReliableNew(runs: Int) {
+        fun startReliableNew(runs: Int, suite: HybridBench.Suite) {
             val m = activity as? MainActivity
+            val cloud = suite != HybridBench.Suite.RELIABLE
+            val both = suite == HybridBench.Suite.RELIABLE_BOTH
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
                 HybridBench.running -> toast("The benchmark is already running.")
                 else -> {
                     val py = CheckBox(ctx).also { it.text = "Include the Python track (installs Python and pytest in Linux once)"; it.isChecked = true }
-                    AlertDialog.Builder(ctx).setTitle("Run the on-device reliability benchmark (${if (runs == 1) "quick" else "full, $runs runs per task"})?")
-                        .setMessage("Gemini Nano runs every task alone in Private mode, so no cloud quota is used. Each task's reference fix is first " +
-                            "checked on this phone. The screen stays on; do not use the app or leave it while it runs. The results zip goes to Downloads/PocketIDE.")
+                    val n = 57 * runs   // cloud runs (the side-by-side suite also runs each on Nano)
+                    AlertDialog.Builder(ctx).setTitle("Run the ${if (both) "side-by-side" else if (cloud) "cloud" else "on-device"} reliability benchmark (${if (runs == 1) "quick" else "full, $runs runs per task"})?")
+                        .setMessage((if (both) "Every task runs twice in a row: on Gemini Nano alone (Private mode), then with every step on Gemini in the cloud " +
+                            "(${HybridAi.cloudChoice(ctx).label}). The report has both scores and a side-by-side table. The cloud half uses the project's free " +
+                            "quota: about ${n * 6} to ${n * 10} requests. If every cloud model runs out, the run stops and can be resumed after the quota resets " +
+                            "(midnight Pacific time). A full run takes most of a day. "
+                            else if (cloud) "Every step of every task runs on Gemini in the cloud (${HybridAi.cloudChoice(ctx).label}); Gemini Nano is never used, so the " +
+                            "scores compare directly with Nano's runs of the same tasks. This uses the project's free cloud quota: about ${n * 6} to ${n * 10} " +
+                            "requests. If every cloud model runs out, the run stops without scoring that task and can be resumed after the quota resets " +
+                            "(midnight Pacific time). "
+                            else "Gemini Nano runs every task alone in Private mode, so no cloud quota is used. ") +
+                            "Each task's reference fix is first checked on this phone. The screen stays on; do not use the app or leave it while it runs. " +
+                            "The results zip goes to Downloads/PocketIDE.")
                         .setView(py)
-                        .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, HybridBench.Suite.RELIABLE, false, runs, py.isChecked) }
+                        .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, suite, false, runs, py.isChecked) }
                         .setNegativeButton("Cancel", null).show()
                 }
             }
         }
-        fun startReliable(runs: Int) {
+        fun startReliable(runs: Int, suite: HybridBench.Suite = HybridBench.Suite.RELIABLE) {
             if (HybridBench.running) { offerStop(); return }
-            if (HybridBench.paused(ctx, HybridBench.Suite.RELIABLE) != null) { orResume(HybridBench.Suite.RELIABLE) { startReliableNew(runs) }; return }
-            startReliableNew(runs)
+            if (HybridBench.paused(ctx, suite) != null) { orResume(suite) { startReliableNew(runs, suite) }; return }
+            startReliableNew(runs, suite)
         }
         fs.buttonRow(benchCard, Ui.button(ctx, "Reliability: quick") { startReliable(1) }, Ui.button(ctx, "Reliability: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS) })
+        // 1.5.190: the same tasks with every step on Gemini in the cloud, to compare with Nano's scores
+        benchCard.addView(Ui.text(ctx, "The cloud reliability benchmark runs the same tasks and checks with every step on Gemini in the cloud " +
+            "(Cloud first; Nano never runs), so the two scores compare directly. It uses the free cloud quota: start with the quick run.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Cloud only: quick") { startReliable(1, HybridBench.Suite.RELIABLE_CLOUD) }, Ui.button(ctx, "Cloud only: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_CLOUD) })
+        benchCard.addView(Ui.text(ctx, "Side by side runs each task on Gemini Nano and then in the cloud, and the report compares the two.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Nano + cloud: quick") { startReliable(1, HybridBench.Suite.RELIABLE_BOTH) }, Ui.button(ctx, "Nano + cloud: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_BOTH) })
 
         // ---- Usage (Firebase Authentication + Firestore) and Remote Config ----
         fs.heading("Your hybrid usage")

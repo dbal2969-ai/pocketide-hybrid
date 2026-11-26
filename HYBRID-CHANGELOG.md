@@ -778,6 +778,31 @@ the files after the run, `transcript.txt` and `check.txt`.
   pause need the phone.
 - **Evidence:** pocketide-hybrid-benchmark-reliable-1125-2053.
 
+
+### (next) · 2026-11-26 06:45 · Cloud-only and side-by-side reliability benchmarks; "Stop and save" no longer crashes; 1.5.190
+
+- **Why:** the owner asked for a cloud-only benchmark and then for the full benchmark with both cloud and local; and reported a
+  crash on "Stop and save" (1.5.189, Galaxy S24+, Android 17): `WindowManager$BadTokenException: Unable to add window -- token …
+  is not valid; is your activity running?` at `HybridBench$Run.stop`. The run had kept the PocketIDE screen it started on; Android
+  had rebuilt the screen since, and the "stopped" dialog was shown on the old one. The partial zip was already saved.
+- **The crash:** HybridBench now tracks the screen that is showing (`live`, set in MainActivity onStart, cleared in onDestroy).
+  Every benchmark dialog goes through `alert()`, which uses that screen and falls back to a toast instead of crashing; a run
+  (`Run.act`) follows the rebuilt screen, and Stop stops the request on both the old and the new screen.
+- **Cloud only** (Suite `RELIABLE_CLOUD`, `ReliableBench.forCloud`): the reliability tasks and checks with every step on Gemini in
+  the cloud (Cloud first, so Nano never runs, and the cloud-out fallback to Nano does not apply). The checks are the tasks' own,
+  except that a step on this phone fails the run (`ON_PHONE`) instead of a step in the cloud. Buttons "Cloud only: quick" and
+  "Cloud only: full (3 runs)"; the dialog estimates the requests (6 to 10 per run).
+- **Nano + cloud side by side** (Suite `RELIABLE_BOTH`, `ReliableBench.both`, `sideBySide`): each run of each task on Gemini
+  Nano (Private mode), then right after it in the cloud (id `…#2@cloud`), so both see the same phone, hour and packages. The
+  report has each engine's reliability section, a table of pass@1 by split, track and skill for both, the tasks only one engine
+  passed every run, and the median time per run. Buttons "Nano + cloud: quick" and "Nano + cloud: full (3 runs)".
+- **Out of quota:** when every cloud model is out of free quota during a cloud run, the run stops without scoring that task (it is
+  not charged as an interruption), the finished tasks are zipped, and Resume carries on once the quota resets.
+- **analyze.py** knows both new report titles and reads `@cloud` runs as their task.
+- **Files:** HybridBench.kt, HybridScreen.kt, MainActivity.kt, core/ReliableBench.kt, bench/hybrid/analyze.py,
+  app/build.gradle.kts (1.5.190-hybrid, code 238).
+- **Tests:** ReliableBenchTest `cloudOnlyChecks` and `sideBySide`. 1,340 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

@@ -11,7 +11,7 @@ Usage: python3 bench/hybrid/analyze.py <results.zip> [play scripts dir from Game
 import collections, html.parser, json, os, re, shutil, subprocess, sys, tempfile, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch", "(in-app questions)": "app", "(Gemini Nano)": "reliable"}
+SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch", "(in-app questions)": "app", "(Gemini Nano)": "reliable", "(Gemini in the cloud)": "reliable", "(Gemini Nano and the cloud)": "reliable"}
 PYTHON = os.environ.get("ANALYZE_PYTHON", "python3")   # needs pytest, pygments, markdown-it-py, urllib3, idna, charset_normalizer, certifi
 APP_SRC = os.path.join(HERE, "..", "..", "app", "src", "main", "java", "dev", "pocketide", "app")
 
@@ -190,7 +190,7 @@ def main():
         tdir = os.path.join(work, tid)
         final = read_tree(os.path.join(tdir, "files"))
         # the reliability suite: "r05-fix-comparison#2" is run 2 of a held-out task; l.. tasks are the local suite (dev), the rest Python
-        base = tid.split("#")[0]
+        base = tid.split("#")[0].replace("@cloud", "")   # 1.5.190: a side-by-side cloud run is "r05-fix#1@cloud"
         if suite == "reliable":
             suite_dir = os.path.join(HERE, "local" if re.match(r"l\d\d-", base) else "reliable" if re.match(r"r\d\d-", base) else "python")
         orig = read_tree(os.path.join(suite_dir, "project")) if suite == "app" else read_tree(os.path.join(suite_dir, "tasks", base))

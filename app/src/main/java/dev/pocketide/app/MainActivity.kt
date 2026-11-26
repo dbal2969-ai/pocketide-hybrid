@@ -421,11 +421,11 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        HybridBench.screen(true)   // 1.5.188: a benchmark paused while PocketIDE was off screen carries on
+        HybridBench.screen(this, true)   // 1.5.188: a benchmark paused while PocketIDE was off screen carries on
     }
 
     override fun onStop() {
-        HybridBench.screen(false)
+        HybridBench.screen(this, false)
         // leaving the chat screen during a request can stop it; the record says so
         dev.pocketide.app.core.ToolTrace.target?.let { dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event("the app left the screen during a request (it may stop)")) }
         super.onStop()
@@ -437,6 +437,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        HybridBench.gone(this)
         Projects.listeners.remove(projectListener)  // v0.4 W1
         preview.destroy()
         super.onDestroy()

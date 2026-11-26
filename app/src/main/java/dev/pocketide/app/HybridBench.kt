@@ -42,6 +42,13 @@ object HybridBench {
         SCRATCH("hybrid-scratch", "Hybrid AI benchmark (from scratch)"),
         APP("hybrid-app", "Hybrid AI benchmark (in-app questions)"),
         RELIABLE("hybrid-reliable", "On-device reliability benchmark (Gemini Nano)"),
+        /** 1.5.190: the reliability tasks with every step on Gemini in the cloud (Cloud first; Nano never runs). */
+        RELIABLE_CLOUD("hybrid-reliable-cloud", "Cloud reliability benchmark (Gemini in the cloud)"),
+        /** 1.5.190: each task run on Gemini Nano and then in the cloud, side by side, with a comparison in the report. */
+        RELIABLE_BOTH("hybrid-reliable-both", "Reliability benchmark (Gemini Nano and the cloud)");
+
+        /** The reliability suites share their tasks, checks, Python track and report. */
+        val reliable get() = this == RELIABLE || this == RELIABLE_CLOUD || this == RELIABLE_BOTH
     }
 
     /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
@@ -79,7 +86,33 @@ object HybridBench {
     @Volatile var onScreen = true
         private set
 
-    fun screen(on: Boolean) { onScreen = on; if (on) current?.backOnScreen() }
+    fun screen(act: MainActivity, on: Boolean) {
+        onScreen = on
+        if (on) { live = act; current?.backOnScreen() }
+    }
+
+    /**
+     * The PocketIDE screen that is showing now (1.5.190). Android can rebuild the screen while a run goes on; "Stop and save" then
+     * crashed showing its dialog on the old one ("BadTokenException: … is your activity running?"). Runs and dialogs use this one.
+     */
+    @Volatile var live: MainActivity? = null
+
+    fun gone(act: MainActivity) { if (live === act) live = null }
+
+    private fun usable(a: MainActivity?) = a?.takeIf { !it.isFinishing && !it.isDestroyed }
+
+    /** Shows a dialog on the screen that is showing now; if there is none, the message is shown as a toast and nothing crashes. */
+    fun alert(fallback: MainActivity, title: String, message: String, positive: String = "OK", onPositive: (MainActivity) -> Unit = {}, negative: String? = null) {
+        val a = usable(live) ?: usable(fallback)
+        try {
+            if (a == null) error("no screen")
+            AlertDialog.Builder(a).setTitle(title).setMessage(message)
+                .setPositiveButton(positive) { _, _ -> onPositive(a) }
+                .apply { if (negative != null) setNegativeButton(negative, null) }.show()
+        } catch (e: Exception) {
+            try { Toast.makeText(fallback.applicationContext, "$title. ${message.take(300)}", Toast.LENGTH_LONG).show() } catch (e2: Exception) { }
+        }
+    }
 
     /** Stops the run now (1.5.188): the finished tasks are zipped, and the run can be resumed later. */
     fun stop() { current?.stop() }
@@ -115,12 +148,9 @@ object HybridBench {
             restore(act, s.before)
             val kind = Suite.values().firstOrNull { it.id == s.suite } ?: continue
             val where = savePartial(act, dir, kind, s, "PocketIDE was closed or stopped by Android")
-            AlertDialog.Builder(act).setTitle(kind.title + " was interrupted")
-                .setMessage("PocketIDE was closed or stopped while the benchmark ran, after ${s.done.size} of ${s.order.size} tasks. " +
+            alert(act, kind.title + " was interrupted", "PocketIDE was closed or stopped while the benchmark ran, after ${s.done.size} of ${s.order.size} tasks. " +
                     "The finished tasks are saved: $where\n\nYour settings and project were put back. Resume carries on with the rest; " +
-                    "the task that was running goes to the back of the queue.")
-                .setPositiveButton("Resume") { _, _ -> resume(act, s) }
-                .setNegativeButton("Later", null).show()
+                    "the task that was running goes to the back of the queue.", "Resume", { a -> resume(a, s) }, "Later")
             return   // one at a time; any other shows next start
         }
     }
@@ -129,7 +159,9 @@ object HybridBench {
     fun tasksFor(ctx: android.content.Context, kind: Suite, runs: Int, python: Boolean): List<HybridBenchTasks.Task> = when (kind) {
         Suite.HARD -> HybridBenchTasks.HARD; Suite.GAMES -> HybridBenchTasks.GAMES; Suite.LOCAL -> HybridBenchTasks.LOCAL
         Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.APP -> HybridBenchTasks.APP; Suite.STANDARD -> HybridBenchTasks.ALL
-        Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs) }
+        Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs)
+        Suite.RELIABLE_CLOUD -> dev.pocketide.app.core.ReliableBench.forCloud(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs))
+        Suite.RELIABLE_BOTH -> dev.pocketide.app.core.ReliableBench.both(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs)) }
 
     /** The settings a run changes, as they are now, to put back afterwards. */
     fun beforeNow(act: MainActivity): Map<String, String> = AppSettings(act).let { s ->
@@ -169,8 +201,8 @@ object HybridBench {
         val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
             "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
             (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(ctx).let { it.label + " (" + it.about + ")" }}"
-        return HybridBenchTasks.report(results, about, problem, if (kind == Suite.RELIABLE) results.size else total, kind.title + if (helping) " · hybrid helping a strong model" else "") +
-            (if (kind != Suite.RELIABLE) "" else dev.pocketide.app.core.ReliableBench.summary(results) +
+        return HybridBenchTasks.report(results, about, problem, if (kind.reliable) results.size else total, kind.title + if (helping) " · hybrid helping a strong model" else "") +
+            (if (!kind.reliable) "" else (if (kind == Suite.RELIABLE_BOTH) dev.pocketide.app.core.ReliableBench.sideBySide(results) else dev.pocketide.app.core.ReliableBench.summary(results)) +
                 (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
                 (if (deselect.isEmpty()) "" else "\nHidden tests left out because they fail on this phone even with the reference fix:\n" + deselect.entries.joinToString("\n") { "- ${it.key}: ${it.value.joinToString()}" } + "\n") +
                 (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n")) +
@@ -228,10 +260,12 @@ object HybridBench {
         return rb.devTasks(devHidden) + node + py
     }
 
-    private class Run(val act: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true,
+    private class Run(val startAct: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true,
                       val resume: BenchResume.State? = null) {
+        /** The screen showing now, or the one the run started on (1.5.190: Android may rebuild it during a run). */
+        val act: MainActivity get() = usable(live) ?: startAct
         val main = Handler(Looper.getMainLooper())
-        val settings = AppSettings(act)
+        val settings = AppSettings(startAct)
         /** The person's settings and project to put back; on resume, the ones saved before the run first started. */
         val before: Map<String, String> = resume?.before ?: beforeNow(act)
         val strong = if (helping) helperStrong(settings) else null
@@ -258,6 +292,9 @@ object HybridBench {
         val reruns = LinkedHashMap<String, Int>()
         /** What to do once PocketIDE is back on screen. */
         var whenBack: (() -> Unit)? = null
+
+        /** Whether [t] runs in the cloud: the cloud suite, or a cloud run of the side-by-side suite (1.5.190). */
+        fun inCloud(t: HybridBenchTasks.Task) = kind == Suite.RELIABLE_CLOUD || dev.pocketide.app.core.ReliableBench.isCloud(t.id)
 
         fun backOnScreen() { val f = whenBack ?: return; whenBack = null; main.postDelayed({ if (!stopped) f() }, 3000) }
 
@@ -288,7 +325,7 @@ object HybridBench {
         val nanoLog = StringBuilder()
         var i = 0
 
-        fun toast(s: String) = Toast.makeText(act, s, Toast.LENGTH_LONG).show()
+        fun toast(s: String) = try { Toast.makeText(act.applicationContext, s, Toast.LENGTH_LONG).show() } catch (e: Exception) { }
 
         fun begin() {
             act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -317,7 +354,7 @@ object HybridBench {
             act.benchChat().runForChecks("node --version") { code, text ->
                 main.post {
                     if (code != 0) finish("Node is not available. Start Linux in the Terminal tab and install Node (apk add nodejs), then run the benchmark again. ($text)".take(300))
-                    else if (kind == Suite.RELIABLE && tasks.any { it.track == "Python" }) pythonReady()
+                    else if (kind.reliable && tasks.any { it.track == "Python" }) pythonReady()
                     else next()
                 }
             }
@@ -406,7 +443,7 @@ object HybridBench {
             val name = Projects.create(act, "bench $stamp ${t.id.replace('#', '-')}", dev.pocketide.app.core.Templates.EMPTY)
             val root = File(Projects.root(act), name)
             for ((p, text) in t.files) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
-            if (kind == Suite.RELIABLE && dev.pocketide.app.core.ReliableBench.baseId(t.id) !in checked && t.solution.isNotEmpty()) {
+            if (kind.reliable && dev.pocketide.app.core.ReliableBench.baseId(t.id) !in checked && t.solution.isNotEmpty()) {
                 soundHere(t, root) { if (dev.pocketide.app.core.ReliableBench.baseId(t.id) in unsound) { i++; main.postDelayed({ next() }, 500) } else startTask(t, name, root) }
                 return
             }
@@ -415,7 +452,7 @@ object HybridBench {
         }
 
         fun startTask(t: HybridBenchTasks.Task, name: String, root: File) {
-            HybridScreen.setMode(act, if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
+            HybridScreen.setMode(act, if (inCloud(t)) HybridAi.Mode.PREFER_IN_CLOUD else if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
             settingsBefore = settingsNow()
             val t0 = System.currentTimeMillis()
             synchronized(nanoLog) { nanoLog.setLength(0) }
@@ -454,7 +491,7 @@ object HybridBench {
          * when the assistant stays idle after the build.
          */
         fun fromChat(t: HybridBenchTasks.Task) {
-            HybridScreen.setMode(act, if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
+            HybridScreen.setMode(act, if (inCloud(t)) HybridAi.Mode.PREFER_IN_CLOUD else if (t.privateMode) HybridAi.Mode.ONLY_ON_DEVICE else HybridAi.Mode.PREFER_ON_DEVICE)
             settingsBefore = settingsNow()
             val t0 = System.currentTimeMillis()
             synchronized(nanoLog) { nanoLog.setLength(0) }
@@ -503,6 +540,13 @@ object HybridBench {
             // 1.5.188: the task ran while PocketIDE was off screen (the watch stopped it, or AICore refused): it is run again, up to 3 times
             val blocked = redo || transcript.contains("BACKGROUND_USE_BLOCKED") || transcript.contains("Background usage is blocked")
             redo = false; offSince = 0
+            // 1.5.190: in the cloud-only run, every cloud model out of free quota is not the task's failure: the run stops unscored and
+            // can be resumed when the quota is back (the daily limits reset at midnight Pacific time)
+            if (inCloud(t) && HybridAi.cloudOut()) {
+                val until = SimpleDateFormat("MMM d, h:mm a", Locale.US).format(Date(HybridAi.cloudOutUntil))
+                main.post { stop("every cloud model is out of free quota until about $until", charge = false) }
+                return
+            }
             if (blocked && (reruns[t.id] ?: 0) < 3) {
                 reruns[t.id] = (reruns[t.id] ?: 0) + 1
                 onceOnScreen { next() }
@@ -577,30 +621,29 @@ object HybridBench {
             } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${out.absolutePath}" }
             running = false; current = null
             val passed = results.count { it.passed }
-            AlertDialog.Builder(act).setTitle(kind.title + " finished")
-                .setMessage((problem?.let { "Stopped early: $it\n\n" } ?: "") + "Passed $passed of ${if (kind == Suite.RELIABLE) results.size else state.order.size}.\n\n" +
+            alert(act, kind.title + " finished", (problem?.let { "Stopped early: $it\n\n" } ?: "") + "Passed $passed of ${if (kind.reliable) results.size else state.order.size}.\n\n" +
                     results.joinToString("\n") { (if (it.passed) "✓ " else "✗ ") + it.task.title + (if (it.passed) "" else ": " + it.why) } +
                     "\n\nResults: $where")
-                .setPositiveButton("OK", null).show()
         }
 
-        /** The person stopped the run (1.5.188): the finished tasks are zipped and the run can be resumed, the running task last. */
-        fun stop() {
+        /**
+         * The person stopped the run (1.5.188): the finished tasks are zipped and the run can be resumed, the running task last.
+         * [charge]: false when the task is not to blame (1.5.190: the cloud ran out of free quota); it is run first on resume.
+         */
+        fun stop(how: String = "stopped by you", charge: Boolean = true) {
             if (stopped) return
             stopped = true
-            try { act.benchChat().stopNow() } catch (e: Exception) { }
+            for (a in setOf(startAct, act)) try { a.benchChat().stopNow() } catch (e: Exception) { }
             HybridAgent.recorder = null
-            save(state.current)   // the task running now (set when it starts, cleared when its result is saved): it goes to the back
+            save(if (charge) state.current else null)   // the task running now (set when it starts, cleared when its result is saved): it goes to the back
             state = BenchResume.interrupt(state); save(out, state)
             restore(act, before)
             act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             running = false; current = null
-            val where = savePartial(act, out, kind, state, "stopped by you")
-            AlertDialog.Builder(act).setTitle(kind.title + " stopped")
-                .setMessage("Stopped after ${state.done.size} of ${state.order.size} tasks. The finished tasks are saved: $where\n\n" +
-                    "Your settings and project were put back. To finish the run later, tap the same benchmark button and choose Resume; " +
-                    "the task that was running goes to the back of the queue.")
-                .setPositiveButton("OK", null).show()
+            val where = savePartial(act, out, kind, state, how)
+            alert(act, kind.title + " stopped", "Stopped after ${state.done.size} of ${state.order.size} tasks ($how). The finished tasks are saved: $where\n\n" +
+                    "Your settings and project were put back. To finish the run later, tap the same benchmark button and choose Resume" +
+                    (if (charge) "; the task that was running goes to the back of the queue." else "."))
         }
     }
 }

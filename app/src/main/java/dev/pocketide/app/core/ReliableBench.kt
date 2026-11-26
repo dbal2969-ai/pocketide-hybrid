@@ -98,8 +98,66 @@ object ReliableBench {
             ?: lines.lastOrNull()).orEmpty().take(160)
     }
 
+    /**
+     * The same tasks with every step in the cloud (1.5.190, the cloud-only benchmark): Private mode is off, and the checks are the
+     * same except that a step on this phone fails the run instead of a step in the cloud. The scores compare directly with Gemini
+     * Nano's runs of the same tasks.
+     */
+    fun forCloud(tasks: List<HybridBenchTasks.Task>): List<HybridBenchTasks.Task> = tasks.map { t ->
+        HybridBenchTasks.Task(t.id, t.title, t.prompt, t.command, false, t.skill, t.entry, t.startFiles ?: t.files, t.hidden, t.hiddenCommand,
+            t.solution, t.split, t.track) { f -> cloudJudge(t, f) }
+    }
+
+    const val ON_PHONE = "a step ran on this phone in the cloud-only run"
+
+    fun cloudJudge(t: HybridBenchTasks.Task, f: HybridBenchTasks.Facts): String? {
+        if (HybridBenchTasks.counts(f.transcript).phone > 0) return ON_PHONE
+        // the task's own check fails any cloud step (it was written for Private mode); the cloud marks are renamed for it
+        return t.judge(HybridBenchTasks.Facts(f.files, f.original, f.commandExit, f.commandOut, f.transcript.replace("☁ Ran in the cloud", "☁ Cloud step"),
+            f.ended, f.settingsChanged, f.hiddenExit, f.hiddenOut))
+    }
+
+    /** The id ending of a cloud run in the side-by-side suite: "r05-fix-comparison#2@cloud". */
+    const val CLOUD = "@cloud"
+
+    fun isCloud(id: String) = id.endsWith(CLOUD)
+
+    /**
+     * The side-by-side suite (1.5.190): each run of each task on Gemini Nano (Private mode, as in the on-device suite) and right after
+     * it in the cloud, so both see the same phone, the same hour and the same packages.
+     */
+    fun both(tasks: List<HybridBenchTasks.Task>): List<HybridBenchTasks.Task> = tasks.flatMap { t ->
+        val c = forCloud(listOf(t)).single()
+        listOf(t, HybridBenchTasks.Task(t.id + CLOUD, t.title, t.prompt, c.command, false, c.skill, c.entry, c.startFiles ?: c.files, c.hidden,
+            c.hiddenCommand, c.solution, c.split, c.track, c.judge))
+    }
+
+    /**
+     * The side-by-side report: each engine's own reliability section, then one table comparing pass@1 by group, and the tasks
+     * where one engine passed every run and the other none.
+     */
+    fun sideBySide(results: List<HybridBenchTasks.Result>): String = buildString {
+        val (cloud, nano) = results.partition { isCloud(it.task.id) }
+        append("\n# Gemini Nano on this phone\n").append(summary(nano).replace("## Reliability", "## Reliability: Gemini Nano"))
+        append("\n# Gemini in the cloud\n").append(summary(cloud).replace("## Reliability", "## Reliability: cloud").replace("(where Nano is unreliable)", "(where the cloud is unreliable)"))
+        fun pct(rs: List<HybridBenchTasks.Result>) = if (rs.isEmpty()) "–" else "${rs.count { it.passed } * 100 / rs.size}% (${rs.count { it.passed }} of ${rs.size})"
+        append("\n## Nano and the cloud side by side\n\n| Group | Gemini Nano pass@1 | Cloud pass@1 |\n| --- | --- | --- |\n")
+        fun row(label: String, sel: (HybridBenchTasks.Result) -> Boolean) { append("| $label | ${pct(nano.filter(sel))} | ${pct(cloud.filter(sel))} |\n") }
+        row("All") { true }
+        for (k in results.map { it.task.split.ifBlank { "other" } }.distinct()) row("Split: $k") { it.task.split.ifBlank { "other" } == k }
+        for (k in results.map { it.task.track.ifBlank { "other" } }.distinct()) row("Track: $k") { it.task.track.ifBlank { "other" } == k }
+        for (k in results.map { it.task.skill.ifBlank { "other" } }.distinct()) row(k) { it.task.skill.ifBlank { "other" } == k }
+        val n = nano.groupBy { baseId(it.task.id) }; val c = cloud.groupBy { baseId(it.task.id) }
+        val onlyCloud = n.keys.filter { k -> n[k]!!.none { it.passed } && c[k]?.all { it.passed } == true }
+        val onlyNano = n.keys.filter { k -> n[k]!!.all { it.passed } && c[k]?.none { it.passed } == true }
+        append("\nThe cloud passed every run and Nano none: ").append(onlyCloud.joinToString().ifEmpty { "none" }).append('\n')
+        append("Nano passed every run and the cloud none: ").append(onlyNano.joinToString().ifEmpty { "none" }).append('\n')
+        val secs = { rs: List<HybridBenchTasks.Result> -> rs.map { it.seconds }.sorted().let { if (it.isEmpty()) 0 else it[it.size / 2] } }
+        append("Median time per run: Nano ").append(secs(nano)).append(" s, cloud ").append(secs(cloud)).append(" s.\n")
+    }
+
     /** "r05-fix-comparison#2" → "r05-fix-comparison": a task's runs share its id before the #. */
-    fun baseId(id: String): String = id.substringBefore('#')
+    fun baseId(id: String): String = id.substringBefore('#').removeSuffix(CLOUD)
 
     /** Each task [runs] times, run by run (all tasks once, then again), so a slow phone or a bad hour does not hit one task's runs together. */
     fun repeated(tasks: List<HybridBenchTasks.Task>, runs: Int): List<HybridBenchTasks.Task> = (1..runs).flatMap { r ->

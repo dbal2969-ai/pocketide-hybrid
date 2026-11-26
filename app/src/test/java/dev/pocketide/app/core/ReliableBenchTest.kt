@@ -63,6 +63,38 @@ class ReliableBenchTest {
         assertTrue(t.judge(facts(t, exit = 1, out = "1 failed, 2 passed"))!!.startsWith("the tests fail"))
     }
 
+    /** 1.5.190: the cloud-only run uses the same tasks; a cloud step is fine there and a phone step fails it. */
+    @Test fun cloudOnlyChecks() {
+        val cloudTasks = ReliableBench.forCloud(node)
+        assertEquals(node.map { it.id }, cloudTasks.map { it.id })
+        assertTrue(cloudTasks.none { it.privateMode })
+        val fix = cloudTasks.first { it.id == "r05-fix-comparison" }
+        val inCloud = "----- round 1 · assistant said\nDone.\n☁ Ran in the cloud (gemini-3.8-flash) · 2 s\n"
+        assertNull(fix.judge(facts(fix, hidden = 0, transcript = inCloud)))
+        assertEquals(ReliableBench.ON_PHONE, fix.judge(facts(fix, hidden = 0)))
+        assertTrue(fix.judge(facts(fix, exit = 1, out = "largest gave 5", transcript = inCloud))!!.startsWith("node test.js failed"))
+        val ans = cloudTasks.first { it.id == "r01-find-constant" }
+        assertNull(ans.judge(facts(ans, exit = null, out = "", transcript = "----- round 1 · assistant said\nThe starting gold is set in economy.js.\n☁ Ran in the cloud (gemini-3.8-flash) · 2 s\n")))
+        val dev = ReliableBench.forCloud(ReliableBench.devTasks()).first { it.id == "l01-find-file" }
+        assertNull(dev.judge(facts(dev, exit = null, out = "", transcript = "----- round 1 · assistant said\nrules.js\n☁ Ran in the cloud (gemini-3.8-flash) · 2 s\n")))
+    }
+
+    /** 1.5.190: the side-by-side suite runs each task on Nano and then in the cloud, and the report compares them. */
+    @Test fun sideBySide() {
+        val two = ReliableBench.both(ReliableBench.repeated(node.take(2), 2))
+        assertEquals(listOf("r01-find-constant#1", "r01-find-constant#1@cloud", "r02-explain-return#1", "r02-explain-return#1@cloud",
+            "r01-find-constant#2", "r01-find-constant#2@cloud", "r02-explain-return#2", "r02-explain-return#2@cloud"), two.map { it.id })
+        assertTrue(two.filter { ReliableBench.isCloud(it.id) }.none { it.privateMode } && two.filterNot { ReliableBench.isCloud(it.id) }.all { it.privateMode })
+        assertEquals("r01-find-constant", ReliableBench.baseId("r01-find-constant@cloud"))
+        assertEquals("r01-find-constant", ReliableBench.baseId("r01-find-constant#2@cloud"))
+        val c = HybridBenchTasks.Counts(1, 0, emptyList())
+        val results = two.map { t -> HybridBenchTasks.Result(t, ReliableBench.isCloud(t.id) || t.id.startsWith("r02"), "", c, if (ReliableBench.isCloud(t.id)) 20 else 40, "done") }
+        val s = ReliableBench.sideBySide(results)
+        assertTrue(s, s.contains("| All | 50% (2 of 4) | 100% (4 of 4) |"))
+        assertTrue(s, s.contains("The cloud passed every run and Nano none: r01-find-constant"))
+        assertTrue(s, s.contains("Median time per run: Nano 40 s, cloud 20 s."))
+    }
+
     @Test fun repeatsAndReliabilitySummary() {
         val two = node.take(2)
         val rep = ReliableBench.repeated(two, 3)
