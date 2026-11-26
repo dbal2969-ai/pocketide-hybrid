@@ -824,7 +824,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-scratch-benchmark-1126-0628, pocketide-hybrid-reliable-cloud-benchmark-1126-0731-partial-13of57.
 
 
-### (next) · 2026-11-26 08:30 · The total benchmark: every suite in one run; 1.5.192
+### f2326ea · 2026-11-26 08:30 · The total benchmark: every suite in one run; 1.5.192
 
 - **Why:** the owner asked for a total benchmark.
 - **What it does** (HybridBench `startTotal`, `Total`, `totalReport`; core/BenchTotal.kt): one button, "Total benchmark (every suite)",
