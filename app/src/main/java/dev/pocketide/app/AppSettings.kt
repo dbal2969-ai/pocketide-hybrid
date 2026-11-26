@@ -569,6 +569,10 @@ class AppSettings(ctx: Context) {
     var modelTips: Boolean
         get() = sp.getBoolean("chat.model_tips", true)
         set(v) { sp.edit().putBoolean("chat.model_tips", v).apply() }
+    /** 1.5.194: the Python helper for Gemini Nano (core/PyHelper): a Python note, edits re-indented, outlines, where a test failed. */
+    var pythonHelper: Boolean
+        get() = sp.getBoolean("hybrid.python_helper", false)
+        set(v) { sp.edit().putBoolean("hybrid.python_helper", v).apply() }
     var editorWrap: Boolean
         get() = sp.getBoolean("editor.wrap", true)
         set(v) { sp.edit().putBoolean("editor.wrap", v).apply() }

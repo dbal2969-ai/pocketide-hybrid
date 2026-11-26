@@ -842,6 +842,7 @@ class MainActivity : Activity() {
         val fastBox = CheckBox(this).also { it.text = "Fast mode: no second-opinion model calls (advisor, reviewer, explore helper, cascade, critique)"; it.isChecked = settings.fastMode }
         val routeBox = CheckBox(this).also { it.text = "Phase routing: reading steps use the cheaper draft model; edits and answers use the main model"; it.isChecked = settings.phaseRouting }
         val tipsBox = CheckBox(this).also { it.text = "Show model tips in the chat (suggestions to try another model)"; it.isChecked = settings.modelTips }
+        val pyBox = CheckBox(this).also { it.text = "Python helper for Gemini Nano: a Python note, edits fixed to the right indentation, outlines of long files, and where a failing test points (experimental)"; it.isChecked = settings.pythonHelper }
         val slowBox = CheckBox(this).also { it.text = "When a reply shows no sign of life for a minute, offer a retry or another provider"; it.isChecked = settings.slowOffer }
         val embedBox = EditText(this).also { it.hint = "Search by meaning (optional): embeddings model as provider:model, e.g. cloudflare:@cf/baai/bge-base-en-v1.5. Sends your project's text to that provider (secret files left out, keys masked)"; it.setSingleLine(true); it.setText(settings.embedModel) }
         val braveBox = EditText(this).also { it.hint = "Brave Search API key (optional, gives better search results)"; it.setSingleLine(true); it.setText(settings.braveKey) }
@@ -956,7 +957,7 @@ class MainActivity : Activity() {
         for (v in listOf<View>(orRow, orSpendRow, orOut, orFallbacks, orRoute)) orBox.addView(v, Ui.lp(Ui.MATCH, Ui.WRAP).also { it.topMargin = Ui.dp(this, 4) })
         for (row in listOf(orRow, orSpendRow)) (row.layoutParams as? LinearLayout.LayoutParams)?.width = Ui.WRAP
         group("AI provider", spin, note, key, keyHelp, orBox, model, base, cfAccount, workspace, hybridBtn, test, testOut)
-        group("Assistant", agent, autoAgent, autoCredit, auto, tools, fastBox, routeBox, slowBox, tipsBox, reqBox, partsBox, parallelBox, partsAlwaysBox, partsSameBox, partsPickBox, partsTeamBox, queueBox, planFirst, verifyBox, askBox, causeBox, scopeBox, varietyBox, premiseBox, freshBox, exploreBox, tapBox, secondBox, escalateBox, webBox, braveBox, embedBox)
+        group("Assistant", agent, autoAgent, autoCredit, auto, tools, fastBox, routeBox, slowBox, tipsBox, pyBox, reqBox, partsBox, parallelBox, partsAlwaysBox, partsSameBox, partsPickBox, partsTeamBox, queueBox, planFirst, verifyBox, askBox, causeBox, scopeBox, varietyBox, premiseBox, freshBox, exploreBox, tapBox, secondBox, escalateBox, webBox, braveBox, embedBox)
         group("How long it may work", roundsLabel, rounds, effortLabel, effort, runLabel, Ui.text(this, "Dollars per request (uses list prices for Claude models when you have not set a price)", 12f, Ui.TEXT, false), runUsd, Ui.text(this, "Tokens per request (covers free and unpriced models)", 12f, Ui.TEXT, false), runTok)
         group("Cost and context", all, cacheBox, cacheLongBox)
         if (addOnBoxes.isNotEmpty()) group("Add-ons", *addOnBoxes.map { it.second }.toTypedArray())
@@ -1089,6 +1090,7 @@ class MainActivity : Activity() {
                 settings.editorTheme = if (edLight.isChecked) "light" else "dark"  // v0.4 W1
                 if (appLightBox.isChecked != settings.appLight) { settings.appLight = appLightBox.isChecked; editor.save(); window.decorView.post { recreate() } }
                 settings.modelTips = tipsBox.isChecked
+                settings.pythonHelper = pyBox.isChecked
                 settings.editorWrap = edWrap.isChecked
                 settings.workAnnounce = announceBox.isChecked
                 settings.autoComplete = edAuto.isChecked

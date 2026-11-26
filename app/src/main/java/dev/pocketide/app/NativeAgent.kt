@@ -459,6 +459,10 @@ class NativeAgent(
     private val smallMissed = HashMap<String, String>()
     private val smallReshown = HashMap<String, Int>()
 
+    /** 1.5.194: the Python helper (Settings › Assistant), for Nano's steps in a Python project. */
+    private val pyHelp: Boolean by lazy { (small || settings.provider == "hybrid") && settings.pythonHelper &&
+        dev.pocketide.app.core.PyHelper.applies(try { paths() } catch (e: Exception) { emptyList() }, request) }
+
     /**
      * Nano working with no cloud to hand to: small local model mode, or the hybrid provider in Private mode or with the cloud out of
      * quota. Otherwise repeated rereads stay refused, so HybridAgent hands the rest to the cloud after two of them, as before.
@@ -712,7 +716,8 @@ class NativeAgent(
         val wasCheap = cheap != null
         var signal = false
         var over = false
-        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") else if (textTools) system + catalogue else system, messages, !textMode, object : NativeListener {
+        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.NOTE else "") else (if (textTools) system + catalogue else system) +
+            (if (pyHelp) "\n\n" + dev.pocketide.app.core.PyHelper.NOTE else ""), messages, !textMode, object : NativeListener {
             override fun onStatus(text: String) {
                 phase(text); if (text.contains("characters of reasoning")) signal = true
                 if (body.text.isEmpty() || body.text == "…" || body.text.startsWith("Thinking") || body.text.startsWith("Working") || body.text.startsWith("Waiting")) body.text = text
@@ -2305,6 +2310,8 @@ class NativeAgent(
                     }
                     reply(AgentActions.read(if (text != null) paths() + p else paths(), { q -> staged[q] ?: store.readForAi(q) }, p, from, intArg(a["end"]), resultCap())); return
                 }
+                // 1.5.194: the Python helper answers a whole read of a long Python file with its outline (Nano's prompt holds ~350 lines)
+                if (pyHelp && text != null && dev.pocketide.app.core.PyHelper.isPython(p)) dev.pocketide.app.core.PyHelper.outline(p, text)?.let { reply(it, "$label (outline)"); return }
                 if (text != null && readFiles[p] == stamp) reply(smallReread(p, text) ?: dev.pocketide.app.core.ReadPlan.seen(p, null, null), "$label (unchanged)")
                 else {
                     val shown = AgentActions.read(if (text != null) paths() + p else paths(), { q -> staged[q] ?: store.readForAi(q) }, p, cap = resultCap())  // a real file is readable even if the capped list missed it
@@ -2437,7 +2444,9 @@ class NativeAgent(
                 val rawSearch = g("search")
                 // a search escaped the same way is decoded only when the decoded text is really in the file
                 val search = dev.pocketide.app.core.OverEscaped.decode(rawSearch).takeIf { it != rawSearch && rawSearch !in cur && it in cur } ?: rawSearch
-                val block = EditBlock(p, search, if (escaped) dev.pocketide.app.core.OverEscaped.decode(rawReplace) else rawReplace)
+                val replace0 = if (escaped) dev.pocketide.app.core.OverEscaped.decode(rawReplace) else rawReplace
+                // 1.5.194: the Python helper puts the replacement at the indentation of the text it replaces
+                val block = EditBlock(p, search, if (pyHelp && dev.pocketide.app.core.PyHelper.isPython(p)) dev.pocketide.app.core.PyHelper.reindentEdit(cur, search, replace0) else replace0)
                 val every = a["all"] == true || a["all"]?.toString()?.trim()?.lowercase() == "true"
                 val res = (if (every) EditBlocks.applyAll(cur, block) else EditBlocks.apply(cur, block)).let { r ->
                     // 1.5.187: in a rename request, a bare old name → new name renames every use instead of being refused as ambiguous
@@ -2657,7 +2666,8 @@ class NativeAgent(
                 if (cur == null) { reply(dev.pocketide.app.core.MissingFile.note(p, paths())); return }
                 val st = intArg(a["start"]); val en = intArg(a["end"])
                 if (st == null || en == null) { reply("edit_lines needs start and end line numbers.", "$label (failed)"); return }
-                val res = EditBlocks.applyLines(cur, st, en, (a["text"] as? String) ?: "")
+                val linesText = ((a["text"] as? String) ?: "").let { t -> if (pyHelp && dev.pocketide.app.core.PyHelper.isPython(p)) dev.pocketide.app.core.PyHelper.reindentLines(cur, st, en, t) else t }
+                val res = EditBlocks.applyLines(cur, st, en, linesText)
                 // 1.5.184 (local benchmark l13): Gemini Nano sent start 3, end 5 to INSERT a case, and deleted three others
                 dev.pocketide.app.core.EditBlocks.linesLost(cur, st, en, (a["text"] as? String) ?: "", request)?.let { lost ->
                     val key = "$p:$st:$en"
@@ -2697,6 +2707,7 @@ class NativeAgent(
                     // a command (rm, mv, a script) can leave the page loading a file that is gone: say so at once
                     val gone = try { dev.pocketide.app.core.PageRefs.missing(paths().toList(), { p -> store.read(p) }, { p -> store.size(p) }) } catch (e: Exception) { emptyList() }
                     val r = AgentActions.runResult(cmd, code, out) + (if (gone.isEmpty()) "" else "\n\nAfter this command the page is broken: " + gone.joinToString(" ") + " Put it back or recreate it now, before anything else.")
+                        .let { r0 -> if (pyHelp && code != 0) dev.pocketide.app.core.PyHelper.whereFailed(out) { q -> staged[q] ?: store.readForAi(q) }?.let { r0 + "\n\n" + it } ?: r0 else r0 }
                     reply(r, label + if (code == 0) "" else " (exit $code)")
                 }
                 if (!agent && staged.isNotEmpty()) {

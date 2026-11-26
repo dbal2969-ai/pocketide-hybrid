@@ -884,6 +884,32 @@ the files after the run, `transcript.txt` and `check.txt`.
   failures.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1126-0816.
 
+
+### (next) · 2026-11-26 13:50 · The Python helper for Gemini Nano (optional); 1.5.194
+
+- **Why:** the owner asked for a way to make Gemini Nano competent with Python, as an optional toggle. PocketSWE (the Kaggle entry,
+  full E4B on a GPU) resolved about 6% of hidden tasks on Kaggle and 16 of 114 practice tasks; Nano in PocketIDE passed 1 of 87
+  Python runs, with the file named for it. Run 1126-0816 showed why: 80 of 104 refused Python saves were IndentationErrors, Nano
+  read files 402 times and ran the tests 58 times, and the files to fix run to 1,153 lines while Nano's prompt holds about 350.
+- **The setting:** Settings › Assistant › "Python helper for Gemini Nano" (`AppSettings.pythonHelper`, off by default). It applies to
+  Nano's steps (small local model mode, or the Hybrid AI provider) in a project with Python files or a request about Python
+  (core/PyHelper.kt `applies`).
+- **What it does** (core/PyHelper.kt; hooked in NativeAgent and HybridAgent):
+  - a short Python note in Nano's prompt (`NOTE`, about 330 characters): indentation is code, use edit_lines with read line
+    numbers, fix the source line the test points to;
+  - edits re-indented to the lines they replace (`reindentEdit` for edit_file, `reindentLines` for edit_lines and inserts after a
+    block opener). On the run's 76 refused Python edits whose search was in the file, 27 now parse (27 of the 53 IndentationErrors),
+    and none got worse; the rest are wrong edits (a def line replaced by a body), still refused by the syntax check;
+  - a whole read of a Python file over 300 lines answered with its classes and functions and their line numbers (`outline`);
+  - after a failing pytest run, the deepest frame in a source file and the lines of its function (`whereFailed`).
+- **Benchmark:** the reliability dialog has "Python helper for Gemini Nano on", so a run with it and one without compare directly;
+  the run sets the setting, stores it in its progress (BenchResume `pyHelper`), names it in the report, and puts the person's own
+  setting back afterwards.
+- **Files:** core/PyHelper.kt (new), NativeAgent.kt, HybridAgent.kt, AppSettings.kt, MainActivity.kt, HybridBench.kt,
+  HybridScreen.kt, core/BenchResume.kt, core/AppMapData.kt (regenerated: 140 items); app/build.gradle.kts (1.5.194-hybrid, code 242).
+- **Tests:** PyHelperTest (3), including the run's own refused edits (app/src/test/resources/nano/py_edits/) parsed with Python's
+  ast module. 1,352 unit tests, 0 failures. Its effect on Nano needs a reliability run with it on.
+
 ---
 
 ## Outside the code

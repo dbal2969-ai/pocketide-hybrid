@@ -62,10 +62,10 @@ object HybridBench {
 
     /** [helping]: run in Cascade with Hybrid AI as the draft model helping the strong model (see HybridBenchTasks.strongProblem). */
     /** [runs] and [python]: the reliability suite's runs per task and whether it includes the Python track (ReliableBench). */
-    fun start(act: MainActivity, suite: Suite = Suite.STANDARD, helping: Boolean = false, runs: Int = 1, python: Boolean = true) {
+    fun start(act: MainActivity, suite: Suite = Suite.STANDARD, helping: Boolean = false, runs: Int = 1, python: Boolean = true, pyHelper: Boolean = false) {
         if (running) return
         running = true
-        Run(act, suite, helping, runs, python).also { current = it }.begin()
+        Run(act, suite, helping, runs, python, pyHelper = pyHelper).also { current = it }.begin()
     }
 
     /** The run going on now, for [stop]. */
@@ -76,7 +76,7 @@ object HybridBench {
         if (running) return
         val kind = Suite.values().firstOrNull { it.id == s.suite } ?: return
         running = true
-        Run(act, kind, s.helping, s.runs, s.python, s).also { current = it }.begin()
+        Run(act, kind, s.helping, s.runs, s.python, s, pyHelper = s.pyHelper).also { current = it }.begin()
     }
 
     /**
@@ -179,14 +179,15 @@ object HybridBench {
     /** The settings a run changes, as they are now, to put back afterwards. */
     fun beforeNow(act: MainActivity): Map<String, String> = AppSettings(act).let { s ->
         mapOf("provider" to s.provider, "workflow" to s.workflow, "agent" to s.agent.toString(), "mode" to s.mode,
-            "draft" to s.savedSlot(true), "strong" to s.savedSlot(false), "hybridMode" to HybridScreen.mode(act).name, "project" to Projects.key(act))
+            "draft" to s.savedSlot(true), "strong" to s.savedSlot(false), "hybridMode" to HybridScreen.mode(act).name, "project" to Projects.key(act),
+            "pythonHelper" to s.pythonHelper.toString())
     }
 
     fun restore(act: MainActivity, b: Map<String, String>) {
         if (b.isEmpty()) return
         val s = AppSettings(act)
         b["provider"]?.let { s.provider = it }; b["workflow"]?.let { s.workflow = it }; b["agent"]?.let { s.agent = it == "true" }
-        b["mode"]?.let { s.mode = it }; b["draft"]?.let { s.restoreSlot(true, it) }; b["strong"]?.let { s.restoreSlot(false, it) }
+        b["mode"]?.let { s.mode = it }; b["pythonHelper"]?.let { s.pythonHelper = it == "true" }; b["draft"]?.let { s.restoreSlot(true, it) }; b["strong"]?.let { s.restoreSlot(false, it) }
         b["hybridMode"]?.let { m -> HybridAi.Mode.values().firstOrNull { it.name == m }?.let { HybridScreen.setMode(act, it) } }
         b["project"]?.let { try { act.benchSwitch(it) } catch (e: Exception) { } }
     }
@@ -209,7 +210,7 @@ object HybridBench {
     /** The report for [results]: the suite's report, and for the reliability suite its pass@1 and pass^k summary. */
     fun reportText(ctx: android.content.Context, kind: Suite, helping: Boolean, stamp: String, results: List<HybridBenchTasks.Result>, problem: String?,
                    total: Int, runs: Int, pythonNote: String, deselect: Map<String, List<String>>, unsound: Map<String, String>, notes: String = "",
-                   dir: File? = null): String {
+                   dir: File? = null, pyHelper: Boolean = false): String {
         val strong = if (helping) helperStrong(AppSettings(ctx)) else null
         val hs = HybridAi.settings(ctx)
         val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
@@ -221,7 +222,8 @@ object HybridBench {
         dir?.walkTopDown()?.filter { it.name == "transcript.txt" }?.forEach { f ->
             try { Regex("""☁ Ran in the cloud \(([^)]+)\)""").findAll(f.readText()).forEach { m -> ran.merge(m.groupValues[1], 1, Int::plus) } } catch (e: Exception) { }
         }
-        val ranLine = if (ran.isEmpty()) "" else " · cloud steps actually ran on: " + ran.entries.joinToString(", ") { "${it.key} ×${it.value}" }
+        val ranLine = (if (ran.isEmpty()) "" else " · cloud steps actually ran on: " + ran.entries.joinToString(", ") { "${it.key} ×${it.value}" }) +
+            (if (pyHelper) " · Python helper for Gemini Nano: on" else "")
         return HybridBenchTasks.report(results, about + ranLine, problem, if (kind.reliable) results.size else total, kind.title + if (helping) " · hybrid helping a strong model" else "") +
             (if (!kind.reliable) "" else (if (kind == Suite.RELIABLE_BOTH) dev.pocketide.app.core.ReliableBench.sideBySide(results) else dev.pocketide.app.core.ReliableBench.summary(results)) +
                 (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
@@ -235,7 +237,7 @@ object HybridBench {
         val results = savedResults(ctx, dir, kind, s)
         val note = BenchResume.interruptedNote(s, s.order.size, how)
         return try {
-            File(dir, "report.md").writeText(reportText(ctx, kind, s.helping, s.stamp, results, note, s.order.size, s.runs, s.pythonNote, s.deselect, s.unsound, dir = dir))
+            File(dir, "report.md").writeText(reportText(ctx, kind, s.helping, s.stamp, results, note, s.order.size, s.runs, s.pythonNote, s.deselect, s.unsound, dir = dir, pyHelper = s.pyHelper))
             if (!zip) return ""
             saveToDownloads(ctx, BenchResume.partialName(s.suite, s.helping, s.stamp, results.size, s.order.size)) { os -> zipDir(dir, os) }
         } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${dir.absolutePath}" }
@@ -380,7 +382,7 @@ object HybridBench {
     } catch (e: Exception) { "not saved (${e.message}); the results are in the app's files: ${dir.absolutePath}" }
 
     private class Run(val startAct: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true,
-                      val resume: BenchResume.State? = null, val outDir: File? = null, val total: Total? = null) {
+                      val resume: BenchResume.State? = null, val outDir: File? = null, val total: Total? = null, val pyHelper: Boolean = false) {
         /** The screen showing now, or the one the run started on (1.5.190: Android may rebuild it during a run). */
         val act: MainActivity get() = usable(live) ?: startAct
         val main = Handler(Looper.getMainLooper())
@@ -403,7 +405,7 @@ object HybridBench {
         val checked = HashSet<String>(unsound.keys + deselect.keys)
         var pythonNote = resume?.pythonNote ?: ""
         /** The run's progress, saved after every task (1.5.188). */
-        var state = resume?.copy(active = true, current = null) ?: BenchResume.State(suite, stamp, helping, runs, python, all.map { it.id }, before = before)
+        var state = resume?.copy(active = true, current = null) ?: BenchResume.State(suite, stamp, helping, runs, python, all.map { it.id }, before = before, pyHelper = pyHelper)
         /** Set by [stop]: late callbacks from the task that was running record nothing. */
         @Volatile var stopped = false
         /** PocketIDE left the screen during the task: it is run again, not scored (1.5.188). [offSince]: when it left. */
@@ -468,6 +470,7 @@ object HybridBench {
                 settings.setSlot(false, strong!!)
             }
             settings.agent = true
+            settings.pythonHelper = pyHelper   // 1.5.194: on only when the run asks for it; the person's own setting is put back after
             settings.mode = "agent"   // Agent mode: the chat box's mode and the agent switch, as the Agent chip sets them
             if (kind == Suite.APP) { next(); return }   // questions about the app run no commands
             toast("Hybrid benchmark: checking that Node is ready…")
@@ -734,7 +737,7 @@ object HybridBench {
             state = state.copy(active = false, finished = true); save(null)
             val report = reportText(act, kind, helping, stamp, results, problem, state.order.size, runs, pythonNote, deselect, unsound,
                 if (reruns.isEmpty()) "" else "Run again because PocketIDE left the screen during them (Gemini Nano only runs while it is shown; not scored): " +
-                    reruns.entries.joinToString(", ") { "${it.key} (${it.value}×)" } + ".", out)
+                    reruns.entries.joinToString(", ") { "${it.key} (${it.value}×)" } + ".", out, pyHelper)
             File(out, "report.md").writeText(report)
             // 1.5.192: in a total run the suite's report stays in its folder and the next suite starts; the total zips them all at the end
             if (total != null) { current = null; total.suiteDone(); return }

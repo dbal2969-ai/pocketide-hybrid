@@ -394,7 +394,10 @@ object HybridAgent {
         // 1.5.185: the Chat home (no project) is known from its note in the system prompt, which Nano's own prompt replaces
         val chatHome = messages.any { it["role"] == "system" && textOf(it["content"]).contains(dev.pocketide.app.core.ChatHome.LABEL_NOTE) }
         return SmallLocal.system(Tools.smallCatalogue(docs, SmallLocal.forApp(asked), chatHome)) +
-            (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + kitNote(messages) + "\n\nThe conversation so far, oldest first:\n"
+            (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + kitNote(messages) +
+            // 1.5.194: the Python helper's note, when NativeAgent put it in the system prompt (Settings › Assistant › Python helper)
+            (if (messages.any { it["role"] == "system" && textOf(it["content"]).contains(dev.pocketide.app.core.PyHelper.NOTE) }) "\n" + dev.pocketide.app.core.PyHelper.NOTE else "") +
+            "\n\nThe conversation so far, oldest first:\n"
     }
     private const val TAIL = "\nYour reply, one JSON object:"
 

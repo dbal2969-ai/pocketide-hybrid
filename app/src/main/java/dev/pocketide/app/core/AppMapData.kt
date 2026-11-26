@@ -55,6 +55,7 @@ object AppMapData {
         AppMap.Item("⚙ Settings › Assistant", "Phase routing: reading steps use the cheaper draft model; edits and answers use the main model", "phaseRouting", AppMap.Kind.CHECKBOX),
         AppMap.Item("⚙ Settings › Assistant", "When a reply shows no sign of life for a minute, offer a retry or another provider", "slowOffer", AppMap.Kind.CHECKBOX),
         AppMap.Item("⚙ Settings › Assistant", "Show model tips in the chat (suggestions to try another model)", "modelTips", AppMap.Kind.CHECKBOX),
+        AppMap.Item("⚙ Settings › Assistant", "Python helper for Gemini Nano: a Python note, edits fixed to the right indentation, outlines of long files, and where a failing test points (experimental)", "pythonHelper", AppMap.Kind.CHECKBOX),
         AppMap.Item("⚙ Settings › Assistant", "Big requests: list the requirements first, then check the result against them", "requirementsFirst", AppMap.Kind.CHECKBOX),
         AppMap.Item("⚙ Settings › Assistant", "Long lists: build in parts (each part its own pass, then check they fit together)", "splitParts", AppMap.Kind.CHECKBOX),
         AppMap.Item("⚙ Settings › Assistant", "Build in parts: build parts that share no files at the same time, on every provider that has a key", "parallelParts", AppMap.Kind.CHECKBOX),

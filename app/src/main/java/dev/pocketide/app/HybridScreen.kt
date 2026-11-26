@@ -280,6 +280,8 @@ object HybridScreen {
                 HybridBench.running -> toast("The benchmark is already running.")
                 else -> {
                     val py = CheckBox(ctx).also { it.text = "Include the Python track (installs Python and pytest in Linux once)"; it.isChecked = true }
+                    val helper = CheckBox(ctx).also { it.text = "Python helper for Gemini Nano on (compare a run with it on and one with it off)"; it.isChecked = false }
+                    val boxes = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; addView(py); if (suite != HybridBench.Suite.RELIABLE_CLOUD) addView(helper) }
                     val n = 57 * runs   // cloud runs (the side-by-side suite also runs each on Nano)
                     AlertDialog.Builder(ctx).setTitle("Run the ${if (both) "side-by-side" else if (cloud) "cloud" else "on-device"} reliability benchmark (${if (runs == 1) "quick" else "full, $runs runs per task"})?")
                         .setMessage((if (both) "Every task runs twice in a row: on Gemini Nano alone (Private mode), then with every step on Gemini in the cloud " +
@@ -293,8 +295,8 @@ object HybridScreen {
                             else "Gemini Nano runs every task alone in Private mode, so no cloud quota is used. ") +
                             "Each task's reference fix is first checked on this phone. The screen stays on; do not use the app or leave it while it runs. " +
                             "The results zip goes to Downloads/PocketIDE.")
-                        .setView(py)
-                        .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, suite, false, runs, py.isChecked) }
+                        .setView(boxes)
+                        .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, suite, false, runs, py.isChecked, helper.isChecked) }
                         .setNegativeButton("Cancel", null).show()
                 }
             }

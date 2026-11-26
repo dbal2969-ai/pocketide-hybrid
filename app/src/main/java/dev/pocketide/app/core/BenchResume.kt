@@ -40,6 +40,8 @@ object BenchResume {
         val unsound: Map<String, String> = emptyMap(),
         val deselect: Map<String, List<String>> = emptyMap(),
         val pythonNote: String = "",
+        /** 1.5.194: the run uses the Python helper for Gemini Nano (Settings › Assistant). */
+        val pyHelper: Boolean = false,
     ) {
         val resumable get() = !active && !finished && done.size < order.size
     }
@@ -53,6 +55,7 @@ object BenchResume {
         p["suite"] = s.suite; p["stamp"] = s.stamp; p["helping"] = s.helping.toString(); p["runs"] = s.runs.toString()
         p["python"] = s.python.toString(); p["order"] = join(s.order); p["done"] = join(s.done); p["current"] = s.current.orEmpty()
         p["active"] = s.active.toString(); p["finished"] = s.finished.toString(); p["pythonNote"] = s.pythonNote
+        p["pyHelper"] = s.pyHelper.toString()
         for ((k, v) in s.interrupted) p["interrupted.$k"] = v.toString()
         for ((k, v) in s.before) p["before.$k"] = v
         for ((k, v) in s.unsound) p["unsound.$k"] = v
@@ -79,6 +82,7 @@ object BenchResume {
             unsound = group("unsound."),
             deselect = group("deselect.").mapValues { split(it.value) },
             pythonNote = p.getProperty("pythonNote").orEmpty(),
+            pyHelper = p.getProperty("pyHelper") == "true",
         )
     } catch (e: Exception) { null }
 
