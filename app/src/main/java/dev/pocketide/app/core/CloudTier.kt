@@ -83,7 +83,7 @@ object CloudTier {
 
     /** When the cloud counts as out after every tier failed on quota: until midnight Pacific for a daily limit, else 15 minutes. */
     fun outUntil(msg: String, now: Long = System.currentTimeMillis()): Long {
-        if (!daily(msg)) return now + 15 * 60_000L
+        if (!daily(msg)) return now + Tuning.cloudOutMinutes * 60_000L
         val z = java.time.ZoneId.of("America/Los_Angeles")
         return java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(now), z).toLocalDate().plusDays(1).atStartOfDay(z).toInstant().toEpochMilli()
     }

@@ -116,7 +116,7 @@ object PageRefs {
             if (missing.isNotEmpty()) out.add("$h calls ${missing.take(6).joinToString(", ") { "$it()" }}${if (missing.size > 6) " and ${missing.size - 6} more" else ""} but no file defines ${if (missing.size == 1) "it" else "them"}.")
         }
         out.addAll(moduleProblems(paths, htmls, read))
-        out.addAll(wiring(paths, read))
+        if (Tuning.pageWiringCheck) out.addAll(wiring(paths, read))
         return out.distinct().take(max)
     }
 

@@ -962,6 +962,26 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** RemoteTuningTest (3): the defaults are the built-in values, remote values change what Nano sees (and out-of-range ones
   are ignored), and the template lists exactly the app's keys with its defaults. 1,356 unit tests, 0 failures.
 
+
+### (next) · 2026-11-26 16:45 · Everything tunable in Gemini Nano and hybrid routing comes from Remote Config; 1.5.198
+
+- **Why:** the owner asked to use Remote Config for everything it can tune.
+- **core/Tuning.kt** (new) holds every tunable value with the app's built-in default; HybridCloud's `applyTuning()` fills it after
+  each fetch and each real-time update; a value out of range or not a number is ignored. Fourteen new keys:
+  - defaults for people who have not saved their own: `hybrid_nano_temperature` (0.2), `hybrid_nano_top_k` (40),
+    `hybrid_nano_max_output_tokens` (1024), `hybrid_nano_full_model` (false), `hybrid_cloud_tier_default` (auto) (HybridAi `settings`,
+    `cloudChoice`);
+  - thresholds: `hybrid_handoff_after_failures` (2, HybridAgent), `hybrid_quota_waits` (2), `hybrid_busy_wait_ms` (8000),
+    `hybrid_cloud_out_minutes` (15, CloudTier `outUntil`), `hybrid_nano_reread_reshows` (2, NativeAgent `smallReread`);
+  - switches for the newer repairs, all on: `hybrid_repair_broken_json` (SmallLocal: LenientJson and YAML), `hybrid_nano_ask_again`
+    (HybridAgent, Private mode), `hybrid_python_syntax_check` (SyntaxCheck), `hybrid_page_wiring_check` (PageRefs).
+- **remoteconfig.template.json** now lists all 24 keys; HACKATHON.md's setup step and Firebase table say what they tune.
+- **Removed:** the constants these replace (HybridAgent `FAIL_LIMIT`, `BUSY_WAIT_MS`; NativeAgent `SMALL_RESHOWS`).
+- **Files:** core/Tuning.kt (new), HybridCloud.kt, HybridAi.kt, HybridAgent.kt, NativeAgent.kt, core/CloudTier.kt, core/SmallLocal.kt,
+  core/SyntaxCheck.kt, core/PageRefs.kt, remoteconfig.template.json, HACKATHON.md; app/build.gradle.kts (1.5.198-hybrid, code 246).
+- **Tests:** RemoteTuningTest `tuningValues` (each value changes behaviour; out-of-range values fall back) and the template check now
+  covers all 24 keys and their defaults. 1,357 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

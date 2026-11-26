@@ -17,7 +17,7 @@ object SyntaxCheck {
         "json" -> Kind.JSON
         "css" -> Kind.CSS
         "html", "htm" -> Kind.HTML
-        "py" -> Kind.PYTHON
+        "py" -> if (Tuning.pythonSyntaxCheck) Kind.PYTHON else Kind.NONE
         else -> Kind.NONE
     }
 
@@ -94,7 +94,8 @@ object SyntaxCheck {
 
     /** The line added to the tool result. */
     /** True for files a broken write is refused for: a script, a page or a data file (a half-written one breaks the page). */
-    fun guarded(path: String): Boolean = path.substringAfterLast('.', "").lowercase() in setOf("js", "mjs", "cjs", "html", "htm", "json", "py")
+    fun guarded(path: String): Boolean = path.substringAfterLast('.', "").lowercase().let { e ->
+        e in setOf("js", "mjs", "cjs", "html", "htm", "json") || (e == "py" && Tuning.pythonSyntaxCheck) }
 
     /**
      * Python (1.5.188, reliability run 1125-2053): every Python edit that broke the tests broke the file's syntax (an unexpected

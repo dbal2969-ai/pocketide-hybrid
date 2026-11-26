@@ -70,7 +70,7 @@ object HybridCloud {
                     KEY_PY_NOTE to "",   // empty = the built-in note (PyHelper.NOTE)
                     KEY_PY_EXAMPLES to "",
                     KEY_PY_DEFAULT to false,
-                    KEY_PY_LINES to dev.pocketide.app.core.PyHelper.LONG.toLong())), 10, TimeUnit.SECONDS)
+                    KEY_PY_LINES to dev.pocketide.app.core.PyHelper.LONG.toLong()) + dev.pocketide.app.core.Tuning.DEFAULTS), 10, TimeUnit.SECONDS)
                 Tasks.await(rc.fetchAndActivate(), 20, TimeUnit.SECONDS)
                 applyTuning()
                 configNote = "Remote Config: cloud model ${cloudModel()}, on-phone limit ${remoteLimit()} characters, " +
@@ -123,6 +123,7 @@ object HybridCloud {
             dev.pocketide.app.core.PyHelper.remoteNote = value(KEY_PY_NOTE)?.asString()
             dev.pocketide.app.core.PyHelper.remoteExamples = value(KEY_PY_EXAMPLES)?.asString().orEmpty()
             dev.pocketide.app.core.PyHelper.remoteLong = value(KEY_PY_LINES)?.asLong()?.toInt()
+            dev.pocketide.app.core.Tuning.apply { k -> value(k)?.asString() }   // 1.5.198: Nano's defaults, thresholds and switches
         } catch (e: Exception) { /* the built-in values stay */ }
     }
 

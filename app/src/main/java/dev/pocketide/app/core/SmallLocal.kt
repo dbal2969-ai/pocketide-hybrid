@@ -170,13 +170,14 @@ object SmallLocal {
             try { return MiniJson.obj(MiniJson.parse(body)) } catch (e: Exception) { }
             // the object may come after code with braces of its own (a ```greet.js fence, then ```json): each { that opens a key is tried
             val starts = listOf(start) + Regex("""\{\s*"""").findAll(reply).map { it.range.first }.filter { it > start && it < end }.toList()
+            if (!Tuning.repairBrokenJson) return null   // Remote Config hybrid_repair_broken_json = false
             for (st in starts) {
                 val b = reply.substring(st, end + 1)
                 if (st != start) try { MiniJson.obj(MiniJson.parse(b))?.let { if (it[TOOL] is String) return it } } catch (e: Exception) { }
                 try { MiniJson.obj(MiniJson.parse(LenientJson.repair(b)))?.let { if (it[TOOL] is String || (st == start && it[REASON] is String)) return it } } catch (e: Exception) { }
             }
         }
-        return LenientJson.yaml(reply)
+        return if (Tuning.repairBrokenJson) LenientJson.yaml(reply) else null
     }
 
     /**

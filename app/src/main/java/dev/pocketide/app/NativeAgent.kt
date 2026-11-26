@@ -454,7 +454,7 @@ class NativeAgent(
     /**
      * 1.5.193 (reliability run 1126-0816): Gemini Nano's rereads of an unchanged file were refused ("use the copy you already have"),
      * but in its short prompt that copy may be gone; 18 of 38 Python fails ended rereading until the steps ran out. For Nano a reread
-     * shows the lines its last missed edit was aimed at ([smallMissed]), else the file again, up to [SMALL_RESHOWS] times a file.
+     * shows the lines its last missed edit was aimed at ([smallMissed]), else the file again, up to Tuning.nanoReshows times a file.
      */
     private val smallMissed = HashMap<String, String>()
     private val smallReshown = HashMap<String, Int>()
@@ -480,7 +480,7 @@ class NativeAgent(
             return "These are the lines of $p your last edit was aimed at (with line numbers). Copy the search text exactly from them, without the numbers, " +
                 "or use edit_lines with these line numbers:\n$ex" } }
         val n = (smallReshown[p] ?: 0) + 1
-        if (n > SMALL_RESHOWS) return null
+        if (n > dev.pocketide.app.core.Tuning.nanoReshows) return null
         smallReshown[p] = n
         return "Here is $p again.\n" + AgentActions.read(paths() + p, { q -> staged[q] ?: store.readForAi(q) }, p, cap = resultCap())
     }
@@ -1201,8 +1201,6 @@ class NativeAgent(
      * 1.5.185: the card for an app_settings proposal. Nothing changes until the person taps Apply; during a benchmark the card
      * declines itself, so a run never changes the phone's settings, and the decision is written to the chat's record.
      */
-    private val SMALL_RESHOWS = 2
-
     private val RENAME = Regex("""(?i)\brename\b""")
 
     private fun settingsCard(c: dev.pocketide.app.core.AppSettingsTool.Check.Ok, now: String, why: String) {

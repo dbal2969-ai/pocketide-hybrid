@@ -20,8 +20,8 @@ android {
         // The name on the home screen and in Android's installer; the app code is shared, so each edition sets its own (1.5.131).
         resValue("string", "app_name", "PocketIDE")
         targetSdk = 35
-        versionCode = 245
-        versionName = "1.5.197-hybrid"
+        versionCode = 246
+        versionName = "1.5.198-hybrid"
     }
 
     // A fixed debug key, so every build is signed the same way and a new APK

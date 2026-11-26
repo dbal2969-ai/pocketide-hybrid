@@ -110,7 +110,7 @@ object HybridAgent {
         val only = mode == HybridAi.Mode.ONLY_ON_DEVICE || offline
         // Nano tends to repeat a failing step (a benchmark run had six refused edits in a row): after two, the cloud takes over
         val streak = failStreak(messages)
-        if (streak >= FAIL_LIMIT && !only) return Phone(null, "my last $streak tool calls failed (the last: ${lastFailure(messages)})")
+        if (streak >= dev.pocketide.app.core.Tuning.handoffAfterFailures && !only) return Phone(null, "my last $streak tool calls failed (the last: ${lastFailure(messages)})")
         // a request that needs the web skips the phone in the on-phone-first mode (Nano's tools cannot reach it)
         val ask = messages.lastOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty()
         val web = dev.pocketide.app.core.HybridRoute.needsCloud(ask)
@@ -179,7 +179,7 @@ object HybridAgent {
         }
         // 1.5.188 (reliability run 1125-2053): in Private mode one reply that could not be read as an action ended the request, 11 times
         // (rich_3006, rich_3067 twice each). Nano is asked once more, told what was wrong.
-        if (turn == null && only && why == "did not reply with one JSON action") {
+        if (turn == null && only && why == "did not reply with one JSON action" && dev.pocketide.app.core.Tuning.askNanoAgain) {
             val retry = try { testPhone?.invoke(prompt + "\n" + SmallLocal.ASK + SmallLocal.QUOTES_NOTE) ?: HybridAi.onDeviceText(ctx, prompt + "\n" + SmallLocal.ASK + SmallLocal.QUOTES_NOTE) } catch (e: Exception) { null }
             if (retry != null) { val t2 = phoneTurn(retry, messages); if (t2.first != null) return Phone(Result(t2.first!!, true, secs, ""), ""); why = t2.second }
         }
@@ -188,9 +188,6 @@ object HybridAgent {
         if (only) return Phone(Result(ToolTurn(shown.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")
         return Phone(null, "Gemini Nano $why")
     }
-
-    /** How long a busy model is left before it is asked again, when no other tier can answer. */
-    private const val BUSY_WAIT_MS = 8_000L
 
     /** The turn on the cloud model through Firebase AI Logic, with every tool as a function. Blocking. */
     fun cloud(ctx: Context, system: String, messages: List<Map<String, Any?>>, tools: List<*>?): Result {
@@ -238,7 +235,7 @@ object HybridAgent {
                         } else {
                             // 1.5.185 (from-scratch run 1125-1527: 9 of 10 tasks ended on this): every tier was out at once. The free
                             // limits are mostly per minute, so the step waits for them to refill and asks the first tier again, twice at most
-                            if (quotaWaits >= 2 || dev.pocketide.app.core.CloudTier.daily(msg)) {
+                            if (quotaWaits >= dev.pocketide.app.core.Tuning.quotaWaits || dev.pocketide.app.core.CloudTier.daily(msg)) {
                                 HybridAi.cloudOutUntil = dev.pocketide.app.core.CloudTier.outUntil(msg)
                                 throw CloudOut(msg)
                             }
@@ -253,7 +250,7 @@ object HybridAgent {
                     dev.pocketide.app.core.CloudTier.busy(msg) -> {
                         // with every other tier tried, a busy model is asked once more after a pause (demand spikes pass)
                         val down = dev.pocketide.app.core.CloudTier.fallback(tier, tried, HybridAi.skipNow())
-                            ?: if (!waited) { waited = true; Thread.sleep(BUSY_WAIT_MS); tried.clear(); tier } else throw e
+                            ?: if (!waited) { waited = true; Thread.sleep(dev.pocketide.app.core.Tuning.busyWaitMs); tried.clear(); tier } else throw e
                         fellBack = if (down == tier) "${tier.label} (${tier.model}) was busy; it was asked again after a pause (${msg.take(120)})."
                             else "${tier.label} (${tier.model}) was busy, so ${down.label} answered this step (${msg.take(120)})."
                         tier = down
@@ -316,8 +313,6 @@ object HybridAgent {
     fun clean(text: String): String = LABEL.replace(text, "").trim()
 
     // ---------------- phone: small local model mode ----------------
-
-    const val FAIL_LIMIT = 2
 
     /**
      * Set by the benchmark (1.5.184): receives one JSON line per Gemini Nano exchange: its prompt and reply, the tool it chose (or why

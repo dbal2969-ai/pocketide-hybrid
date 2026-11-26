@@ -75,7 +75,7 @@ object HybridAi {
     val noThinking: MutableSet<dev.pocketide.app.core.CloudTier.Tier> = java.util.Collections.synchronizedSet(HashSet())
 
     fun cloudChoice(ctx: Context): dev.pocketide.app.core.CloudTier.Choice =
-        dev.pocketide.app.core.CloudTier.Choice.of(ctx.getSharedPreferences(PREFS, 0).getString("cloudTier", null))
+        dev.pocketide.app.core.CloudTier.Choice.of(ctx.getSharedPreferences(PREFS, 0).getString("cloudTier", null) ?: dev.pocketide.app.core.Tuning.cloudTier)
 
     fun saveCloudChoice(ctx: Context, c: dev.pocketide.app.core.CloudTier.Choice) {
         ctx.getSharedPreferences(PREFS, 0).edit().putString("cloudTier", c.id).apply()
@@ -164,12 +164,14 @@ object HybridAi {
     fun settings(ctx: Context): HybridSettings {
         val p = ctx.getSharedPreferences(PREFS, 0)
         val d = HybridSettings.DEFAULT
+        // Remote Config's defaults (core/Tuning) until the person saves their own
+        val t = dev.pocketide.app.core.Tuning
         return HybridSettings.clamp(HybridSettings(
-            temperature = p.getFloat("temperature", d.temperature),
-            topK = p.getInt("topK", d.topK),
-            maxOutputTokens = p.getInt("maxOutputTokens", d.maxOutputTokens),
-            onDeviceMaxChars = p.getInt("onDeviceMaxChars", HybridCloud.remoteLimit()),   // Remote Config's default until the person saves their own
-            fullModel = p.getBoolean("fullModel", d.fullModel)))
+            temperature = p.getFloat("temperature", t.nanoTemperature),
+            topK = p.getInt("topK", t.nanoTopK),
+            maxOutputTokens = p.getInt("maxOutputTokens", t.nanoMaxOutput),
+            onDeviceMaxChars = p.getInt("onDeviceMaxChars", HybridCloud.remoteLimit()),
+            fullModel = p.getBoolean("fullModel", t.nanoFullModel)))
     }
 
     /** Saves the settings; the models are rebuilt on the next request. */
