@@ -13,6 +13,9 @@ object StaleReads {
 
     private fun stub(path: String) = "[Earlier contents of $path left out: the file was changed afterwards. Read it again if you need it.]"
 
+    /** A change tool's result that says nothing was changed. */
+    fun notApplied(result: String): Boolean = SmallTools.slipped(result) || result.startsWith("Error") || result.startsWith("Not written")
+
     private fun pathOf(args: Any?): String = when (args) {
         is Map<*, *> -> (args["path"] as? String).orEmpty()
         is String -> (Tools.parseArgs(args)["path"] as? String).orEmpty()
@@ -34,8 +37,18 @@ object StaleReads {
                 calls[t["id"] as? String ?: return@forEach] = Call(f["name"] as? String ?: "", pathOf(f["arguments"]), i)
             }
         }
+        // 1.5.200 (Python run 1126-1710): an edit that was not applied changed nothing, so the read before it is still current. Counting
+        // it blanked Gemini Nano's only copy of the file ("the file was changed afterwards"), and its rereads were then refused as seen.
+        val failed = HashSet<String>()
+        for (m in messages) {
+            if (m["role"] == "tool") { val s = m["content"] as? String ?: continue; if (notApplied(s)) (m["tool_call_id"] as? String)?.let { failed.add(it) } }
+            (m["content"] as? List<*>)?.forEach { b ->
+                val o = b as? Map<*, *> ?: return@forEach
+                if (o["type"] == "tool_result" && notApplied(o["content"] as? String ?: "")) (o["tool_use_id"] as? String)?.let { failed.add(it) }
+            }
+        }
         val lastChange = HashMap<String, Int>()
-        for (c in calls.values) if (c.name in CHANGERS && c.path.isNotEmpty()) lastChange[c.path] = maxOf(lastChange[c.path] ?: -1, c.at)
+        for ((id, c) in calls) if (c.name in CHANGERS && c.path.isNotEmpty() && id !in failed) lastChange[c.path] = maxOf(lastChange[c.path] ?: -1, c.at)
         if (lastChange.isEmpty()) return 0
 
         fun stale(id: String?, len: Int): Call? {

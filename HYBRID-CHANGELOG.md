@@ -58,6 +58,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | `5d47c35` |
 | reliable 1125-1815 (reliability run 1, full, 3 runs) | `5d47c35` | **116 of 141 runs on Nano Full (E4B) alone**; dev pass@1 91% (pass^3 16 of 20), held-out 75%, Node 87%, Python 0 of 9; analysis 110 clean, 6 with problems, 25 failed | 996 of 996 (median 3.6 s) | 141 edits refused as "NOT SAVED: syntax error": with `all: true` and a function's first line as the search, the replace-all skipped the brace repair; r20 bare-name renames refused as ambiguous; r03 run 2 edited a file on a "do not fix anything" task; l13 run 3 passed its visible test but broke behaviour (dev tasks had no hidden checks on the phone); the Python statements were too short ("port bpo-39057"); 10 rich tasks' hidden tests fail on the phone with the reference fix; 5 analyzer false alarms on report-only tasks | `c2a5662` |
 | reliable 1125-2053 (reliability run 2, full, 3 runs, Python included) | `c2a5662` (1.5.187) | **114 of 171 on Nano Full alone**; dev pass@1 88% (pass^3 14 of 20), held-out 54%, Node 86% (114 of 132), Python 0 of 39; analysis 113 clean, 1 with problems, 57 failed | 1,529 of 1,529 | PocketIDE left the screen at 00:33: the last 10 rich runs (and rich_3043 run 2) each waited 10 minutes for AICore's "Background usage is blocked" with no step taken; 16 Nano replies thrown away as "not one JSON action" were the right action in broken JSON (unescaped quotes, `r"..."` values, YAML), and in Private mode each one ended the request (rich_3006 and rich_3067 never edited); every Python edit that broke the tests was a SyntaxError or IndentationError saved as written; Node: l05 and l06 hard-coded the visible test's value (caught by the new dev hidden checks), r14 `'grape',,`, r18 wrong JSON shape, r07 never fixed in 41 steps, r23 edited the wrong helper | `15c2dbd` |
+| reliable-python 1126-1710 (Python only, helper on, AICore 8K) | `024c4e4` (1.5.199) | **1 of 13 on Nano Full alone** (requests_7315; requests 1 of 3, rich 0 of 10); analysis 1 clean, 12 failed | 309 of 309, 0 unusable replies | Private mode, on-phone limit 22,000, max output 8,000 tokens. 78 refused steps: the main loss was the app, not Nano. After a refused edit, StaleReads blanked the read before it as "changed afterwards" (nothing had changed) or the prompt cut it to a seventh, and the reread was then refused as already shown; Nano said "I cannot see the content of rich/repr.py" (rich_3006, 3043, 3454, 3067). rich_3894 sent `'__qualname__'` for the file's `"__qualname__"` 4 times. rich_3043 and requests_6644 searched the code for text from the test. The app's own check ran test_brokenpipeerror, which fails on this phone with the reference fix (rich_3882 spent its finish budget on it). requests_7427 wrote `if …: return False` on one line outside its function (SyntaxError) | (next) |
 | reliable 1126-1352 (quick, Python helper on) | `a9688e6` (1.5.194) | **41 of 57 on Nano Full alone**; JavaScript 41 of 44 (93%), Python 0 of 13; analysis 39 clean, 2 with problems (l08 edited test.js, restored before the check; l19 page error "module is not defined"), 16 failed | 751 of 751, 0 unusable replies | first run with the Python helper: IndentationError refusals fell from about 2 per Python run to under 1 (10 in 13 runs); the failing-test pointer never fired (0 of 33 failing pytest runs: the assertions are in the test, no source frame); a bare outline made Nano give up (rich_3882: "could you please specify which part of the file") or ask for the file 42 times (rich_2943) | `21ee11e` |
 | reliable 1126-0816 (reliability run 3, full, 3 runs, Python included) | `eea1ea0` (1.5.191) | **117 of 171 on Nano Full alone**; dev pass@1 88% (pass^3 15 of 20), held-out 57%, Node 87% (116 of 132), Python 1 of 39 (rich_4077 run 2, the first Python pass); analysis 114 clean, 3 with problems, 54 failed | 1,780 of 1,780 (median 3.8 s, p90 6.0 s), 5 unusable replies (16 in run 2) | 18 of 38 Python fails ended rereading the same file until the steps ran out: an edit missed by a quote (`'` for `"`), the closest-text hint was empty, and the reread was refused ("use the copy you already have") though Nano's short prompt no longer held it; 30 of 54 fails had a not-found edit; the Python syntax check refused 104 broken saves in 14 Python runs and put each file back; l18 run 2 and r14 run 3 edited test.js (the app restored it before checking, so both passes stand); l06 hard-coded 'Hello, Ana!' (caught by the hidden check); r23 edited helper4 again | `0cc011b` |
 | scratch 1126-0628 (from scratch, hybrid) | `15c2dbd` (1.5.189) | **9 of 10**; analysis 6 clean, 3 with problems, 1 failed | 93 of 180 | every cloud step ran on Gemini 3.5 Flash-Lite (Balanced was out of its daily quota); s05 passed with an index.html that loads no script (the to-do list does nothing) and s09 with a script looking up #tipResult on a page whose element is id="result" (the app's page checks saw neither); s06 does not keep the list after a reload; s03 failed honestly (a broken inline onclick, finish budget spent); s01 was run again once because PocketIDE left the screen (the 1.5.189 pause worked) | `eea1ea0` |
@@ -1000,6 +1001,33 @@ the files after the run, `transcript.txt` and `check.txt`.
   - The limit is set per phone, not by Remote Config: phones left at AICore's default would overflow Nano's prompt.
 - **Files:** NativeAgent.kt, HybridAgent.kt, core/ContextFit.kt, core/HybridSettings.kt; app/build.gradle.kts (1.5.199-hybrid, code 247).
 - **Tests:** RemoteTuningTest `nanoReadsGrowWithTheOnPhoneLimit`. 1,358 unit tests, 0 failures.
+
+
+### (next) · 2026-11-26 18:35 · Nano keeps seeing the file it read while its edits are refused; 1.5.200
+
+- **Why:** Python-only run 1126-1710 (1.5.199, helper on, on-phone limit 22,000): 1 of 13. In 4 of the 12 fails Nano never saw the
+  file after its first refused edit, so it said "I cannot see the content of rich/repr.py" and stopped.
+  - StaleReads counted an edit that was not applied as a change, so the read before it became "[Earlier contents … left out: the
+    file was changed afterwards]".
+  - Otherwise Nano's prompt cut that read to a seventh of the limit.
+  - A reread was then refused ("has not changed since the whole file was shown to you above"), which was not true of the prompt.
+- **Change:**
+  - StaleReads ignores change calls whose result says nothing changed (`notApplied`: edit not applied, Error, Not written).
+  - `HybridAgent.currentRead` finds the newest read with every step after it changing nothing. `phonePrompt` gives it the room the
+    last (short) result leaves, so Nano edits from the whole file instead of a fragment.
+  - EditBlocks matches whole lines that differ only in `'` and `"` (rich_3894: `getattr(obj, '__qualname__', name)` for the file's
+    `"__qualname__"`, sent 4 times). Backticks still have to match.
+  - An edit whose search text is in another project file and not the one named says where it is. If that file is a test, the
+    message says the test shows what the code must do (rich_3043 searched `_export_format.py` for the test's expected HTML;
+    requests_6644 searched `adapters.py` for the test's URL).
+  - Benchmark: the app's own check after Nano's edits leaves out the tests the scoring leaves out (`Verify.deselect`, set per task;
+    only `path::name` ids). rich_3882 had spent its finish budget on test_brokenpipeerror, which fails on this phone even with the
+    reference fix.
+- **Files:** core/StaleReads.kt, HybridAgent.kt, core/EditBlocks.kt, NativeAgent.kt, core/Verify.kt, HybridBench.kt;
+  app/build.gradle.kts (1.5.200-hybrid, code 248).
+- **Tests:** NanoSeesItsReadTest (new, 4 tests): the refused edit leaves the read in place; the whole read stays in Nano's prompt;
+  quote-only differences match but backticks don't; the check's deselect list, with unsafe ids dropped. 1,362 unit tests, 0 failures.
+- **Evidence:** pocketide-hybrid-reliable-python-benchmark-1126-1710.
 
 ---
 

@@ -474,7 +474,12 @@ object HybridAgent {
         val room = resultRoom(docs, messages, limit)
         // 1.5.199: older results keep a seventh of the prompt (2,000 characters at the default 14,000; more when AICore allows more)
         val older = maxOf(2000, limit / 7)
-        val lines = messages.mapIndexedNotNull { i, m -> line(m, if (i == lastTool) room else older) }
+        // 1.5.200 (Python run 1126-1710): Nano read a file, its edit was refused, and on the next step the read was cut to a seventh of
+        // the prompt, so it edited from a fragment and repeated the same wrong search. The newest read stays whole while every step after
+        // it changed nothing, in the room the last (short) result leaves.
+        val read = currentRead(messages)
+        val readRoom = if (read in 0 until lastTool) maxOf(older, room - textOf(messages[lastTool]["content"]).length - 500) else older
+        val lines = messages.mapIndexedNotNull { i, m -> line(m, if (i == lastTool) room else if (i == read) readRoom else older) }
         if (lines.isEmpty()) return null
         val first = lines.first()
         var budget = limit - head.length - tail.length - first.length - 40
@@ -486,6 +491,25 @@ object HybridAgent {
         }
         val skipped = lines.size - 1 - recent.size
         return head + first + (if (skipped > 0) "[$skipped earlier steps left out]\n" else "") + recent.joinToString("") + passedNote(messages) + tail
+    }
+
+    /**
+     * The newest read_file result that showed a file's text, when every tool call after it left the files unchanged (refused edits,
+     * searches, runs that failed); -1 otherwise.
+     */
+    fun currentRead(messages: List<Map<String, Any?>>): Int {
+        val calls = HashMap<String, Call>()
+        for (m in messages) (m["tool_calls"] as? List<*>).orEmpty().forEach { callOf(it)?.let { c -> calls[c.id] = c } }
+        for (i in messages.indices.reversed()) {
+            val m = messages[i]
+            if (m["role"] != "tool") continue
+            val c = calls[m["tool_call_id"] as? String ?: continue] ?: continue
+            val text = textOf(m["content"])
+            if (c.name in WRITES && !dev.pocketide.app.core.StaleReads.notApplied(text)) return -1
+            if (c.name == "read_file" && text.length > 400 && !text.startsWith("Error") && !text.startsWith("[Earlier contents") &&
+                !text.contains("has not changed since the whole file was shown")) return i
+        }
+        return -1
     }
 
     private fun line(m: Map<String, Any?>, room: Int = 2000): String? {

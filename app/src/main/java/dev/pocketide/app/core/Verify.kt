@@ -6,6 +6,12 @@ object Verify {
 
     class Plan(val command: String, val label: String)
 
+    /**
+     * Python tests the check leaves out (pytest --deselect ids). Set by the benchmark to the tests that fail on this phone even with
+     * the reference fix, so the in-app check matches the scoring (1.5.200); empty otherwise.
+     */
+    @Volatile var deselect: List<String> = emptyList()
+
     /** False for the fallback "syntax checks", which only show the files parse (1.5.173); tests and builds run the code. */
     fun runsCode(label: String): Boolean = label != "syntax checks"
 
@@ -28,7 +34,9 @@ object Verify {
         }
         val pyTests = fs.any { it.endsWith(".py") && (it.substringAfterLast('/').startsWith("test_") || it.endsWith("_test.py") || it.startsWith("tests/")) }
         if (pyTests && has("python"))
-            return Plan("if python3 -c 'import pytest' 2>/dev/null; then python3 -m pytest -q -x 2>&1; else python3 -m unittest discover -q 2>&1; fi", "Python tests")
+            return Plan("if python3 -c 'import pytest' 2>/dev/null; then python3 -m pytest -q -x" +
+                deselect.filter { it.matches(Regex("""[\w./\-]+::[\w\[\]\-.]+""")) }.joinToString("") { " --deselect $it" } +
+                " 2>&1; else python3 -m unittest discover -q 2>&1; fi", "Python tests")
         if ("go.mod" in fs && fs.any { it.endsWith("_test.go") } && has("go")) return Plan("go test ./... 2>&1", "go test")
         if ("Cargo.toml" in fs && has("cargo")) return Plan("cargo test -q 2>&1", "cargo test")
         val mk = fs.firstOrNull { it == "Makefile" }

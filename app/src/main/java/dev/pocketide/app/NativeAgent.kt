@@ -473,6 +473,20 @@ class NativeAgent(
     private val nanoLike: Boolean get() = small || (settings.provider == "hybrid" &&
         (HybridAi.cloudOut() || try { HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE } catch (e: Exception) { false }))
 
+    /**
+     * 1.5.200 (Python run 1126-1710, rich_3043 and requests_6644): Gemini Nano searched the code for text copied from the failing test
+     * (the expected HTML, the test's URL) three times each. When the search text is in another project file and not in [p], say where
+     * it is, and that a test shows what the code must do rather than text to find in it. Empty when it is nowhere else.
+     */
+    private fun elsewhere(p: String, search: String): String {
+        val s = search.trim()
+        if (s.length < 12) return ""
+        val hit = try { paths().filter { it != p && store.exists(it) }.take(400).firstOrNull { q -> (staged[q] ?: store.readForAi(q))?.contains(s) == true } } catch (e: Exception) { null }
+            ?: return ""
+        val test = Regex("""(^|/)(tests?/|test_[^/]*$|[^/]*_test\.|[^/]*\.(test|spec)\.)""").containsMatchIn(hit)
+        return " That text is in $hit, not in $p." + if (test) " $hit is a test: it shows what $p must do, so change the code in $p that produces it (read $p and find that code)." else " Edit $hit instead if that is the file you meant."
+    }
+
     /** Nano's reread of an unchanged file: the reply to send, or null to refuse as before. */
     private fun smallReread(p: String, text: String): String? {
         if (!nanoLike) return null
@@ -2463,7 +2477,7 @@ class NativeAgent(
                 val newText = res.text
                 if (newText == null) {
                     if (nanoLike) smallMissed[p] = search   // 1.5.193: a reread then shows the lines this edit was aimed at
-                    reply("Edit not applied to $p: ${res.error ?: "the search text was not found"}. Read the file again and copy the text exactly.", "$label (failed)"); return
+                    reply("Edit not applied to $p: ${res.error ?: "the search text was not found"}." + elsewhere(p, search).ifEmpty { " Read the file again and copy the text exactly." }, "$label (failed)"); return
                 }
                 testGate(p, cur, newText, job)?.let { if (askTestNow(p, newText, label) { r, s -> reply(r, s) }) return; reply(it, "$label (refused)"); return }
                 readFiles.remove(p)

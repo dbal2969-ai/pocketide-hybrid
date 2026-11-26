@@ -180,6 +180,10 @@ object EditBlocks {
         var reindent = false
         if (hits.isEmpty()) { hits = find { it.trim() }; reindent = true }
         if (hits.isEmpty()) hits = find { it.trim().replace(SPACES, " ") }
+        // 1.5.200 (Python run 1126-1710, rich_3894): Gemini Nano wrote getattr(obj, '__qualname__', name) for the file's
+        // getattr(obj, "__qualname__", name) four times running. Whole lines that differ only in ' and " match; the replacement is used
+        // as written (not backticks, which make a different string in JavaScript).
+        if (hits.isEmpty()) hits = find { it.trim().replace(SPACES, " ").replace('\'', '"') }
         if (hits.size > 1) return ApplyResult(error = MANY)
         if (hits.isEmpty()) {
             // last try: ignore blank lines on both sides

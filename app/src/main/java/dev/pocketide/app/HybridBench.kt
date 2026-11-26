@@ -590,6 +590,7 @@ object HybridBench {
                 if (finished) return
                 finished = true
                 chat.onExchangeEnded = {}
+                dev.pocketide.app.core.Verify.deselect = emptyList()
                 after(t, name, root, t0, how)
             }
             // a request can be followed by others it starts itself (parts, checks): the task is over when the assistant stays idle
@@ -597,6 +598,10 @@ object HybridBench {
                 ended = if (ok) "done" else "stopped or failed"
                 main.postDelayed({ if (!finished && !chat.busy()) done() }, 8000)
             }
+            // 1.5.200 (Python run 1126-1710, rich_3882): the app's own check after Nano's edits ran the tests that fail on this phone even
+            // with the reference fix (test_brokenpipeerror), and Nano spent its finish budget on them. The check now leaves out the same
+            // tests the scoring leaves out.
+            dev.pocketide.app.core.Verify.deselect = deselect[dev.pocketide.app.core.ReliableBench.baseId(t.id)].orEmpty()
             act.benchAsk(name, t.prompt)
             fun watch() {
                 if (finished) return
