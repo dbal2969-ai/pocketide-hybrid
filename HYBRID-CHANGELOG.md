@@ -941,7 +941,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** HybridBench.kt, HybridScreen.kt; app/build.gradle.kts (1.5.196-hybrid, code 244). 1,353 unit tests, 0 failures.
 
 
-### (next) · 2026-11-26 16:40 · Gemini Nano tuned from Remote Config; 1.5.197
+### 236dfb2 · 2026-11-26 16:40 · Gemini Nano tuned from Remote Config; 1.5.197
 
 - **Why:** the owner asked to use Remote Config more: Nano cannot be fine-tuned (Firebase AI Logic does not support tuned models,
   and AICore takes no app-supplied LoRA), so the way to teach it is its instructions, and Remote Config ships those to every phone
