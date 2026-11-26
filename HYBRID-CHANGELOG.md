@@ -983,7 +983,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   covers all 24 keys and their defaults. 1,357 unit tests, 0 failures.
 
 
-### (next) · 2026-11-26 17:05 · Larger on-phone limit for phones where AICore allows 8,000 tokens; 1.5.199
+### d871291 · 2026-11-26 17:05 · Larger on-phone limit for phones where AICore allows 8,000 tokens; 1.5.199
 
 - **Why:** the owner's phone lets AICore's Gemma 4 E2B take up to 8,000 tokens instead of the default 4,000. The on-phone limit
   (Models › Hybrid AI) already goes to 30,000 characters, but the setting's warning only spoke of the 4,000-token default, and a
