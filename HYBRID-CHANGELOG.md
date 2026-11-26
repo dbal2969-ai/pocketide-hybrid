@@ -56,7 +56,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | app 1125-1555 (in-app questions run 2) | `ea46a32` | **app 10 of 14; analysis 10 clean** | 14 of 16 | app11 matched "OpenAI API Key" to the wrong tick box and Nano claimed a proposal; app05 Nano missed the top match; app04 not taken as about the app; app08 wording not accepted | `5ac38af` |
 | scratch 1125-1619 (from-scratch run 3) | `5ac38af` (labelled 1.5.183) | **0 of 10** | 67 of 70 | the day's free cloud quota was used up for every tier: nine requests ended even after waiting; with the cloud gone, Nano alone could not finish any app (pages that load a script.js never written, a calculator showing 0) | `4cb790a` |
 | standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | `5d47c35` |
-| reliable 1125-1815 (reliability run 1, full, 3 runs) | `5d47c35` | **116 of 141 runs on Nano Full (E4B) alone**; dev pass@1 91% (pass^3 16 of 20), held-out 75%, Node 87%, Python 0 of 9; analysis 110 clean, 6 with problems, 25 failed | 996 of 996 (median 3.6 s) | 141 edits refused as "NOT SAVED: syntax error": with `all: true` and a function's first line as the search, the replace-all skipped the brace repair; r20 bare-name renames refused as ambiguous; r03 run 2 edited a file on a "do not fix anything" task; l13 run 3 passed its visible test but broke behaviour (dev tasks had no hidden checks on the phone); the Python statements were too short ("port bpo-39057"); 10 rich tasks' hidden tests fail on the phone with the reference fix; 5 analyzer false alarms on report-only tasks | `(next)` |
+| reliable 1125-1815 (reliability run 1, full, 3 runs) | `5d47c35` | **116 of 141 runs on Nano Full (E4B) alone**; dev pass@1 91% (pass^3 16 of 20), held-out 75%, Node 87%, Python 0 of 9; analysis 110 clean, 6 with problems, 25 failed | 996 of 996 (median 3.6 s) | 141 edits refused as "NOT SAVED: syntax error": with `all: true` and a function's first line as the search, the replace-all skipped the brace repair; r20 bare-name renames refused as ambiguous; r03 run 2 edited a file on a "do not fix anything" task; l13 run 3 passed its visible test but broke behaviour (dev tasks had no hidden checks on the phone); the Python statements were too short ("port bpo-39057"); 10 rich tasks' hidden tests fail on the phone with the reference fix; 5 analyzer false alarms on report-only tasks | `c2a5662` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -687,7 +687,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** Kaggle task_features.csv and small_model_summary.csv (E2B 5 of 114, E4B 16 of 114); pocketide-hybrid-benchmark-1125-1718.
 
 
-### (next) · 2026-11-25 20:50 · Fixes from reliability run 1 (116 of 141, Nano alone); 1.5.187
+### c2a5662 · 2026-11-25 20:50 · Fixes from reliability run 1 (116 of 141, Nano alone); 1.5.187
 
 - **Why:** the first full reliability run (pocketide-hybrid-benchmark-reliable-1125-1815, 44 tasks × 3 runs on Gemini Nano Full
   (E4B), Private mode, build 1.5.186). Every transcript, check.txt, file set and report line was read; the findings are in the
