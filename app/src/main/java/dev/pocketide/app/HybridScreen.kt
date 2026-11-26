@@ -273,18 +273,20 @@ object HybridScreen {
             "and a hidden check. Quick runs each task once (about an hour); Full runs each 3 times to measure how reliable it is (an evening).", 13f, Ui.MUTED))
         fun startReliableNew(runs: Int, suite: HybridBench.Suite) {
             val m = activity as? MainActivity
-            val cloud = suite != HybridBench.Suite.RELIABLE
+            val cloud = suite == HybridBench.Suite.RELIABLE_CLOUD || suite == HybridBench.Suite.RELIABLE_BOTH
             val both = suite == HybridBench.Suite.RELIABLE_BOTH
+            val pyOnly = suite == HybridBench.Suite.RELIABLE_PY
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
                 HybridBench.running -> toast("The benchmark is already running.")
                 else -> {
                     val py = CheckBox(ctx).also { it.text = "Include the Python track (installs Python and pytest in Linux once)"; it.isChecked = true }
                     val helper = CheckBox(ctx).also { it.text = "Python helper for Gemini Nano on (compare a run with it on and one with it off)"; it.isChecked = false }
-                    val boxes = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; addView(py); if (suite != HybridBench.Suite.RELIABLE_CLOUD) addView(helper) }
+                    val boxes = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; if (!pyOnly) addView(py); if (suite != HybridBench.Suite.RELIABLE_CLOUD) addView(helper) }
                     val n = 57 * runs   // cloud runs (the side-by-side suite also runs each on Nano)
-                    AlertDialog.Builder(ctx).setTitle("Run the ${if (both) "side-by-side" else if (cloud) "cloud" else "on-device"} reliability benchmark (${if (runs == 1) "quick" else "full, $runs runs per task"})?")
-                        .setMessage((if (both) "Every task runs twice in a row: on Gemini Nano alone (Private mode), then with every step on Gemini in the cloud " +
+                    AlertDialog.Builder(ctx).setTitle("Run the ${if (pyOnly) "Python" else if (both) "side-by-side" else if (cloud) "cloud" else "on-device"} reliability benchmark (${if (runs == 1) "quick" else "full, $runs runs per task"})?")
+                        .setMessage((if (pyOnly) "Only the 13 real Python bug fixes (from rich and requests), on Gemini Nano alone in Private mode, so no cloud quota is used. " +
+                            "Run it once with the Python helper on and once with it off to compare. " else if (both) "Every task runs twice in a row: on Gemini Nano alone (Private mode), then with every step on Gemini in the cloud " +
                             "(${HybridAi.cloudChoice(ctx).label}). The report has both scores and a side-by-side table. The cloud half uses the project's free " +
                             "quota: about ${n * 6} to ${n * 10} requests. If every cloud model runs out, the run stops and can be resumed after the quota resets " +
                             "(midnight Pacific time). A full run takes most of a day. "
@@ -312,6 +314,8 @@ object HybridScreen {
             "(Cloud first; Nano never runs), so the two scores compare directly. It uses the free cloud quota: start with the quick run.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Cloud only: quick") { startReliable(1, HybridBench.Suite.RELIABLE_CLOUD) }, Ui.button(ctx, "Cloud only: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_CLOUD) })
         benchCard.addView(Ui.text(ctx, "Side by side runs each task on Gemini Nano and then in the cloud, and the report compares the two.", 13f, Ui.MUTED))
+        benchCard.addView(Ui.text(ctx, "Python only runs just the 13 real Python bug fixes on Gemini Nano, to try the Python helper quickly.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Python only: quick") { startReliable(1, HybridBench.Suite.RELIABLE_PY) }, Ui.button(ctx, "Python only: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_PY) })
         fs.buttonRow(benchCard, Ui.button(ctx, "Nano + cloud: quick") { startReliable(1, HybridBench.Suite.RELIABLE_BOTH) }, Ui.button(ctx, "Nano + cloud: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_BOTH) })
         // 1.5.192: the total benchmark, every chosen suite in one run and one zip, with a summary of them all
         fun startTotalNew() {

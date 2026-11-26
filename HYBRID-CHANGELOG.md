@@ -929,6 +929,17 @@ the files after the run, `transcript.txt` and `check.txt`.
   in app/src/test/resources/nano/py_edits/relevant.json). 1,353 unit tests, 0 failures.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1126-1352.
 
+
+### (next) · 2026-11-26 16:25 · Python-only reliability runs; 1.5.196
+
+- **Why:** the owner asked to run just the Python tests, to measure the Python helper quickly.
+- **What:** a "Python only: quick" and "Python only: full (3 runs)" pair of buttons in the benchmark section (Suite `RELIABLE_PY`,
+  "Python reliability benchmark (Gemini Nano)"): the 13 real Python bug fixes from rich and requests, on Gemini Nano alone in Private
+  mode, with the same soundness check, hidden tests, report, resume and zip as the full reliability suite. Its dialog has the
+  "Python helper for Gemini Nano on" box, so a run with the helper and one without compare directly. analyze.py reads its report as
+  a reliability run (its title ends "(Gemini Nano)").
+- **Files:** HybridBench.kt, HybridScreen.kt; app/build.gradle.kts (1.5.196-hybrid, code 244). 1,353 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

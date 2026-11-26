@@ -46,10 +46,12 @@ object HybridBench {
         /** 1.5.190: the reliability tasks with every step on Gemini in the cloud (Cloud first; Nano never runs). */
         RELIABLE_CLOUD("hybrid-reliable-cloud", "Cloud reliability benchmark (Gemini in the cloud)"),
         /** 1.5.190: each task run on Gemini Nano and then in the cloud, side by side, with a comparison in the report. */
-        RELIABLE_BOTH("hybrid-reliable-both", "Reliability benchmark (Gemini Nano and the cloud)");
+        RELIABLE_BOTH("hybrid-reliable-both", "Reliability benchmark (Gemini Nano and the cloud)"),
+        /** 1.5.196: only the 13 real Python tasks, on Gemini Nano alone, to measure the Python helper quickly. */
+        RELIABLE_PY("hybrid-reliable-python", "Python reliability benchmark (Gemini Nano)");
 
         /** The reliability suites share their tasks, checks, Python track and report. */
-        val reliable get() = this == RELIABLE || this == RELIABLE_CLOUD || this == RELIABLE_BOTH
+        val reliable get() = this == RELIABLE || this == RELIABLE_CLOUD || this == RELIABLE_BOTH || this == RELIABLE_PY
     }
 
     /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
@@ -174,7 +176,8 @@ object HybridBench {
         Suite.SCRATCH -> HybridBenchTasks.SCRATCH; Suite.APP -> HybridBenchTasks.APP; Suite.STANDARD -> HybridBenchTasks.ALL
         Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs)
         Suite.RELIABLE_CLOUD -> dev.pocketide.app.core.ReliableBench.forCloud(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs))
-        Suite.RELIABLE_BOTH -> dev.pocketide.app.core.ReliableBench.both(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs)) }
+        Suite.RELIABLE_BOTH -> dev.pocketide.app.core.ReliableBench.both(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs))
+        Suite.RELIABLE_PY -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, true).filter { it.track == "Python" }, runs) }
 
     /** The settings a run changes, as they are now, to put back afterwards. */
     fun beforeNow(act: MainActivity): Map<String, String> = AppSettings(act).let { s ->
