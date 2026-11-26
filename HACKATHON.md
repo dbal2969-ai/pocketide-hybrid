@@ -102,8 +102,6 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
    limit, routing and cloud switch, the keys tune Gemini Nano without an app update: extra instructions, the Python helper's note
    and worked examples, Nano's temperature, top-K, reply length and model, the cloud tier, handoff and quota thresholds, and
    switches for each of the newer repairs.
-   `hybrid_on_device_max_chars` (number), `hybrid_default_mode` (`PREFER_ON_DEVICE`, `PREFER_IN_CLOUD` or `ONLY_ON_DEVICE`),
-   `hybrid_cloud_enabled` (boolean), `hybrid_limited_use_app_check_tokens` (boolean, default true: App Check replay protection).
 7. `./gradlew assembleDebug` (needs the Android SDK and NDK; see `.github/workflows/build-apk.yml`).
 
 On-device inference needs a phone that supports Gemini Nano through Android AICore (for example recent Pixel and Samsung
