@@ -12,6 +12,9 @@ import dev.pocketide.app.core.SyntaxCheck
  * null means no problem found (or the file could not be checked).
  */
 class SyntaxChecker(private val ctx: Context) {
+    /** Runs a command in PocketIDE's Linux and gives its exit code and output (set by ChatPane); Python files need it (1.5.188). */
+    var shell: ((String, (Int, String) -> Unit) -> Unit)? = null
+
     private var web: WebView? = null
     private var ready = false
     private val waiting = ArrayList<() -> Unit>()
@@ -70,6 +73,11 @@ class SyntaxChecker(private val ctx: Context) {
                     js(s.code, s.module, s.firstLine - 1) { err -> if (err != null) done("an inline <script>, $err") else next(i + 1) }
                 }
                 next(0)
+            }
+            SyntaxCheck.Kind.PYTHON -> {
+                val cmd = SyntaxCheck.pyCommand(text)
+                val sh = shell
+                if (cmd == null || sh == null) done(null) else sh(cmd) { code, out -> main.post { done(SyntaxCheck.pyResult(code, out)) } }
             }
             SyntaxCheck.Kind.NONE -> done(null)
         }

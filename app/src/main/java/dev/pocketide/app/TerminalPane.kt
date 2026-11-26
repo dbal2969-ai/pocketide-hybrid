@@ -204,6 +204,16 @@ class TerminalPane(private val ctx: Context, private val store: ProjectStore, pr
     private fun secrets(): Map<String, String> = try { dev.pocketide.app.core.Secrets(java.io.File(Projects.metaDir(ctx, store.root.name), "secrets.json")).all() } catch (e: Exception) { emptyMap() }
 
     /** Runs a command and shows it here. onDone gets the exit code and the output it produced. */
+    /** Runs [command] in Linux without showing it in the terminal (1.5.188: the Python syntax check on save); 127 without Linux. */
+    fun quietExec(command: String, timeoutSeconds: Long, onDone: (Int, String) -> Unit) {
+        try {
+            val viaLinux = linux?.takeIf { it.active }?.command(store.root, command) ?: run { onDone(127, ""); return }
+            val out = StringBuilder()
+            CommandRunner.run(store.root, home, command, timeoutSeconds, { s -> synchronized(out) { if (out.length < 20_000) out.append(s) } },
+                { code -> onDone(code, synchronized(out) { out.toString() }) }, viaLinux.first, viaLinux.second)
+        } catch (e: Throwable) { onDone(-1, e.message.orEmpty()) }
+    }
+
     fun exec(command: String, timeoutSeconds: Long, onDone: ((Int, String) -> Unit)?) {
         val sec = secrets()
         if (current != null) { onDone?.invoke(-1, "Another command is still running."); return }

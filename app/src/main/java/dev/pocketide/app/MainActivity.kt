@@ -419,7 +419,13 @@ class MainActivity : Activity() {
         if (newLayout && !viewingFile && current == 0) repoHome.refresh()
     }
 
+    override fun onStart() {
+        super.onStart()
+        HybridBench.screen(true)   // 1.5.188: a benchmark paused while PocketIDE was off screen carries on
+    }
+
     override fun onStop() {
+        HybridBench.screen(false)
         // leaving the chat screen during a request can stop it; the record says so
         dev.pocketide.app.core.ToolTrace.target?.let { dev.pocketide.app.core.ToolTrace.write(dev.pocketide.app.core.ToolTrace.event("the app left the screen during a request (it may stop)")) }
         super.onStop()

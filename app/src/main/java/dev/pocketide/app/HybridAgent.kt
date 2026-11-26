@@ -177,6 +177,12 @@ object HybridAgent {
             val retry = try { testPhone?.invoke(prompt + note) ?: HybridAi.onDeviceText(ctx, prompt + note) } catch (e: Exception) { null }
             if (retry != null) { val t2 = phoneTurn(retry, messages); turn = t2.first; why = t2.second; if (turn != null) return Phone(Result(turn, true, secs, ""), "") }
         }
+        // 1.5.188 (reliability run 1125-2053): in Private mode one reply that could not be read as an action ended the request, 11 times
+        // (rich_3006, rich_3067 twice each). Nano is asked once more, told what was wrong.
+        if (turn == null && only && why == "did not reply with one JSON action") {
+            val retry = try { testPhone?.invoke(prompt + "\n" + SmallLocal.ASK + SmallLocal.QUOTES_NOTE) ?: HybridAi.onDeviceText(ctx, prompt + "\n" + SmallLocal.ASK + SmallLocal.QUOTES_NOTE) } catch (e: Exception) { null }
+            if (retry != null) { val t2 = phoneTurn(retry, messages); if (t2.first != null) return Phone(Result(t2.first!!, true, secs, ""), ""); why = t2.second }
+        }
         // 1.5.185 (in-app run 1, app01/app04): a refusal written as an answer action was shown as raw JSON; its text is shown instead
         val shown = (if (SmallLocal.isAction(reply)) SmallLocal.parse(reply) { Tools.paramTypes(it) }.text else "").ifBlank { reply.trim() }
         if (only) return Phone(Result(ToolTurn(shown.trim(), emptyList(), "stop"), true, secs, "Gemini Nano $why; this mode never uses the cloud."), "")

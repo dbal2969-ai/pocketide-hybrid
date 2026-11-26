@@ -125,6 +125,9 @@ object SmallLocal {
     const val ASK = "Nothing ran: your last reply was not one JSON object. Reply with exactly one object with the keys " +
         "\"reason\", \"tool\" and \"tool_args\"; to reply to the person, tool \"answer\" with tool_args {\"text\": your reply}."
 
+    /** Added to [ASK] on the second try (1.5.188): most unreadable replies had a double quote or a line break left raw in a string. */
+    const val QUOTES_NOTE = " Inside a JSON string, write a double quote as \\\" and a line break as \\n.\nYour reply, one JSON object:"
+
     /** One action read from a reply: the thought (shown as the reply text) and the tool call, or the answer text with no call. */
     fun parse(reply: String, types: (String) -> Map<String, String>?): TextTools.Parsed {
         val o = obj(reply) ?: return TextTools.Parsed(reply.trim(), emptyList())
@@ -145,12 +148,26 @@ object SmallLocal {
     /** True when the reply holds a JSON object this mode can read as one action (or an answer). */
     fun isAction(reply: String): Boolean = obj(reply) != null
 
-    /** The first JSON object in a reply (a fence around it is fine), or null. */
+    /**
+     * The first JSON object in a reply (a fence around it is fine), or null. 1.5.188: when it is not valid JSON, the usual small-model
+     * mistakes are repaired (LenientJson: unescaped quotes, r"..." values, bad escapes, line breaks in strings), and an action
+     * written as YAML is read too; the result must still name a tool to count.
+     */
     private fun obj(reply: String): Map<String, Any?>? {
         val start = reply.indexOf('{')
         val end = reply.lastIndexOf('}')
-        if (start < 0 || end <= start) return null
-        return try { MiniJson.obj(MiniJson.parse(reply.substring(start, end + 1))) } catch (e: Exception) { null }
+        if (start >= 0 && end > start) {
+            val body = reply.substring(start, end + 1)
+            try { return MiniJson.obj(MiniJson.parse(body)) } catch (e: Exception) { }
+            // the object may come after code with braces of its own (a ```greet.js fence, then ```json): each { that opens a key is tried
+            val starts = listOf(start) + Regex("""\{\s*"""").findAll(reply).map { it.range.first }.filter { it > start && it < end }.toList()
+            for (st in starts) {
+                val b = reply.substring(st, end + 1)
+                if (st != start) try { MiniJson.obj(MiniJson.parse(b))?.let { if (it[TOOL] is String) return it } } catch (e: Exception) { }
+                try { MiniJson.obj(MiniJson.parse(LenientJson.repair(b)))?.let { if (it[TOOL] is String || (st == start && it[REASON] is String)) return it } } catch (e: Exception) { }
+            }
+        }
+        return LenientJson.yaml(reply)
     }
 
     /**

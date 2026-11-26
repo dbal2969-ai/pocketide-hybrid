@@ -363,6 +363,22 @@ class HybridAgentLoopTest {
         assertTrue(o.file("app.js")!!.contains("a + b"))
     }
 
+    /** 1.5.188 (reliability run 1125-2053, rich_3006): in Private mode a reply that is no action at all ended the request; Nano is asked again. */
+    @Test fun privateModeAsksAgainAfterAReplyThatIsNoAction() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("hybrid_ai", 0).edit().putString("mode", HybridAi.Mode.ONLY_ON_DEVICE.name).commit()
+        val prompts = ArrayList<String>()
+        val q = ArrayDeque(listOf("I would change the minus to a plus in app.js.",
+            action("edit_file", "path" to "app.js", "search" to "return a - b;", "replace" to "return a + b;"),
+            action("run_command", "command" to "node test.js")))
+        HybridAgent.testPhone = { p -> prompts.add(p); nanoPrompts++; q.removeFirstOrNull() ?: """{"reason":"done","tool":"answer","tool_args":{"text":"Fixed add."}}""" }
+        cloud()
+        val o = run("Fix add in app.js so the test passes")
+        assertFalse("timed out", o.timedOut)
+        assertEquals(0, cloudCalls)
+        assertTrue(prompts.any { it.contains("write a double quote as") })
+        assertTrue(o.file("app.js")!!.contains("a + b"))
+    }
+
     /** Benchmark run 5, task 05: the stand-in was removed with edit_lines and the test passed, but the run ended "unfinished files: app.js". */
     @Test fun aStandInRemovedWithEditLinesIsNoLongerUnfinished() {
         val start = mapOf("app.js" to "function add(a, b) {\n  return a + b;\n}\nmodule.exports = { add };\n",

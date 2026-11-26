@@ -7,7 +7,7 @@ package dev.pocketide.app.core
  * hidden browser, which this file only builds the call for. The file is always saved; the error is a warning to fix next.
  */
 object SyntaxCheck {
-    enum class Kind { SCRIPT, MODULE, JSON, CSS, HTML, NONE }
+    enum class Kind { SCRIPT, MODULE, JSON, CSS, HTML, PYTHON, NONE }
 
     private val MODULE_HINT = Regex("""(?m)^\s*(import\s+[\w{*'"]|import\(|export\s+(default|const|let|var|function|class|async|\{|\*))""")
 
@@ -17,6 +17,7 @@ object SyntaxCheck {
         "json" -> Kind.JSON
         "css" -> Kind.CSS
         "html", "htm" -> Kind.HTML
+        "py" -> Kind.PYTHON
         else -> Kind.NONE
     }
 
@@ -93,7 +94,32 @@ object SyntaxCheck {
 
     /** The line added to the tool result. */
     /** True for files a broken write is refused for: a script, a page or a data file (a half-written one breaks the page). */
-    fun guarded(path: String): Boolean = path.substringAfterLast('.', "").lowercase() in setOf("js", "mjs", "cjs", "html", "htm", "json")
+    fun guarded(path: String): Boolean = path.substringAfterLast('.', "").lowercase() in setOf("js", "mjs", "cjs", "html", "htm", "json", "py")
+
+    /**
+     * Python (1.5.188, reliability run 1125-2053): every Python edit that broke the tests broke the file's syntax (an unexpected
+     * indent, 'return' outside function, an unclosed triple quote) and was saved anyway. The text is parsed with Python's own ast
+     * module in PocketIDE's Linux; it goes in as base64 so no quoting can break the command, which caps it at [PY_MAX] characters
+     * (one shell argument). Null when the file is too long to check this way.
+     */
+    const val PY_MAX = 90_000
+
+    fun pyCommand(text: String): String? {
+        if (text.length > PY_MAX) return null
+        val b64 = java.util.Base64.getEncoder().encodeToString(text.toByteArray(Charsets.UTF_8))
+        return "printf '%s' '$b64' | base64 -d | python3 -c 'import ast,sys; ast.parse(sys.stdin.buffer.read().decode(\"utf-8\",\"replace\"))'"
+    }
+
+    private val PY_ERR = Regex("""(?m)^(SyntaxError|IndentationError|TabError): (.+)$""")
+    private val PY_LINE = Regex("""line (\d+)""")
+
+    /** What [pyCommand] printed, as "line N: SyntaxError: …"; null when it parsed or could not be checked (no Python). */
+    fun pyResult(code: Int, out: String): String? {
+        if (code == 0) return null
+        val m = PY_ERR.findAll(out).lastOrNull() ?: return null
+        val line = PY_LINE.findAll(out.substring(0, m.range.first)).lastOrNull()?.groupValues?.get(1)
+        return (line?.let { "line $it: " } ?: "") + m.groupValues[1] + ": " + m.groupValues[2].trim()
+    }
 
     /** True when the error says the text stops early: the reply was cut off while the file was being written. */
     fun cutOff(error: String): Boolean = error.contains("Unexpected end of input", true) || error.contains("Unterminated", true) || error.contains("end of data", true)

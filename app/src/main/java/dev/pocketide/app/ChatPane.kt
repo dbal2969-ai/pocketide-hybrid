@@ -94,7 +94,7 @@ class ChatPane(
     /** Spending limit for the request the person typed last; every exchange it starts (fixes, reviews, the advisor) counts toward it. */
     @Volatile private var runBudget: dev.pocketide.app.core.RunBudget? = null
     /** Parses files the assistant writes (JavaScript via the bundled Acorn parser). */
-    private val syntaxChecker by lazy { SyntaxChecker(ctx) }
+    private val syntaxChecker by lazy { SyntaxChecker(ctx).also { sc -> sc.shell = { cmd, cb -> if (terminal.linuxActive) terminal.quietExec(cmd, 30, cb) else cb(127, "") } } }
     private val list = Ui.vertical(ctx)
     private val scroll = ScrollView(ctx)
     private val input = EditText(ctx)

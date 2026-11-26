@@ -57,6 +57,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | scratch 1125-1619 (from-scratch run 3) | `5ac38af` (labelled 1.5.183) | **0 of 10** | 67 of 70 | the day's free cloud quota was used up for every tier: nine requests ended even after waiting; with the cloud gone, Nano alone could not finish any app (pages that load a script.js never written, a calculator showing 0) | `4cb790a` |
 | standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | `5d47c35` |
 | reliable 1125-1815 (reliability run 1, full, 3 runs) | `5d47c35` | **116 of 141 runs on Nano Full (E4B) alone**; dev pass@1 91% (pass^3 16 of 20), held-out 75%, Node 87%, Python 0 of 9; analysis 110 clean, 6 with problems, 25 failed | 996 of 996 (median 3.6 s) | 141 edits refused as "NOT SAVED: syntax error": with `all: true` and a function's first line as the search, the replace-all skipped the brace repair; r20 bare-name renames refused as ambiguous; r03 run 2 edited a file on a "do not fix anything" task; l13 run 3 passed its visible test but broke behaviour (dev tasks had no hidden checks on the phone); the Python statements were too short ("port bpo-39057"); 10 rich tasks' hidden tests fail on the phone with the reference fix; 5 analyzer false alarms on report-only tasks | `c2a5662` |
+| reliable 1125-2053 (reliability run 2, full, 3 runs, Python included) | `c2a5662` (1.5.187) | **114 of 171 on Nano Full alone**; dev pass@1 88% (pass^3 14 of 20), held-out 54%, Node 86% (114 of 132), Python 0 of 39; analysis 113 clean, 1 with problems, 57 failed | 1,529 of 1,529 | PocketIDE left the screen at 00:33: the last 10 rich runs (and rich_3043 run 2) each waited 10 minutes for AICore's "Background usage is blocked" with no step taken; 16 Nano replies thrown away as "not one JSON action" were the right action in broken JSON (unescaped quotes, `r"..."` values, YAML), and in Private mode each one ended the request (rich_3006 and rich_3067 never edited); every Python edit that broke the tests was a SyntaxError or IndentationError saved as written; Node: l05 and l06 hard-coded the visible test's value (caught by the new dev hidden checks), r14 `'grape',,`, r18 wrong JSON shape, r07 never fixed in 41 steps, r23 edited the wrong helper | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -745,6 +746,37 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** BenchResumeTest (4): the progress file round-trips (tabs, newlines, commas in pytest ids), an interrupted task moves to
   the back, a task interrupted twice is given up, an interruption between tasks charges no task, saved results and the partial zip's
   name. 1,332 unit tests, 0 failures. Not yet tried on the phone.
+
+
+### (next) · 2026-11-26 05:20 · Fixes from reliability run 2 (114 of 171): Nano's broken JSON is read, Python syntax is checked on save, the benchmark pauses off screen; 1.5.189
+
+- **Why:** reliability run 2 (pocketide-hybrid-reliable-benchmark-1125-2053, build 1.5.187, 57 tasks × 3 runs, Python
+  included). Every run's report row, check.txt, transcript and nano.jsonl was read and analyze.py reran every check; the findings
+  are in the benchmark history row above.
+- **Nano's actions in broken JSON are read** (core/LenientJson.kt, SmallLocal `obj`): when strict parsing fails, the reply is
+  repaired (a double quote inside a string is escaped unless JSON structure follows it, an `r"..."` value loses its `r`, escapes
+  JSON lacks such as `\w` are doubled, line breaks in strings are escaped), each `{` that opens a key is tried when code with
+  braces comes first, and an action written as YAML (`reason:`, `tool:`, `tool_args:` with indented keys or `|` blocks) is read.
+  All 16 of the run's thrown-away replies are now read (test data: app/src/test/resources/nano/unusable-1125-2053.jsonl).
+- **Private mode asks again** (HybridAgent): a reply that still cannot be read no longer ends the request; Nano is asked once more
+  (SmallLocal.ASK plus `QUOTES_NOTE`, how to write a quote and a line break inside a JSON string).
+- **Python syntax is checked when a file is saved** (core/SyntaxCheck `pyCommand`/`pyResult`, SyntaxChecker `shell`,
+  TerminalPane `quietExec`, ChatPane): the text is parsed with Python's ast module in PocketIDE's Linux (sent as base64, up to
+  90,000 characters), and `.py` joins the guarded files, so a write that breaks a working Python file is not kept and Nano is told
+  the line and error, as for JavaScript. Without Linux or Python the check is skipped.
+- **The benchmark pauses when PocketIDE leaves the screen** (HybridBench `onScreen`, `leftScreen`, `onceOnScreen`; MainActivity
+  onStart/onStop): Gemini Nano only runs for an app on screen. After 15 s off screen the task is stopped, nothing is scored, a toast
+  says the run is paused, and the same task runs again in a fresh project once PocketIDE is back (also when AICore's "Background
+  usage is blocked" shows up in a task's log), up to 3 times per task. The report lists the tasks that were run again.
+- **Found, not changed (Nano's own mistakes):** l05 and l06 returned the visible test's expected value (`return 5;`,
+  `'Hello, Ana!'`); the dev hidden checks now catch this. r14 left `'grape',,` (valid JavaScript, so no syntax error); r18 wrote
+  the enemies as one string; r07 never changed `level + 1` in 41 steps.
+- **Files:** core/LenientJson.kt (new), core/SmallLocal.kt, HybridAgent.kt, core/SyntaxCheck.kt, SyntaxChecker.kt, TerminalPane.kt,
+  ChatPane.kt, HybridBench.kt, MainActivity.kt; app/build.gradle.kts (1.5.189-hybrid, code 237).
+- **Tests:** LenientJsonTest (5): all 16 real replies, unescaped quotes, raw strings and bad escapes, YAML, valid JSON unchanged;
+  HybridAgentLoopTest `privateModeAsksAgainAfterAReplyThatIsNoAction`. 1,338 unit tests, 0 failures. The Python check and the off-screen
+  pause need the phone.
+- **Evidence:** pocketide-hybrid-benchmark-reliable-1125-2053.
 
 ---
 

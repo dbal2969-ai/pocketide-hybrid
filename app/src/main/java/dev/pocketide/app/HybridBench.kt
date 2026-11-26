@@ -71,6 +71,16 @@ object HybridBench {
         Run(act, kind, s.helping, s.runs, s.python, s).also { current = it }.begin()
     }
 
+    /**
+     * Whether PocketIDE is on screen (MainActivity onStart/onStop). Gemini Nano only runs for an app on screen: in reliability run
+     * 1125-2053 PocketIDE left the screen at 00:33 and the last 10 tasks each waited 10 minutes for AICore's "Background usage is
+     * blocked" and failed with no step taken. 1.5.188: the run pauses instead, and the task is run again when PocketIDE is back.
+     */
+    @Volatile var onScreen = true
+        private set
+
+    fun screen(on: Boolean) { onScreen = on; if (on) current?.backOnScreen() }
+
     /** Stops the run now (1.5.188): the finished tasks are zipped, and the run can be resumed later. */
     fun stop() { current?.stop() }
 
@@ -153,7 +163,7 @@ object HybridBench {
 
     /** The report for [results]: the suite's report, and for the reliability suite its pass@1 and pass^k summary. */
     fun reportText(ctx: android.content.Context, kind: Suite, helping: Boolean, stamp: String, results: List<HybridBenchTasks.Result>, problem: String?,
-                   total: Int, runs: Int, pythonNote: String, deselect: Map<String, List<String>>, unsound: Map<String, String>): String {
+                   total: Int, runs: Int, pythonNote: String, deselect: Map<String, List<String>>, unsound: Map<String, String>, notes: String = ""): String {
         val strong = if (helping) helperStrong(AppSettings(ctx)) else null
         val hs = HybridAi.settings(ctx)
         val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
@@ -163,7 +173,8 @@ object HybridBench {
             (if (kind != Suite.RELIABLE) "" else dev.pocketide.app.core.ReliableBench.summary(results) +
                 (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
                 (if (deselect.isEmpty()) "" else "\nHidden tests left out because they fail on this phone even with the reference fix:\n" + deselect.entries.joinToString("\n") { "- ${it.key}: ${it.value.joinToString()}" } + "\n") +
-                (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n"))
+                (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n")) +
+            (if (notes.isEmpty()) "" else "\n$notes\n")
     }
 
     /** Zips the tasks an interrupted run finished (report-partial.md says so), and says where the zip went. */
@@ -241,6 +252,33 @@ object HybridBench {
         var state = resume?.copy(active = true, current = null) ?: BenchResume.State(suite, stamp, helping, runs, python, all.map { it.id }, before = before)
         /** Set by [stop]: late callbacks from the task that was running record nothing. */
         @Volatile var stopped = false
+        /** PocketIDE left the screen during the task: it is run again, not scored (1.5.188). [offSince]: when it left. */
+        var redo = false
+        var offSince = 0L
+        val reruns = LinkedHashMap<String, Int>()
+        /** What to do once PocketIDE is back on screen. */
+        var whenBack: (() -> Unit)? = null
+
+        fun backOnScreen() { val f = whenBack ?: return; whenBack = null; main.postDelayed({ if (!stopped) f() }, 3000) }
+
+        /** Runs [then] now if PocketIDE is on screen, else once it is back. */
+        fun onceOnScreen(then: () -> Unit) {
+            if (onScreen) { main.postDelayed({ if (!stopped) then() }, 3000); return }
+            whenBack = then
+            act.window.decorView.post { toast("Benchmark paused: PocketIDE left the screen, and Gemini Nano only runs while it is shown. It carries on when you come back.") }
+        }
+
+        /** A watch step: true when PocketIDE has been off screen for 15 s, so the task was stopped to be run again. */
+        fun leftScreen(chat: ChatPane, done: (String) -> Unit): Boolean {
+            if (onScreen) { offSince = 0; return false }
+            val now = System.currentTimeMillis()
+            if (offSince == 0L) offSince = now
+            if (now - offSince < 15_000) return false
+            redo = true
+            chat.stopNow()
+            main.postDelayed({ done("PocketIDE left the screen") }, 3000)
+            return true
+        }
 
         fun save(current: String?) {
             state = state.copy(current = current, done = results.map { it.task.id }, unsound = LinkedHashMap(unsound), deselect = HashMap(deselect), pythonNote = pythonNote)
@@ -399,6 +437,7 @@ object HybridBench {
             act.benchAsk(name, t.prompt)
             fun watch() {
                 if (finished) return
+                if (leftScreen(chat) { done(it) }) return
                 val spent = System.currentTimeMillis() - t0
                 when {
                     spent > TASK_LIMIT_MS -> { chat.stopNow(); main.postDelayed({ done("timed out after ${TASK_LIMIT_MS / 60_000} min") }, 6000) }
@@ -442,6 +481,7 @@ object HybridBench {
             act.benchChatHome(t.prompt)
             fun watch() {
                 if (finished) return
+                if (leftScreen(chat) { done(it) }) return
                 val spent = System.currentTimeMillis() - t0
                 when {
                     spent > TASK_LIMIT_MS * 2 -> { chat.stopNow(); main.postDelayed({ done("timed out after ${TASK_LIMIT_MS * 2 / 60_000} min") }, 6000) }
@@ -460,6 +500,14 @@ object HybridBench {
             for (p in tampered) try { File(root, p).writeText(t.files.getValue(p)) } catch (e: Exception) { }
             val tamperNote = if (tampered.isEmpty()) "" else "The model changed ${tampered.joinToString(", ")}; the task's own version was put back before the check.\n"
             val transcript = (extra + name).joinToString("\n\n") { transcripts(it, t0) }
+            // 1.5.188: the task ran while PocketIDE was off screen (the watch stopped it, or AICore refused): it is run again, up to 3 times
+            val blocked = redo || transcript.contains("BACKGROUND_USE_BLOCKED") || transcript.contains("Background usage is blocked")
+            redo = false; offSince = 0
+            if (blocked && (reruns[t.id] ?: 0) < 3) {
+                reruns[t.id] = (reruns[t.id] ?: 0) + 1
+                onceOnScreen { next() }
+                return
+            }
             val record = record@{ code: Int?, text: String ->
                 if (stopped) return@record
                 val now = settingsNow()
@@ -520,7 +568,9 @@ object HybridBench {
             restore(act, before)
             act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             state = state.copy(active = false, finished = true); save(null)
-            val report = reportText(act, kind, helping, stamp, results, problem, state.order.size, runs, pythonNote, deselect, unsound)
+            val report = reportText(act, kind, helping, stamp, results, problem, state.order.size, runs, pythonNote, deselect, unsound,
+                if (reruns.isEmpty()) "" else "Run again because PocketIDE left the screen during them (Gemini Nano only runs while it is shown; not scored): " +
+                    reruns.entries.joinToString(", ") { "${it.key} (${it.value}×)" } + ".")
             File(out, "report.md").writeText(report)
             val where = try {
                 saveToDownloads(act, "pocketide-$suite${if (helping) "-helping" else ""}-benchmark-$stamp.zip") { os -> zipDir(out, os) }
