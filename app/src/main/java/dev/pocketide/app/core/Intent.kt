@@ -24,7 +24,8 @@ object Intent {
      * says outright that nothing may change (1.5.184, local benchmark run 1: "Which file defines MAX_LIVES? Reply with the file
      * name only. Change nothing." was taken as a task because of the word "change", and a correct answer was marked a failure).
      */
-    private val NO_CHANGE = Regex("""(?i)\b((change|edit|modify|touch)\s+nothing|do(?:n'?t|\s+not)\s+(change|edit|modify|touch)\s+(anything|any\s+files?|the\s+files?|any\s+code|the\s+code)|make\s+no\s+changes)\b(?!\s+else)""")
+    // 1.5.187 (reliability run 1125-1815, r03 run 2): "Do not fix anything" and "only report" were not read as no-change, and Nano edited text.js
+    private val NO_CHANGE = Regex("""(?i)\b((change|edit|modify|touch|fix)\s+nothing|do(?:n'?t|\s+not)\s+(change|edit|modify|touch|fix)\s+(anything|any\s+files?|the\s+files?|any\s+code|the\s+code|it)|make\s+no\s+changes|only\s+report)\b(?!\s+else)""")
 
     fun of(text: String): Kind = when {
         NO_CHANGE.containsMatchIn(text) && !Scope.asksForChange(NO_CHANGE.replace(text, " ")) ->

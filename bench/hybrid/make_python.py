@@ -138,7 +138,29 @@ def build(task, clones, python, rate):
             statement = task["problem_statement"].strip()
             statement = re.sub(r"<!--.*?-->", "", statement, flags=re.S)
             statement = re.sub(r"\n{3,}", "\n\n", statement)[:1500]
+            # the new tests' code, as the prompt shows it (1.5.187: "port bpo-39057" alone told Nano nothing)
+            code = []
+            import ast
+            for t in tfiles:
+                src_t = open(os.path.join(tdir, t)).read()
+                lines = src_t.splitlines()
+                wanted = set(new_tests(task["test_patch"]))
+                # tests the patch changed rather than added: the functions holding its added lines (after-image line numbers)
+                touched, cur, in_file = set(), 0, False
+                for pl in task["test_patch"].splitlines():
+                    if pl.startswith("+++ "): in_file = pl[6:] == t; continue
+                    if not in_file: continue
+                    m = re.match(r"@@ -\d+(?:,\d+)? \+(\d+)", pl)
+                    if m: cur = int(m.group(1)); continue
+                    if pl.startswith("+"): touched.add(cur); cur += 1
+                    elif not pl.startswith("-"): cur += 1
+                for node in ast.walk(ast.parse(src_t)):
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test") and \
+                            (node.name in wanted or any(node.lineno <= n <= node.end_lineno for n in touched)):
+                        start = min([d.lineno for d in node.decorator_list] + [node.lineno]) - 1
+                        code.append("\n".join(lines[start:node.end_lineno]))
             return {
+                "test_code": "\n\n".join(dict.fromkeys(code))[:1800],
                 "id": iid, "repo": repo, "fix": fix_files[0], "tests": tfiles, "new_tests": new_tests(task["test_patch"]),
                 "visible": "python3 -m pytest -q -p no:cacheprovider " + " ".join(tfiles),
                 "hidden": ("python3 -m pytest -q -p no:cacheprovider " + " ".join(hidden)) if hidden else "",

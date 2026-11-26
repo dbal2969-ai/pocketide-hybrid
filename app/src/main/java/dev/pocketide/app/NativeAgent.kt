@@ -1167,6 +1167,8 @@ class NativeAgent(
      * 1.5.185: the card for an app_settings proposal. Nothing changes until the person taps Apply; during a benchmark the card
      * declines itself, so a run never changes the phone's settings, and the decision is written to the chat's record.
      */
+    private val RENAME = Regex("""(?i)\brename\b""")
+
     private fun settingsCard(c: dev.pocketide.app.core.AppSettingsTool.Check.Ok, now: String, why: String) {
         val tool = dev.pocketide.app.core.AppSettingsTool
         val card = Ui.vertical(ctx)
@@ -2408,7 +2410,9 @@ class NativeAgent(
                 val search = dev.pocketide.app.core.OverEscaped.decode(rawSearch).takeIf { it != rawSearch && rawSearch !in cur && it in cur } ?: rawSearch
                 val block = EditBlock(p, search, if (escaped) dev.pocketide.app.core.OverEscaped.decode(rawReplace) else rawReplace)
                 val every = a["all"] == true || a["all"]?.toString()?.trim()?.lowercase() == "true"
-                val res = if (every) EditBlocks.applyAll(cur, block) else EditBlocks.apply(cur, block)
+                val res = (if (every) EditBlocks.applyAll(cur, block) else EditBlocks.apply(cur, block)).let { r ->
+                    // 1.5.187: in a rename request, a bare old name → new name renames every use instead of being refused as ambiguous
+                    if (r.text == null && !every && RENAME.containsMatchIn(request)) EditBlocks.renameAll(cur, block) ?: r else r }
                 val escNote = if (escaped || search != rawSearch) dev.pocketide.app.core.OverEscaped.NOTE else ""
                 val newText = res.text
                 if (newText == null) { reply("Edit not applied to $p: ${res.error ?: "the search text was not found"}. Read the file again and copy the text exactly.", "$label (failed)"); return }

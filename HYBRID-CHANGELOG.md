@@ -56,6 +56,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | app 1125-1555 (in-app questions run 2) | `ea46a32` | **app 10 of 14; analysis 10 clean** | 14 of 16 | app11 matched "OpenAI API Key" to the wrong tick box and Nano claimed a proposal; app05 Nano missed the top match; app04 not taken as about the app; app08 wording not accepted | `5ac38af` |
 | scratch 1125-1619 (from-scratch run 3) | `5ac38af` (labelled 1.5.183) | **0 of 10** | 67 of 70 | the day's free cloud quota was used up for every tier: nine requests ended even after waiting; with the cloud gone, Nano alone could not finish any app (pages that load a script.js never written, a calculator showing 0) | `4cb790a` |
 | standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | `5d47c35` |
+| reliable 1125-1815 (reliability run 1, full, 3 runs) | `5d47c35` | **116 of 141 runs on Nano Full (E4B) alone**; dev pass@1 91% (pass^3 16 of 20), held-out 75%, Node 87%, Python 0 of 9; analysis 110 clean, 6 with problems, 25 failed | 996 of 996 (median 3.6 s) | 141 edits refused as "NOT SAVED: syntax error": with `all: true` and a function's first line as the search, the replace-all skipped the brace repair; r20 bare-name renames refused as ambiguous; r03 run 2 edited a file on a "do not fix anything" task; l13 run 3 passed its visible test but broke behaviour (dev tasks had no hidden checks on the phone); the Python statements were too short ("port bpo-39057"); 10 rich tasks' hidden tests fail on the phone with the reference fix; 5 analyzer false alarms on report-only tasks | `(next)` |
 
 Reports and zips: run results are kept by the owner (Downloads/PocketIDE on the phone). Each zip has `report.md` and, per task,
 the files after the run, `transcript.txt` and `check.txt`.
@@ -684,6 +685,38 @@ the files after the run, `transcript.txt` and `check.txt`.
   - analyze.py was checked on a synthetic run.
   - 1,324 unit tests, 0 failures.
 - **Evidence:** Kaggle task_features.csv and small_model_summary.csv (E2B 5 of 114, E4B 16 of 114); pocketide-hybrid-benchmark-1125-1718.
+
+
+### (next) · 2026-11-25 20:50 · Fixes from reliability run 1 (116 of 141, Nano alone); 1.5.187
+
+- **Why:** the first full reliability run (pocketide-hybrid-benchmark-reliable-1125-1815, 44 tasks × 3 runs on Gemini Nano Full
+  (E4B), Private mode, build 1.5.186). Every transcript, check.txt, file set and report line was read; the findings are in the
+  benchmark history row above.
+- **Replace-all keeps the edit repairs** (core/EditBlocks.kt `applyAll`): the main failure. Nano searched for a function's first
+  line with `all: true` and gave the whole new function as the replacement. `apply` repairs that case (`covered()` widens the
+  match to the old block) but `applyAll` did a plain replace, so the old body stayed after the new one, the file failed its syntax
+  check and the edit was refused (141 refusals). Now one match goes through `apply` with all its repairs, and each of several
+  matches is widened the same way.
+- **Renames of a bare name** (NativeAgent edit_file, `EditBlocks.renameAll`): when the request says "rename" and the search and
+  replacement are each one identifier, an ambiguous match renames every whole-word use (`MAX_HP` → `MAX_HEALTH`, not
+  `MAX_HP_BONUS`). Without a rename request an ambiguous search is still refused, as before (r20).
+- **"Do not fix anything", "fix nothing", "only report"** now count as no-change requests (core/Intent.kt), so the edit is refused
+  and Nano answers (r03 run 2).
+- **Dev hidden checks on the phone** (ReliableBench `devTasks(hidden)`, assets/bench/reliable/dev_hidden.json written by
+  make_reliable.py): the 20 dev tasks now run a hidden check as well as test.js, so a fix that passes the visible test but
+  breaks behaviour fails (l13 run 3 replaced the default case with a label).
+- **Python track:** the prompt now includes the failing test's code (make_python.py extracts new or changed test functions with
+  ast), because statements like "port bpo-39057" told Nano nothing. Hidden tests that fail on the phone even with the reference
+  fix are deselected (HybridBench `soundHere`), so the 10 rich tasks left out in run 1 can be scored; `ReliableBench.reason()`
+  gives each failure's reason in the report, and the report counts every result.
+- **analyze.py:** report-only tasks no longer run test.js (5 false "with problems" verdicts in run 1).
+- **Files:** core/EditBlocks.kt, NativeAgent.kt, core/Intent.kt, core/ReliableBench.kt, HybridBench.kt,
+  app/src/main/assets/bench/reliable/ (python.json, dev_hidden.json); bench/hybrid/make_python.py, make_reliable.py,
+  python/python_tasks.json, analyze.py; app/build.gradle.kts (1.5.187-hybrid, code 235).
+- **Tests:** ReliableRun1Test (new: replace-all with a first-line search, renames, no-change wording, dev hidden checks);
+  HybridAgentLoopTest `nanoRenamesABareNameWithoutAllInARenameRequest`, and `repeatingAFailedStepHandsTheRestToTheCloud` now
+  repeats a search that is not a bare name. 1,328 unit tests, 0 failures.
+- **Evidence:** pocketide-hybrid-benchmark-reliable-1125-1815.
 
 ---
 

@@ -67,7 +67,9 @@ object HybridBench {
             }
             m
         }
-        return rb.devTasks() + node + py
+        val devHidden = try { (dev.pocketide.app.core.MiniJson.obj(dev.pocketide.app.core.MiniJson.parse(act.assets.open("bench/reliable/dev_hidden.json").bufferedReader().readText())) ?: emptyMap())
+            .mapValues { it.value.toString() } } catch (e: Exception) { emptyMap() }
+        return rb.devTasks(devHidden) + node + py
     }
 
     private class Run(val act: MainActivity, val kind: Suite, val helping: Boolean, val runs: Int = 1, val python: Boolean = true) {
@@ -89,6 +91,8 @@ object HybridBench {
             Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(act, python), runs) }.toMutableList()
         /** Reliability suite: tasks whose reference fix does not pass on this phone (its packages differ), left out of the scores. */
         val unsound = LinkedHashMap<String, String>()
+        /** Python hidden tests that fail on this phone even with the reference fix (its packages differ): left out of that task's hidden check. */
+        val deselect = HashMap<String, List<String>>()
         val checked = HashSet<String>()
         var pythonNote = ""
         /** Gemini Nano's exchanges in the current task (HybridAgent.recorder), saved as nano.jsonl. */
@@ -170,9 +174,19 @@ object HybridBench {
                     if (!ok) unsound[base] = "the reference fix fails here: " + out.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(140)
                     reset(); then()
                 } else act.benchChat().runForChecks(hid) { code2, out2 ->
-                    main.post {
-                        if (code2 != 0) unsound[base] = "the reference fix fails the hidden check here: " + out2.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(140)
+                    // 1.5.187 (reliability run 1125-1815: 10 rich tasks left out over 1 or 2 tests each): a hidden test that fails with the
+                    // reference fix fails because of this phone's packages, not the task; like SWE-bench's pass-to-pass list, only tests that
+                    // pass here count. They are deselected, and the rest must pass.
+                    val failed = Regex("""(?m)^FAILED (\S+)""").findAll(out2).map { it.groupValues[1] }.toList()
+                    if (code2 == 0 || t.track != "Python" || failed.isEmpty()) main.post {
+                        if (code2 != 0) unsound[base] = "the reference fix fails the hidden check here: " + dev.pocketide.app.core.ReliableBench.reason(out2)
                         reset(); then()
+                    } else act.benchChat().runForChecks(hid + failed.joinToString("") { " --deselect " + it }) { code3, out3 ->
+                        main.post {
+                            if (code3 == 0) deselect[base] = failed
+                            else unsound[base] = "the reference fix fails the hidden check here: " + dev.pocketide.app.core.ReliableBench.reason(out3)
+                            reset(); then()
+                        }
                     }
                 }
             }
@@ -311,7 +325,8 @@ object HybridBench {
         /** Writes the task's hidden files, runs its hidden command, then removes them again. */
         fun hidden(t: HybridBenchTasks.Task, root: File, done: (Int?, String) -> Unit) {
             for ((p, text) in t.hidden) File(root, p).writeText(text)
-            act.benchChat().runForChecks(t.hiddenCommand!!) { code, text ->
+            val left = deselect[dev.pocketide.app.core.ReliableBench.baseId(t.id)].orEmpty()
+            act.benchChat().runForChecks(t.hiddenCommand!! + left.joinToString("") { " --deselect " + it }) { code, text ->
                 main.post {
                     for (p in t.hidden.keys) File(root, p).delete()
                     done(code, text)
@@ -342,9 +357,10 @@ object HybridBench {
             val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
                 "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
                 (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(act).let { it.label + " (" + it.about + ")" }}"
-            val report = HybridBenchTasks.report(results, about, problem, tasks.size, kind.title + if (helping) " · hybrid helping a strong model" else "") +
+            val report = HybridBenchTasks.report(results, about, problem, if (kind == Suite.RELIABLE) results.size else tasks.size, kind.title + if (helping) " · hybrid helping a strong model" else "") +
                 (if (kind != Suite.RELIABLE) "" else dev.pocketide.app.core.ReliableBench.summary(results) +
                     (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
+                    (if (deselect.isEmpty()) "" else "\nHidden tests left out because they fail on this phone even with the reference fix:\n" + deselect.entries.joinToString("\n") { "- ${it.key}: ${it.value.joinToString()}" } + "\n") +
                     (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n"))
             File(out, "report.md").writeText(report)
             val where = try {
@@ -354,7 +370,7 @@ object HybridBench {
             running = false
             val passed = results.count { it.passed }
             AlertDialog.Builder(act).setTitle(kind.title + " finished")
-                .setMessage((problem?.let { "Stopped early: $it\n\n" } ?: "") + "Passed $passed of ${tasks.size}.\n\n" +
+                .setMessage((problem?.let { "Stopped early: $it\n\n" } ?: "") + "Passed $passed of ${if (kind == Suite.RELIABLE) results.size else tasks.size}.\n\n" +
                     results.joinToString("\n") { (if (it.passed) "✓ " else "✗ ") + it.task.title + (if (it.passed) "" else ": " + it.why) } +
                     "\n\nResults: $where")
                 .setPositiveButton("OK", null).show()

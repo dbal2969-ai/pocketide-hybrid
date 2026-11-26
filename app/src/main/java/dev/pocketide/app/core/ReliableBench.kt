@@ -31,9 +31,9 @@ object ReliableBench {
                     "the answer is not right: \"" + HybridBenchTasks.lastAnswer(f.transcript).take(140) + "\""
                 else -> null
             }
-            python && f.commandExit != 0 -> "the tests fail: " + f.commandOut.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160)
-            !python && !HybridBenchTasks.commandOk(f) -> "node test.js failed: " + f.commandOut.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160)
-            f.hiddenExit != null && f.hiddenExit != 0 -> "the hidden check failed (other behaviour broke): " + f.hiddenOut.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160)
+            python && f.commandExit != 0 -> "the tests fail: " + reason(f.commandOut)
+            !python && !HybridBenchTasks.commandOk(f) -> "node test.js failed: " + reason(f.commandOut)
+            f.hiddenExit != null && f.hiddenExit != 0 -> "the hidden check failed (other behaviour broke): " + reason(f.hiddenOut)
             else -> null
         }
     }
@@ -61,7 +61,12 @@ object ReliableBench {
             val id = o["id"].toString()
             val visible = o["visible"].toString().replace("python3 -m", "python3 -B -m")
             val hiddenCmd = o["hidden"]?.toString().orEmpty().replace("python3 -m", "python3 -B -m")
-            val prompt = "Fix this issue in ${o["fix"]}. Then run `$visible`; it must pass.\n\nThe issue:\n" + o["statement"].toString().trim()
+            // 1.5.187 (reliability run 1125-1815: 0 of 9): the issue text alone ("port bpo-39057") told Nano nothing; the failing test's
+            // own code says what must change, as a person would show it
+            val code = o["test_code"]?.toString().orEmpty().trim()
+            val prompt = "Fix this issue in ${o["fix"]}. Then run `$visible`; it must pass." +
+                (if (code.isNotEmpty()) "\n\nThe test that fails now (in ${(MiniJson.list(o["tests"]) ?: emptyList()).joinToString { it.toString() }}):\n```python\n$code\n```" else "") +
+                "\n\nThe issue:\n" + o["statement"].toString().trim().take(900)
             HybridBenchTasks.Task(id, "${o["repo"]}: fix ${o["fix"].toString().substringAfterLast('/')}", prompt, command = visible, privateMode = true,
                 skill = "Real code (${o["repo"]})", judge = judge("fix", null, true),
                 startFiles = project(id), hiddenCommand = hiddenCmd.ifBlank { null }, solution = strMap(o["solution"]),
@@ -69,8 +74,28 @@ object ReliableBench {
         }
 
     /** The local suite as the development split. */
-    fun devTasks(): List<HybridBenchTasks.Task> = HybridBenchTasks.LOCAL.map { t ->
-        HybridBenchTasks.Task(t.id, t.title, t.prompt, t.command, true, t.skill, t.entry, split = "dev", track = "Node", judge = t.judge)
+    fun devTasks(hidden: Map<String, String> = emptyMap()): List<HybridBenchTasks.Task> = HybridBenchTasks.LOCAL.map { t ->
+        // 1.5.187 (reliability run 1125-1815): the local suite's hidden checks ran only in analyze.py, which caught l13 run 3 passing
+        // on the phone with a switch that broke other cases; now the phone runs them too
+        val h = hidden[t.id]
+        val judge: (HybridBenchTasks.Facts) -> String? = { f -> t.judge(f) ?: hiddenWhy(f) }
+        HybridBenchTasks.Task(t.id, t.title, t.prompt, t.command, true, t.skill, t.entry, hidden = if (h == null) emptyMap() else mapOf("hidden.js" to h),
+            hiddenCommand = if (h == null) null else "node hidden.js", split = "dev", track = "Node", judge = judge)
+    }
+
+    /** Why a run failed its hidden check, or null. */
+    fun hiddenWhy(f: HybridBenchTasks.Facts): String? =
+        if (f.hiddenExit != null && f.hiddenExit != 0) "the hidden check failed (other behaviour broke): " + reason(f.hiddenOut) else null
+
+    /**
+     * The line of a check's output that says what went wrong (1.5.187: the last line was often Node's "Node.js v24.22.3" after a
+     * stack trace): a failed check's own message, an Error line, or pytest's summary line.
+     */
+    fun reason(out: String): String {
+        val lines = out.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("at ") && !Regex("""^Node\.js v\d""").matches(it) }
+        return (lines.lastOrNull { Regex("""\d+ (failed|error)""").containsMatchIn(it) }
+            ?: lines.firstOrNull { Regex("""(?i)error|gave |is still|missing|should|need|changed""").containsMatchIn(it) }
+            ?: lines.lastOrNull()).orEmpty().take(160)
     }
 
     /** "r05-fix-comparison#2" → "r05-fix-comparison": a task's runs share its id before the #. */

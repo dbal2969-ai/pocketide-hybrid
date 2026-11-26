@@ -115,8 +115,37 @@ object EditBlocks {
      */
     /** Replaces every exact match of the search text (edit_file with all=true, a rename); one match works too. */
     fun applyAll(cur: String, b: EditBlock): ApplyResult {
-        if (b.search.isEmpty() || countOcc(cur, b.search) == 0) return apply(cur, b)   // no exact match: the usual matching and its error
-        return ApplyResult(text = cur.replace(b.search, b.replace))
+        val n = if (b.search.isEmpty()) 0 else countOcc(cur, b.search)
+        // 1.5.187 (reliability run 1125-1815: the most common refused edit): Nano sent all=true with a block's first line as the search
+        // and the whole new block as the replacement; a plain replace kept the old body behind it (a stray brace, "NOT SAVED: syntax
+        // error"). One match goes through apply(), with its repairs; several are each widened the same way, from the last one back.
+        if (n <= 1) return apply(cur, b)
+        var text = cur
+        var from = text.length
+        while (true) {
+            val at = text.lastIndexOf(b.search, from)
+            if (at < 0) break
+            val end = covered(text, at, b.search, b.replace)
+            text = text.substring(0, at) + b.replace + text.substring(end)
+            if (at == 0) break
+            from = at - 1
+        }
+        return ApplyResult(text = text)
+    }
+
+    private val IDENT = Regex("""^[A-Za-z_$][\w$]*$""")
+
+    /**
+     * 1.5.187 (reliability run 1125-1815, r20: 1 of 3): asked to rename MAX_HP, Nano searched for the bare name, which matches in every
+     * use, and the edit was refused as ambiguous run after run. When the request is a rename (NativeAgent checks), a search that is one
+     * identifier and a replacement that is another renames every whole-word use.
+     */
+    fun renameAll(cur: String, b: EditBlock): ApplyResult? {
+        val s = b.search.trim(); val r = b.replace.trim()
+        if (!IDENT.matches(s) || !IDENT.matches(r) || s == r) return null
+        val re = Regex("""(?<![\w$])""" + Regex.escape(s) + """(?![\w$])""")
+        if (re.findAll(cur).count() < 2) return null
+        return ApplyResult(text = re.replace(cur, Regex.escapeReplacement(r)))
     }
 
     fun apply(cur: String, b0: EditBlock): ApplyResult {

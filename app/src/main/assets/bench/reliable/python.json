@@ -1,5 +1,6 @@
 [
 {
+"test_code": "@pytest.mark.parametrize(\n    \"url, expected\",\n    (\n        (\"http://localhost/\", True),\n        (\"http://anotherdomain.com:8888/\", True),\n        (\"http://newdomain.com:1234/\", True),\n        (\"http://www.newdomain.com:1234/\", True),\n        (\"http://foo.d.o.t/\", True),\n        (\"http://d.o.t/\", True),\n        (\"http://prelocalhost/\", False),\n        (\"http://newdomain.com/\", False),\n        (\"http://newdomain.com:1235/\", False),\n    ),\n)\ndef test_should_bypass_proxies_no_proxy_domain_boundary(url, expected):\n    \"\"\"Ensure no_proxy matching respects domain boundaries and does not\n    greedily match domains that merely endswith the no_proxy entry.\n    See CPython bpo-39057.\n    \"\"\"\n    no_proxy = \"localhost, anotherdomain.com, newdomain.com:1234, .d.o.t\"\n    assert should_bypass_proxies(url, no_proxy=no_proxy) == expected",
 "id": "requests_7427",
 "repo": "requests",
 "fix": "src/requests/utils.py",
@@ -21,6 +22,7 @@
 }
 },
 {
+"test_code": "def test_request_url_trims_leading_path_separators():\n    \"\"\"See also https://github.com/psf/requests/issues/6643.\"\"\"\n    a = requests.adapters.HTTPAdapter()\n    p = requests.Request(method=\"GET\", url=\"http://127.0.0.1:10000//v:h\").prepare()\n    assert \"/v:h\" == a.request_url(p, {})",
 "id": "requests_6644",
 "repo": "requests",
 "fix": "src/requests/adapters.py",
@@ -42,6 +44,7 @@
 }
 },
 {
+"test_code": "def test_request_url_handles_leading_path_separators():\n    \"\"\"See also https://github.com/psf/requests/issues/6643.\"\"\"\n    a = requests.adapters.HTTPAdapter()\n    p = requests.Request(method=\"GET\", url=\"http://127.0.0.1:10000//v:h\").prepare()\n    assert \"//v:h\" == a.request_url(p, {})",
 "id": "requests_7315",
 "repo": "requests",
 "fix": "src/requests/adapters.py",
@@ -63,6 +66,7 @@
 }
 },
 {
+"test_code": "def test_qualname_in_slots():\n    from functools import lru_cache\n\n    @lru_cache\n    class Klass:\n        __slots__ = (\"__qualname__\",)\n\n    try:\n        inspect(Klass)\n    except Exception as e:\n        assert False, f\"Class with __qualname__ in __slots__ shouldn't raise {e}\"",
 "id": "rich_3894",
 "repo": "rich",
 "fix": "rich/_inspect.py",
@@ -84,6 +88,7 @@
 }
 },
 {
+"test_code": "def test_columns_highlight_added_by_add_row() -> None:\n    \"\"\"Regression test for https://github.com/Textualize/rich/issues/3517\"\"\"\n    table = Table(show_header=False, highlight=True)\n    table.add_row(\"1\", repr(\"FOO\"))\n\n    assert table.columns[0].highlight == table.highlight\n    assert table.columns[1].highlight == table.highlight\n\n    console = Console(record=True)\n    console.print(table)\n    output = console.export_text(styles=True)\n    print(repr(output))\n\n    expected = (\n        \"\u250c\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\\n\u2502 \\x1b[1;36m1\\x1b[0m \u2502 \\x1b[32m'FOO'\\x1b[0m \u2502\\n\u2514\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\\n\"\n    )\n    assert output == expected",
 "id": "rich_3518",
 "repo": "rich",
 "fix": "rich/table.py",
@@ -105,6 +110,7 @@
 }
 },
 {
+"test_code": "def test_rich_repr() -> None:\n    assert (repr(Foo(\"hello\"))) == \"Foo('hello', 'hello', egg=1)\"\n    assert (repr(Foo(\"hello\", bar=3))) == \"Foo('hello', 'hello', bar=3, egg=1)\"\n\ndef test_rich_repr_auto() -> None:\n    assert repr(Egg(\"hello\", egg=2)) == \"Egg('hello', egg=2)\"\n    stupid_class = StupidClass(9)\n    not_stupid = NotStupid()\n    assert (\n        repr(Bird(\"penguin\", [\"fish\"], another=stupid_class, extinct=not_stupid))\n        == f\"Bird('penguin', ['fish'], another={repr(stupid_class)}, extinct={repr(not_stupid)})\"\n    )",
 "id": "rich_3006",
 "repo": "rich",
 "fix": "rich/repr.py",
@@ -126,6 +132,7 @@
 }
 },
 {
+"test_code": "def test_title_text_with_border_color() -> None:\n    \"\"\"Regression test for https://github.com/Textualize/rich/issues/2745\"\"\"\n    panel = Panel(\n        \"Hello, World\",\n        border_style=\"blue\",\n        title=Text(\"title\", style=\"red\"),\n        subtitle=Text(\"subtitle\", style=\"magenta bold\"),\n    )\n    console = Console(\n        file=io.StringIO(),\n        width=50,\n        height=20,\n        legacy_windows=False,\n        force_terminal=True,\n        color_system=\"truecolor\",\n    )\n    console.print(panel)\n\n    result = console.file.getvalue()\n    print(repr(result))\n    expected = \"\\x1b[34m\u256d\u2500\\x1b[0m\\x1b[34m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\\x1b[0m\\x1b[31m title \\x1b[0m\\x1b[34m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\\x1b[0m\\x1b[34m\u2500\u256e\\x1b[0m\\n\\x1b[34m\u2502\\x1b[0m Hello, World                                   \\x1b[34m\u2502\\x1b[0m\\n\\x1b[34m\u2570\u2500\\x1b[0m\\x1b[34m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\\x1b[0m\\x1b[1;35m subtitle \\x1b[0m\\x1b[34m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\\x1b[0m\\x1b[34m\u2500\u256f\\x1b[0m\\n\"\n    assert result == expected\n\ndef test_title_text_with_panel_background() -> None:\n    \"\"\"Regression test for https://github.com/Textualize/rich/issues/3569\"\"\"\n    panel = Panel(\n        \"Hello, World\",\n        style=\"on blue\",\n        title=Text(\"title\", style=\"red\"),\n        subtitle=Text(\"subtitle\", style=\"magenta bold\"),\n    )\n    console = Console(\n        file=io.StringIO(),\n        width=50,\n        height=20,\n        legacy_windows=False,\n        force_terminal=True,\n        color_system=\"truecolor\",\n    )\n    console.print(panel)\n\n    result = console.file.getvalue()\n    print(repr(result))\n    expected = \"\\x1b[44m\u256d\u2500\\x1b[0m\\x1b[44m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\\x1b[0m\\x1b[31;44m title \\x1b[0m\\x1b[44m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\\x1b[0m\\x1b[44m\u2500\u256e\\x1b[0m\\n\\x1b[44m\u2502\\x1b[0m\\x1b[44m \\x1b[0m\\x1b[44mHello, World\\x1b[0m\\x1b[44m                                  \\x1b[0m\\x1b[",
 "id": "rich_3718",
 "repo": "rich",
 "fix": "rich/panel.py",
@@ -148,6 +155,7 @@
 }
 },
 {
+"test_code": "",
 "id": "rich_3454",
 "repo": "rich",
 "fix": "rich/highlighter.py",
@@ -167,6 +175,7 @@
 }
 },
 {
+"test_code": "",
 "id": "rich_3067",
 "repo": "rich",
 "fix": "rich/highlighter.py",
@@ -186,6 +195,7 @@
 }
 },
 {
+"test_code": "def test_isatty():\n    \"\"\"Check isatty is proxied\n\n    Regression test for https://github.com/Textualize/rich/issues/4041\n\n    \"\"\"\n\n    class TTYFile:\n        def isatty(self) -> bool:\n            return True\n\n    file = TTYFile()\n    console = Console()\n    file_proxy = FileProxy(console, file)\n    assert file_proxy.isatty()",
 "id": "rich_4077",
 "repo": "rich",
 "fix": "rich/file_proxy.py",
@@ -207,6 +217,7 @@
 }
 },
 {
+"test_code": "def test_prompt_confirm_markup():\n    INPUT = \"foo\\nNO\\ny\"\n    console = Console(file=io.StringIO(), markup=False)\n    answer = Confirm.ask(\n        \"continue\", console=console, stream=io.StringIO(INPUT), default=True\n    )\n    assert answer is True\n    expected = \"continue [y/n] (y): Please enter Y or N\\ncontinue [y/n] (y): Please enter Y or N\\ncontinue [y/n] (y): \"\n    output = console.file.getvalue()\n    print(repr(output))\n    assert output == expected",
 "id": "rich_3882",
 "repo": "rich",
 "fix": "rich/prompt.py",
@@ -228,6 +239,7 @@
 }
 },
 {
+"test_code": "def test_export_html():\n    console = Console(record=True, width=100)\n    console.print(\"[b]foo <script> 'test' [link=https://example.org]Click[/link]\")\n    html = console.export_html()\n    print(repr(html))\n    expected = '<!DOCTYPE html>\\n<html>\\n<head>\\n<meta charset=\"UTF-8\">\\n<style>\\n.r1 {font-weight: bold}\\n.r2 {color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold}\\n.r3 {color: #008000; text-decoration-color: #008000; font-weight: bold}\\nbody {\\n    color: #000000;\\n    background-color: #ffffff;\\n}\\n</style>\\n</head>\\n<body>\\n    <pre style=\"font-family:Menlo,\\'DejaVu Sans Mono\\',consolas,\\'Courier New\\',monospace\"><code><span class=\"r1\">foo &lt;</span><span class=\"r2\">script</span><span class=\"r1\">&gt; </span><span class=\"r3\">&#x27;test&#x27;</span><span class=\"r1\"> </span><a class=\"r1\" href=\"https://example.org\">Click</a>\\n</code></pre>\\n</body>\\n</html>\\n'\n    assert html == expected\n\ndef test_export_html_inline():\n    console = Console(record=True, width=100)\n    console.print(\"[b]foo [link=https://example.org]Click[/link]\")\n    html = console.export_html(inline_styles=True)\n    print(repr(html))\n    expected = '<!DOCTYPE html>\\n<html>\\n<head>\\n<meta charset=\"UTF-8\">\\n<style>\\n\\nbody {\\n    color: #000000;\\n    background-color: #ffffff;\\n}\\n</style>\\n</head>\\n<body>\\n    <pre style=\"font-family:Menlo,\\'DejaVu Sans Mono\\',consolas,\\'Courier New\\',monospace\"><code><span style=\"font-weight: bold\">foo </span><span style=\"font-weight: bold\"><a href=\"https://example.org\">Click</a></span>\\n</code></pre>\\n</body>\\n</html>\\n'\n    assert html == expected\n\ndef test_save_html():\n    expected = \"<!DOCTYPE html>\\n<html>\\n<head>\\n<meta charset=\\\"UTF-8\\\">\\n<style>\\n\\nbody {\\n    color: #000000;\\n    background-color: #ffffff;\\n}\\n</style>\\n</head>\\n<body>\\n    ",
 "id": "rich_3043",
 "repo": "rich",
 "fix": "rich/_export_format.py",
@@ -247,6 +259,7 @@
 }
 },
 {
+"test_code": "def test_clear_meta_and_links_clears_hash():\n    \"\"\"Regression test for https://github.com/Textualize/rich/issues/2942.\"\"\"\n\n    style = Style.parse(\"bold red on black link https://example.org\") + Style.on(\n        click=\"CLICK\"\n    )\n    hash(style)  # Force hash caching.\n\n    assert style._hash is not None\n\n    clear_style = style.clear_meta_and_links()\n    assert clear_style._hash is None",
 "id": "rich_2943",
 "repo": "rich",
 "fix": "rich/style.py",

@@ -204,6 +204,12 @@ def main():
             open(os.path.join(OUT, "hidden", t["id"] + ".js"), "w").write(t["hidden"])
     os.makedirs(ASSET, exist_ok=True)
     json.dump(TASKS, open(os.path.join(ASSET, "node.json"), "w"), indent=0)
+    # 1.5.187: the dev split's hidden checks (bench/hybrid/local/hidden), so the phone runs them too, not only analyze.py
+    dev = {}
+    hd = os.path.join(HERE, "local", "hidden")
+    for f in sorted(os.listdir(hd)):
+        if f.endswith(".js"): dev[f[:-3]] = open(os.path.join(hd, f)).read()
+    json.dump(dev, open(os.path.join(ASSET, "dev_hidden.json"), "w"), indent=0)
     print("written", len(TASKS), "held-out tasks")
 
 

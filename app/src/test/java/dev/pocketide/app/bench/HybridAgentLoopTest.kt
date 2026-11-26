@@ -176,8 +176,22 @@ class HybridAgentLoopTest {
         assertEquals(0, cloudCalls)
     }
 
+    /** 1.5.187 (reliability run 1, r20): in a rename request, Nano's bare name → name without all: true renames every use. */
+    @Test fun nanoRenamesABareNameWithoutAllInARenameRequest() {
+        nano(action("edit_file", "path" to "total.js", "search" to "calcTotal", "replace" to "orderTotal"),
+            action("run_command", "command" to "node test.js"))
+        cloud()
+        val o = AgentHarness(renameProject, "Rename calcTotal to orderTotal everywhere and keep node test.js passing", ModelGateway.NETWORK,
+            provider = "hybrid", modelName = "", timeoutSeconds = 60).run()
+        assertFalse("timed out", o.timedOut)
+        assertTrue(o.file("total.js")!!, !o.file("total.js")!!.contains("calcTotal"))
+        assertTrue(o.resultsOf("run_command").first().contains("ok"))
+        assertEquals(0, cloudCalls)
+    }
+
     @Test fun repeatingAFailedStepHandsTheRestToTheCloud() {
-        val same = action("edit_file", "path" to "total.js", "search" to "calcTotal", "replace" to "orderTotal")
+        // 1.5.187: a bare name → name in a rename request now renames every use, so the failing step here is a search that is not a bare name
+        val same = action("edit_file", "path" to "total.js", "search" to "calcTotal(", "replace" to "orderTotal(")
         nano(same, action("read_file", "path" to "total.js"), same)
         cloud(tools("edit_file", "path" to "total.js", "search" to "calcTotal", "replace" to "orderTotal", "all" to true),
             tools("run_command", "command" to "node test.js"))
