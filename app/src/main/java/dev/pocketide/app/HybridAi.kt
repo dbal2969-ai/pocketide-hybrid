@@ -139,6 +139,27 @@ object HybridAi {
         }
     }.build()
 
+    private val samplers = HashMap<Float, GenerativeModel>()
+
+    /**
+     * 1.5.201: one request on Gemini Nano at [temperature] (the Python fix path's rewrites after the first, so they differ). Blocking;
+     * throws when Nano cannot run it.
+     */
+    fun onDeviceSample(ctx: Context, prompt: String, temperature: Float): String {
+        val m = synchronized(this) {
+            check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
+            if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
+            val s = settings(ctx)
+            if (temperature == s.temperature) model(ctx, Mode.ONLY_ON_DEVICE) else samplers.getOrPut(temperature) {
+                ai().generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s, tierOf(HybridCloud.cloudModel())),
+                    onDeviceConfig = OnDeviceConfig(mode = Mode.ONLY_ON_DEVICE.inference, maxOutputTokens = s.maxOutputTokens,
+                        temperature = temperature, topK = s.topK,
+                        modelOption = if (s.fullModel) OnDeviceModelOption.PREVIEW else OnDeviceModelOption.PREVIEW_FAST))
+            }
+        }
+        return HybridCloud.traced("hybrid_phone") { runBlocking { m.generateContent(prompt) } }.text?.trim().orEmpty()
+    }
+
     /** One request on Gemini Nano only, never the cloud (the agent's phone path). Blocking; throws when Nano cannot run it. */
     fun onDeviceText(ctx: Context, prompt: String): String =
         HybridCloud.traced("hybrid_phone") { runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateContent(prompt) } }.text?.trim().orEmpty()
@@ -158,7 +179,7 @@ object HybridAi {
 
     /** Drops the cached models, so the next request uses new settings or a new cloud model from Remote Config. */
     @Synchronized
-    fun reset() { models.clear() }
+    fun reset() { models.clear(); samplers.clear() }
 
     /** The settings the person saved (Models → Hybrid AI), clamped to safe ranges. */
     fun settings(ctx: Context): HybridSettings {

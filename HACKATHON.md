@@ -69,6 +69,7 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
 | The agent gets real tool calls on both paths: Gemini Nano in small local model mode (one JSON action per reply, core tools) parsed into tool calls; the cloud model through Firebase AI Logic function calling with every PocketIDE tool | `HybridAgent.kt` |
 | Gemini Nano passes on what it cannot do (needs the web, too long, refuses, or claims an edit that never happened) and says so in the chat; the request goes to the person's strong model when one is set, else the cloud model | `core/HybridRoute.kt`, `HybridAgent.kt`, `ModelClient.kt` |
 | Settings: temperature, top-K, max output tokens, the on-phone limit, and the Fast (Gemma 4 E2B) or Full (E4B) on-phone model | `core/HybridSettings.kt`, `HybridScreen.kt` |
+| **Python fix path** (Python helper on): for "fix this in file.py, then run `pytest …`", the app runs the test, lists the file's functions, classes and constants and asks Gemini Nano which one the fix belongs in, then asks Nano several times for that block rewritten whole and keeps the first rewrite the test passes. Nano never copies search text. If none passes, the file is put back and Nano carries on, with `replace_function` to replace a block by name | `core/PyFix.kt`, `NativeAgent.kt` (`pythonFix`), `HybridAgent.kt` (`pythonFixFirst`) |
 | **Remote Config**: the cloud model, the default on-phone limit and routing mode, a switch that turns the cloud off, and Gemini Nano's tuning (instructions, Python helper, sampling, thresholds, repair switches), without an app update | `HybridCloud.kt`, `core/Tuning.kt`, `remoteconfig.template.json` |
 | **Authentication** (anonymous) and **Firestore**: a per-person record of where each request ran, how long it took and why Nano passed it on (never prompts or code), shown as "Your hybrid usage" | `HybridCloud.kt`, `core/HybridStats.kt` |
 | The agent also saves code written in `language:file.ext` fences, which small models often use | `core/ReplyParser.kt` |
@@ -97,11 +98,11 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
 5. Firebase console → **Firestore Database** → Create database, then paste `firestore.rules` from this repository into Rules
    (or `npx -y firebase-tools@latest deploy --only firestore:rules`). Records are create-only, owner-only, typed and size-limited;
    see `docs/FIREBASE-AGENT-SKILLS.md` for the audit.
-6. Firebase console → **Remote Config** (optional; the app has built-in defaults for all 24 keys): every key, its default and what it
+6. Firebase console → **Remote Config** (optional; the app has built-in defaults for all 27 keys): every key, its default and what it
    does is in `remoteconfig.template.json`, and `firebase deploy --only remoteconfig` publishes it. Besides the cloud model, on-phone
    limit, routing and cloud switch, the keys tune Gemini Nano without an app update: extra instructions, the Python helper's note
    and worked examples, Nano's temperature, top-K, reply length and model, the cloud tier, handoff and quota thresholds, and
-   switches for each of the newer repairs.
+   switches for each of the newer repairs, and the Python fix path (on/off, rewrites tried, their temperature).
 7. `./gradlew assembleDebug` (needs the Android SDK and NDK; see `.github/workflows/build-apk.yml`).
 
 On-device inference needs a phone that supports Gemini Nano through Android AICore (for example recent Pixel and Samsung

@@ -1029,6 +1029,43 @@ the files after the run, `transcript.txt` and `check.txt`.
   quote-only differences match but backticks don't; the check's deselect list, with unsafe ids dropped. 1,362 unit tests, 0 failures.
 - **Evidence:** pocketide-hybrid-reliable-python-benchmark-1126-1710.
 
+
+### (next) · 2026-11-26 19:15 · Python fix path: the app finds the block, Nano rewrites it whole, the test picks; 1.5.201
+
+- **Why:** the owner asked for the techniques small models use on real bugs. In Python run 1126-1710, 78 of Nano's 309 steps were
+  refused, most of them search text that did not match the file. Two published ideas fit an on-phone model:
+  - Agentless (Xia et al. 2024): the app, not the model, finds where to fix (files, then a skeleton view, then the function), and
+    then samples several patches and lets tests pick one.
+  - Aider and SWE-Edit: weaker models do better rewriting a whole block than writing search/replace edits.
+- **Change (core/PyFix.kt, NativeAgent `pythonFix`, HybridAgent `pythonFixFirst`):**
+  - The path starts once per request, before Nano's first step, when the Python helper is on, Remote Config's `hybrid_python_fix`
+    is on, the phone may run the step, and the request names a .py file and a test command in backticks.
+  - It runs the test, lists the file's functions, classes and constants (methods and class attributes as `Class.name`), asks Nano
+    which one the fix belongs in, and adds the app's guesses: the block the request names most, the one a traceback points into, the
+    ones the test calls, and the one sharing the most words with the test. A class over 60 lines is narrowed to that member.
+  - For up to three blocks it asks for the whole fixed block: `hybrid_python_fix_samples` times (4) for the first, half as many for
+    the others. The first try uses the person's temperature, the rest `hybrid_python_fix_temperature` (0.7), each with the last
+    failure. Each answer is put in place at the block's indentation and the test runs; the first that passes is kept and recorded as
+    a passed check. If none passes, the file is put back and Nano carries on with its tools.
+  - `replace_function` (path, name, code): a new tool for Nano when the Python helper is on. It replaces a block by name, with no
+    search text, through the usual write checks.
+  - Nano's calls on the path go to nano.jsonl with `tool: python_fix`.
+- **Bug fixed:** with the hybrid provider the Python helper's note never reached Nano's prompt. ModelClient sends the system prompt
+  apart from the messages, so HybridAgent never saw the note; none of run 1126-1710's 309 prompts had it.
+  NativeAgent now sets `HybridAgent.pythonHelp`. The helper's other parts (re-indenting, outlines, where-it-failed) were in
+  NativeAgent and did run.
+- **Remote Config:** 3 new keys (`hybrid_python_fix`, `hybrid_python_fix_samples`, `hybrid_python_fix_temperature`); 27 in all.
+- **Files:** core/PyFix.kt (new), NativeAgent.kt, HybridAgent.kt, HybridAi.kt (`onDeviceSample`), core/Tuning.kt, core/StaleReads.kt,
+  remoteconfig.template.json, HACKATHON.md; app/build.gradle.kts (1.5.201-hybrid, code 249).
+- **Tests:**
+  - PyFixTest: on all 13 real Python tasks each reference fix, given as Nano would answer, goes in block by block and its visible test
+    passes (13 of 13). The app's guesses include the block the fix changes in 11 of 13. Also: blocks found whole (decorators,
+    multi-line defs, class constants); Nano's prose and indentation handled; the request's file and test.
+  - PyFixLoopTest (real agent loop, scripted Nano, real pytest): the second rewrite passes and is kept; with none passing the file is
+    put back and Nano fixes it with replace_function; off when Remote Config turns it off.
+  - 1,368 unit tests, 0 failures.
+- **Evidence:** pocketide-hybrid-reliable-python-benchmark-1126-1710.
+
 ---
 
 ## Outside the code

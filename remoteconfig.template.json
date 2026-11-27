@@ -167,6 +167,27 @@
       },
       "description": "Check pages load their script and that scripts look up ids the page has. false turns the check off.",
       "valueType": "BOOLEAN"
+    },
+    "hybrid_python_fix": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Python fix path for Gemini Nano: the app finds the function, Nano rewrites it whole several times, and the request's test keeps the first rewrite that passes. false leaves Nano to its usual tools.",
+      "valueType": "BOOLEAN"
+    },
+    "hybrid_python_fix_samples": {
+      "defaultValue": {
+        "value": "4"
+      },
+      "description": "Rewrites tried for the first function the fix path picks (half as many for the next), 1-10.",
+      "valueType": "NUMBER"
+    },
+    "hybrid_python_fix_temperature": {
+      "defaultValue": {
+        "value": "0.7"
+      },
+      "description": "Temperature of the fix path's rewrites after the first (the first uses the person's own), 0-2.",
+      "valueType": "NUMBER"
     }
   }
 }

@@ -5,7 +5,7 @@ package dev.pocketide.app.core
  * every round. Works on both OpenAI-style and Anthropic-style message lists.
  */
 object StaleReads {
-    private val CHANGERS = setOf("write_file", "edit_file", "edit_lines", "multi_edit", "apply_patch", "doc_edit")
+    private val CHANGERS = setOf("write_file", "edit_file", "edit_lines", "multi_edit", "apply_patch", "doc_edit", "replace_function", "python_fix")
     private const val MIN_CHARS = 400
     private const val MIN_SAVED = 1500
 

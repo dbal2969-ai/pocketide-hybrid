@@ -83,9 +83,27 @@ object HybridAgent {
         return null
     }
 
+    /**
+     * 1.5.201: the Python fix path (core/PyFix) comes first, once per request, when the Python helper is on (its note is in the system
+     * prompt), Remote Config's hybrid_python_fix is on, the phone may run the step, and the request names a .py file and a test command.
+     */
+    fun pythonFixFirst(ctx: Context?, messages: List<Map<String, Any?>>): ToolCall? {
+        if (!dev.pocketide.app.core.Tuning.pyFix) return null
+        if (ctx != null && testPhone == null && HybridScreen.mode(ctx) == HybridAi.Mode.PREFER_IN_CLOUD) return null
+        if (!pyOn(messages)) return null
+        if (messages.any { m -> (m["tool_calls"] as? List<*>).orEmpty().any { callOf(it)?.name == "python_fix" } }) return null
+        val ask = requestOf(messages.lastOrNull { it["role"] == "user" && textOf(it["content"]).contains("My request:") }?.let { textOf(it["content"]) }
+            ?: messages.firstOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty())
+        val cmd = dev.pocketide.app.core.PyFix.testCommand(ask) ?: return null
+        if (!Regex("""[\w./-]+\.py\b""").containsMatchIn(ask.replace(cmd, ""))) return null
+        return ToolCall("python-fix", "python_fix", MiniJson.write(mapOf("command" to cmd)))
+    }
+
     fun phone(ctx: Context, messages: List<Map<String, Any?>>, docs: Boolean): Phone {
         appFirst(messages)?.let { c -> return Phone(Result(ToolTurn("", listOf(c), "tool_calls"), true, 0.0,
             if (c.name == "app_help") "PocketIDE looked up its own help and settings first." else "PocketIDE proposed the setting change first.", APP_STEP), "") }
+        pythonFixFirst(ctx, messages)?.let { c -> return Phone(Result(ToolTurn("", listOf(c), "tool_calls"), true, 0.0,
+            "PocketIDE's Python fix: it runs the test, Gemini Nano rewrites the function it belongs in, and the test picks the rewrite that passes.", APP_STEP), "") }
         val p = phoneStep(ctx, messages, docs)
         val r = p.result ?: return p
         if (HybridScreen.mode(ctx) == HybridAi.Mode.ONLY_ON_DEVICE || (online(ctx) && !HybridAi.cloudOut())) return p
@@ -321,6 +339,15 @@ object HybridAgent {
      */
     @Volatile var recorder: ((String) -> Unit)? = null
 
+    /**
+     * 1.5.201: the Python helper is on for the request NativeAgent is running. ModelClient sends the system prompt apart from the
+     * messages, so the helper's note there never reached Gemini Nano's prompt (Python run 1126-1710 had the helper on and no note in
+     * any of Nano's 309 prompts); NativeAgent now says so here.
+     */
+    @Volatile var pythonHelp = false
+    private fun pyOn(messages: List<Map<String, Any?>>) = pythonHelp ||
+        messages.any { it["role"] == "system" && textOf(it["content"]).contains(dev.pocketide.app.core.PyHelper.note()) }
+
     /** For tests: whether the phone is online (null = ask Android). */
     @Volatile var testOnline: Boolean? = null
 
@@ -391,7 +418,7 @@ object HybridAgent {
         return SmallLocal.system(Tools.smallCatalogue(docs, SmallLocal.forApp(asked), chatHome)) +
             (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + kitNote(messages) +
             // 1.5.194: the Python helper's note, when NativeAgent put it in the system prompt (Settings › Assistant › Python helper)
-            (dev.pocketide.app.core.PyHelper.note().let { n -> if (messages.any { it["role"] == "system" && textOf(it["content"]).contains(n) }) "\n" + n else "" }) +
+            (if (pyOn(messages)) "\n" + dev.pocketide.app.core.PyHelper.note() + REPLACE_FUNCTION else "") +
             SmallLocal.remoteLine() +   // 1.5.197: Remote Config's hybrid_nano_note
             "\n\nThe conversation so far, oldest first:\n"
     }
@@ -462,9 +489,14 @@ object HybridAgent {
     private fun lastFailure(messages: List<Map<String, Any?>>): String =
         messages.lastOrNull { it["role"] == "tool" }?.let { textOf(it["content"]).lineSequence().first().take(100) }.orEmpty()
 
-    private val WRITES = setOf("write_file", "edit_file", "edit_lines", "multi_edit", "apply_patch", "delete_file")
+    private val WRITES = setOf("write_file", "edit_file", "edit_lines", "multi_edit", "apply_patch", "delete_file", "replace_function", "python_fix")
     /** "I created / have updated / fixed …", or "… has been added": a claim that files changed. */
     private val CLAIM = Regex("""(?i)\b(I\s+(have\s+|'ve\s+)?|(has|have)\s+been\s+)(created|updated|wrote|written|modified|added|saved|edited|fixed|implemented|changed|built|made)\b""")
+
+    /** 1.5.201: the Python helper's whole-block tool, described to Nano when the helper is on. */
+    val REPLACE_FUNCTION = "\nWith Python you also have:\n" + dev.pocketide.app.core.TextTools.describe("replace_function",
+        "Replace a whole Python function, class or constant by name with new code: all of it, from its def/class line (or NAME =) to its end. No search text needed.",
+        mapOf("path" to mapOf("type" to "string"), "name" to mapOf("type" to "string"), "code" to mapOf("type" to "string")), listOf("path", "name", "code"))
 
     /** The conversation as small local model mode expects it; null when it does not fit in [limit] characters. */
     fun phonePrompt(docs: Boolean, messages: List<Map<String, Any?>>, limit: Int): String? {
@@ -541,6 +573,8 @@ object HybridAgent {
                 val args = MiniJson.write(mapOf("path" to a["path"], "start" to after + 1, "end" to after, "text" to (a["text"] ?: "")))
                 return ToolTurn(p.text, listOf(ToolCall(c.id, "edit_lines", args)), "tool_calls") to ""
             }
+            // 1.5.201: replace_function (the Python helper's tool for Nano) is handled by NativeAgent, not a cloud tool
+            if (c.name == "replace_function") return ToolTurn(p.text, listOf(c), "tool_calls") to ""
             if (Tools.paramTypes(c.name) == null) {
                 val keys = (MiniJson.obj(MiniJson.parse(c.arguments)) ?: emptyMap<String, Any?>()).keys
                 val known = toolFromArgs(c.name, keys) ?: return null to "asked for a tool that does not exist (${c.name})"

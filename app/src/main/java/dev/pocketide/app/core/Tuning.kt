@@ -33,6 +33,14 @@ object Tuning {
     @Volatile var pythonSyntaxCheck = true
     @Volatile var pageWiringCheck = true
 
+    // ---- the Python fix path (1.5.201, PyFix) ----
+    /** The app finds the function, Nano rewrites it whole, the test picks the rewrite that passes. */
+    @Volatile var pyFix = true
+    /** Rewrites tried for the first function picked (half as many for the next). */
+    @Volatile var pyFixSamples = 4
+    /** The temperature of the rewrites after the first. */
+    @Volatile var pyFixTemperature = 0.7f
+
     /** The Remote Config keys, in the order of the template. */
     object Keys {
         const val NANO_TEMPERATURE = "hybrid_nano_temperature"
@@ -49,6 +57,9 @@ object Tuning {
         const val ASK_AGAIN = "hybrid_nano_ask_again"
         const val PY_SYNTAX = "hybrid_python_syntax_check"
         const val PAGE_WIRING = "hybrid_page_wiring_check"
+        const val PY_FIX = "hybrid_python_fix"
+        const val PY_FIX_SAMPLES = "hybrid_python_fix_samples"
+        const val PY_FIX_TEMPERATURE = "hybrid_python_fix_temperature"
     }
 
     /** The built-in value of each key, as Remote Config's in-app defaults. */
@@ -56,7 +67,8 @@ object Tuning {
         Keys.NANO_TEMPERATURE to HybridSettings.DEFAULT_TEMPERATURE.toDouble(), Keys.NANO_TOP_K to HybridSettings.DEFAULT_TOP_K.toLong(),
         Keys.NANO_MAX_OUTPUT to HybridSettings.DEFAULT_MAX_OUTPUT.toLong(), Keys.NANO_FULL_MODEL to false, Keys.CLOUD_TIER to CloudTier.Choice.AUTO.id,
         Keys.HANDOFF_FAILURES to 2L, Keys.QUOTA_WAITS to 2L, Keys.BUSY_WAIT_MS to 8_000L, Keys.CLOUD_OUT_MINUTES to 15L, Keys.NANO_RESHOWS to 2L,
-        Keys.REPAIR_JSON to true, Keys.ASK_AGAIN to true, Keys.PY_SYNTAX to true, Keys.PAGE_WIRING to true)
+        Keys.REPAIR_JSON to true, Keys.ASK_AGAIN to true, Keys.PY_SYNTAX to true, Keys.PAGE_WIRING to true,
+        Keys.PY_FIX to true, Keys.PY_FIX_SAMPLES to 4L, Keys.PY_FIX_TEMPERATURE to 0.7)
 
     /**
      * Copies values in. [str] gives a key's value as text, or null when Remote Config has none (then the built-in value stays);
@@ -79,6 +91,9 @@ object Tuning {
         askNanoAgain = bool(Keys.ASK_AGAIN) ?: true
         pythonSyntaxCheck = bool(Keys.PY_SYNTAX) ?: true
         pageWiringCheck = bool(Keys.PAGE_WIRING) ?: true
+        pyFix = bool(Keys.PY_FIX) ?: true
+        pyFixSamples = num(Keys.PY_FIX_SAMPLES)?.toInt()?.takeIf { it in 1..10 } ?: 4
+        pyFixTemperature = num(Keys.PY_FIX_TEMPERATURE)?.toFloat()?.takeIf { it in HybridSettings.TEMP_MIN..HybridSettings.TEMP_MAX } ?: 0.7f
     }
 
     /** Back to the built-in values (tests). */

@@ -487,6 +487,87 @@ class NativeAgent(
         return " That text is in $hit, not in $p." + if (test) " $hit is a test: it shows what $p must do, so change the code in $p that produces it (read $p and find that code)." else " Edit $hit instead if that is the file you meant."
     }
 
+    /**
+     * 1.5.201: the Python fix path (core/PyFix). On a background thread: run the request's test; ask Nano which block the fix belongs
+     * in and add the app's guesses; for up to three blocks, ask Nano for the whole fixed block (Tuning.pyFixSamples times for the first,
+     * half as many for the others, the later ones at a higher temperature); put each in place and run the test. The first that passes
+     * is kept. If none does, the file is put back and Nano carries on with its tools.
+     */
+    private val pyMain by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+
+    private fun pythonFix(cmd: String, reply: (String, String) -> Unit) {
+        val Fix = dev.pocketide.app.core.PyFix
+        val p = Fix.target(request, try { paths() } catch (e: Exception) { emptyList() })
+        val orig = p?.let { staged[it] ?: try { store.read(it) } catch (e: Exception) { null } }
+        if (!agent || p == null || orig == null || cmd.isBlank()) { reply("Not written: the Python fix path needs a source file and a test command in the request. Carry on with your tools.", "Python fix (not used)"); return }
+        remember(p)
+        val limit = HybridAi.settings(ctx).onDeviceMaxChars
+        val base = HybridAi.settings(ctx).temperature
+        val t0 = System.currentTimeMillis()
+        Thread {
+            fun onMain(f: () -> Unit) { val l = java.util.concurrent.CountDownLatch(1); pyMain.post { try { f() } finally { l.countDown() } }; l.await() }
+            fun test(): Pair<Int, String> {
+                var r = -1 to "the test did not finish"; val l = java.util.concurrent.CountDownLatch(1)
+                pyMain.post { try { exec(cmd) { c, o -> r = c to o; l.countDown() } } catch (e: Exception) { r = -1 to (e.message ?: "could not run"); l.countDown() } }
+                l.await(10, java.util.concurrent.TimeUnit.MINUTES); return r
+            }
+            fun put(text: String) = onMain { write(FileEdit(p, text)) }
+            fun status(s: String) = pyMain.post { phase("Step $round · Python fix · $s") }
+            fun nano(prompt: String, temp: Float, what: String): String? {
+                if (prompt.length > limit) return null
+                val s0 = System.nanoTime()
+                fun call() = HybridAgent.testPhone?.invoke(prompt) ?: HybridAi.onDeviceSample(ctx, prompt, temp)
+                val out = try { call() } catch (e: Exception) {
+                    // Android does not let Gemini Nano run in the background: wait for PocketIDE to be on screen, once
+                    if (HybridAgent.testPhone == null && !HybridAgent.foreground(ctx) && HybridAgent.waitForeground(ctx, 10 * 60_000L)) try { call() } catch (e2: Exception) { null } else null
+                }
+                try { HybridAgent.recorder?.invoke(dev.pocketide.app.core.MiniJson.write(mapOf("seconds" to "%.1f".format((System.nanoTime() - s0) / 1e9), "prompt_chars" to prompt.length,
+                    "previous_result" to "", "prompt" to prompt, "reply" to out.orEmpty(), "tool" to "python_fix", "args" to what, "unusable" to if (out == null) "Nano did not run" else "", "temperature" to temp))) } catch (e: Exception) { }
+                return out
+            }
+            fun finish(text: String, shown: String) = pyMain.post { reply(text, shown) }
+            status("running the test")
+            val (c0, out0) = test()
+            if (c0 == 0) { finish("The test already passes (`$cmd`), so the Python fix path changed nothing.\n" + dev.pocketide.app.core.Verify.trim(out0, 600), "Python fix (test already passes)"); return@Thread }
+            val us = Fix.units(orig)
+            status("finding the code to change")
+            val pick = nano(Fix.pickPrompt(p, orig, us, request, out0), base, "pick")
+            val picks = pick?.let { Fix.picked(it, us) }.orEmpty()
+            val guesses = Fix.guesses(p, orig, us, request, out0)
+            val targets = (picks.filter { it in guesses } + guesses.take(1) + picks + guesses).distinct()
+                .mapNotNull { Fix.unitNamed(us, it) }.filter { it.end - it.start <= 220 }.distinctBy { it.qual }.take(3)
+            val seen = HashSet<String>(); var tries = 0; var last = out0
+            for ((n, u) in targets.withIndex()) {
+                val samples = if (n == 0) dev.pocketide.app.core.Tuning.pyFixSamples else maxOf(1, dev.pocketide.app.core.Tuning.pyFixSamples / 2)
+                var tried = ""
+                for (k in 0 until samples) {
+                    if (stopRequested()) { put(orig); finish("Skipped: the user pressed Stop. $p is unchanged.", "Python fix (stopped)"); return@Thread }
+                    status("rewriting ${u.qual} (${k + 1} of $samples)")
+                    val ans = nano(Fix.fixPrompt(p, orig, u, request, out0, tried), Fix.temperature(k, base), u.qual) ?: continue
+                    val block = Fix.candidate(ans, orig, u) ?: continue
+                    if (!seen.add(block.lines().joinToString("\n") { it.trimEnd() })) continue
+                    tries++
+                    put(Fix.splice(orig, u, block))
+                    status("testing rewrite $tries")
+                    val (c, o) = test()
+                    if (c == 0) {
+                        pyMain.post {
+                            changed.add(p); writeMark = round; checkMark = round; readFiles.remove(p)
+                            proofChecks.add(dev.pocketide.app.core.Proof.command(cmd, 0, round) { q -> store.exists(q) || staged.containsKey(q) })
+                            reply("PocketIDE's Python fix rewrote ${u.kind} ${u.qual} in $p (rewrite $tries tried, ${(System.currentTimeMillis() - t0) / 1000} s) and `$cmd` passes now:\n" +
+                                dev.pocketide.app.core.Verify.trim(o, 500) + "\nThe fix is saved. Answer the person with what was fixed, unless the request asks for more.", "Python fix: ${u.qual} rewritten, test passes")
+                        }
+                        return@Thread
+                    }
+                    last = o
+                    tried = "\nAn earlier rewrite of it did not pass; the test then said:\n" + dev.pocketide.app.core.Verify.trim(o, 500) + "\n"
+                }
+            }
+            put(orig)
+            finish(Fix.gaveUp(p, targets.joinToString(", ") { it.qual }.ifEmpty { "the code" }, tries, last), "Python fix ($tries rewrites, none passed)")
+        }.start()
+    }
+
     /** Nano's reread of an unchanged file: the reply to send, or null to refuse as before. */
     private fun smallReread(p: String, text: String): String? {
         if (!nanoLike) return null
@@ -595,7 +676,7 @@ class NativeAgent(
     private fun runningMs(): Long = System.currentTimeMillis() - startedAt - pausedMs - (if (pausedAt > 0) System.currentTimeMillis() - pausedAt else 0)
     /** Round at which the model was told to wrap up (limit, time or no progress); -1 until then. */
     private var wrapAt = -1
-    private val mutating = setOf("game_assets", "write_file", "delete_file", "edit_file", "edit_lines", "multi_edit", "apply_patch", "run_command", "doc_edit", "remember")
+    private val mutating = setOf("game_assets", "write_file", "delete_file", "edit_file", "edit_lines", "multi_edit", "apply_patch", "run_command", "doc_edit", "remember", "replace_function", "python_fix")
     /** game_cache changes the project only when it exports or packs. */
     private fun isMutating(c: ToolCall) = c.name in mutating || dev.pocketide.app.core.AddOns.changes(c.name, c.args())
     private var remembered = 0
@@ -733,6 +814,7 @@ class NativeAgent(
         val wasCheap = cheap != null
         var signal = false
         var over = false
+        HybridAgent.pythonHelp = pyHelp
         cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.note() else "") + dev.pocketide.app.core.SmallLocal.remoteLine() else (if (textTools) system + catalogue else system) +
             (if (pyHelp) "\n\n" + dev.pocketide.app.core.PyHelper.note() else ""), messages, !textMode, object : NativeListener {
             override fun onStatus(text: String) {
@@ -2742,6 +2824,26 @@ class NativeAgent(
                     else -> box.addView(askRunTimed(cmd, finished) { reply("The user declined to run this command.", "$label (skipped)") })
                 }
                 scrollDown()
+            }
+            "python_fix" -> pythonFix(g("command")) { r, l -> reply(r, l.ifEmpty { label }) }
+            "replace_function" -> {
+                // 1.5.201: Nano replaces a whole Python block by name; the app finds it, so no search text has to match
+                val p = clean(g("path"))
+                if (!dev.pocketide.app.core.FolderScope.allows(scope(), p)) { reply(dev.pocketide.app.core.FolderScope.refusal(scope(), p), "$label (outside the folder)"); return }
+                val cur = staged[p] ?: try { store.read(p) } catch (e: Exception) { null }
+                if (cur == null) { reply("Edit not applied to $p: there is no such file. Use write_file to create it.", "$label (failed)"); return }
+                val us = dev.pocketide.app.core.PyFix.units(cur)
+                val u = dev.pocketide.app.core.PyFix.unitNamed(us, g("name").trim())
+                if (u == null) { reply("Edit not applied to $p: it has no function, class or constant named ${g("name").trim()}. Its blocks: " +
+                    us.take(60).joinToString(", ") { "${it.qual} (line ${it.head + 1})" } + ".", "$label (failed)"); return }
+                val block = dev.pocketide.app.core.PyFix.candidate(g("code"), cur, u)
+                if (block == null) { reply("Edit not applied to $p: the code must be the whole new ${u.kind} ${u.name}, starting with its " +
+                    (if (u.kind == "constant") "`${u.name} =`" else "`${if (u.kind == "class") "class" else "def"} ${u.name}`") + " line, and differ from what is there now.", "$label (failed)"); return }
+                val newText = dev.pocketide.app.core.PyFix.splice(cur, u, block)
+                readFiles.remove(p)
+                if (agent) {
+                    if (write(FileEdit(p, newText))) { changed.add(p); writeMark = round; afterWrite(p, newText, "Replaced ${u.kind} ${u.qual} in $p.", label, cur) { r, l -> reply(r, l) } } else reply("Could not write $p.")
+                } else { staged[p] = newText; reply("Staged the edit to $p for the user's review; treat it as applied.") }
             }
             "doc_outline" -> reply(docEdit(g("path"), "outline", emptyMap()), label)
             "doc_edit" -> {
