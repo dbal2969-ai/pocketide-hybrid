@@ -297,7 +297,7 @@ class NativeAgent(
     private val libDocCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     private fun emit(r0: Result) {
-        if (narrowed && Tools.only != null) { Tools.only = null }
+        if (narrowed && Tools.only != null) { Tools.only = null; Tools.onlyNarrowed = false }
         val r = withProof(r0); r.sources = sourceList.toList(); r.log = workLog.toList(); r.testProposals = testProposals.map { (p, v) -> Triple(p, v.first, v.second) }
         r.cutShort = if (wrapAt >= 0) wrapWhy.ifBlank { stopReason } else ""
         r.failedCheck = dev.pocketide.app.core.Proof.lastFailed(proofChecks, writeMark)?.what.orEmpty()
@@ -534,7 +534,7 @@ class NativeAgent(
             val pick = nano(Fix.pickPrompt(p, orig, us, request, out0), base, "pick")
             val picks = pick?.let { Fix.picked(it, us) }.orEmpty()
             val guesses = Fix.guesses(p, orig, us, request, out0)
-            val targets = (picks.filter { it in guesses } + guesses.take(1) + picks + guesses).distinct()
+            val targets = Fix.narrow(orig, us, (picks.filter { it in guesses } + guesses.take(1) + picks + guesses).distinct(), request + "\n" + out0)
                 .mapNotNull { Fix.unitNamed(us, it) }.filter { it.end - it.start <= 220 }.distinctBy { it.qual }.take(3)
             val seen = HashSet<String>(); var tries = 0; var rewrites = 0; var last = out0
             /** Tests one answer (slips put back, all real changes, then each alone); true once one passed and was kept. */
@@ -733,6 +733,7 @@ class NativeAgent(
     private val readFiles = HashMap<String, Int>()   // path -> stamp of what the model was last shown
 
     fun run(system: String, history: List<Map<String, Any?>>) {
+        if (!nested && Tools.onlyNarrowed) { Tools.only = null; Tools.onlyNarrowed = false }   // 1.5.206: a narrowing left by a request that was cut off
         val prep = prepare
         if (prep != null && !nested) { runPrepared(prep, system, history); return }
         val pf = preflight
@@ -1160,7 +1161,7 @@ class NativeAgent(
                 if (!narrowed && !nested && agent && Tools.only == null && dev.pocketide.app.core.SmallTools.due(slips + badCalls)) {
                     narrowed = true
                     val set = dev.pocketide.app.core.SmallTools.set(look != null, projects != null)
-                    Tools.only = set
+                    Tools.only = set; Tools.onlyNarrowed = true
                     trace("small tool set: ${slips + badCalls} slip(s); offering only " + set.sorted().joinToString())
                     note("The model is struggling with the full tool set; giving it a few plain tools for the rest of this request.", Ui.MUTED)
                     messages.add(Tools.userText(anthropic, dev.pocketide.app.core.SmallTools.NOTE))
@@ -2384,7 +2385,7 @@ class NativeAgent(
         }
         val a = c.args()
         // 1.5.164: a repair turn offers only reading and editing; a model that calls something else anyway is told plainly
-        Tools.only?.let { o -> if (c.name !in o) { reply("Not available in this turn: only ${o.sorted().joinToString(", ")}. Make the fix from what you have been shown."); return } }
+        Tools.only?.let { o -> if (c.name !in o && c.name != "python_fix") { reply("Not available in this turn: only ${o.sorted().joinToString(", ")}. Make the fix from what you have been shown."); return } }
         if (c.name == "run_command" || c.name == "look_at_preview") ranSomething = true
         if (stopRequested()) { done("Skipped: the user pressed Stop."); return }
         // 1.5.127: the card said "Wrote index.html (read-only)" over a refusal; it now says what was refused.

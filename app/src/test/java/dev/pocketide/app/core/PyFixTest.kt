@@ -108,6 +108,15 @@ class PyFixTest {
         assertEquals(1, PyFix.variants("T = \"\"\"\n<b>x</b>\n\"\"\"", "T = \"\"\"\n<i>x</i>\n\"\"\"", "constant").size)
     }
 
+    /** 1.5.206 (run 1126-2203, rich_3518): Nano's pick of a long class becomes the member that shares most with the test. */
+    @Test fun aLongClassIsNarrowedToItsMember() {
+        val body = (1..70).joinToString("\n") { "    def m$it(self):\n        return $it" }
+        val text = "class Table:\n    highlight = False\n\n$body\n\n    def add_row(self, row):\n        self.rows.append(row)\n"
+        val us = PyFix.units(text)
+        assertEquals(listOf("Table.add_row"), PyFix.narrow(text, us, listOf("Table"), "add_row should keep highlight: rows.append(row) loses it"))
+        assertEquals(listOf("Table.m3"), PyFix.narrow(text, us, listOf("Table.m3"), "anything"))
+    }
+
     @Test fun blocksAreFoundWhole() {
         val text = """
             |import re

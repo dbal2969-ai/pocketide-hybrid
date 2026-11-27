@@ -133,6 +133,18 @@ class PyFixLoopTest {
         assertTrue(cloudAsked.toString(), cloudAsked.none { it.contains("You are fixing a bug") })
     }
 
+    /** 1.5.206 (run 1126-2203): a small tool set left over from a request that timed out does not carry into the next one. */
+    @Test fun aLeftoverSmallToolSetDoesNotCarryOver() {
+        assumeTrue(python())
+        dev.pocketide.app.core.Tools.only = setOf("read_file", "run_command"); dev.pocketide.app.core.Tools.onlyNarrowed = true
+        try {
+            nano("add", "```python\ndef add(a, b):\n    return a + b\n```")
+            val o = run()
+            val r = o.resultsOf("python_fix")
+            assertTrue(r.toString(), r.size == 1 && r[0].contains("passes now"))
+        } finally { dev.pocketide.app.core.Tools.only = null; dev.pocketide.app.core.Tools.onlyNarrowed = false }
+    }
+
     @Test fun offWhenRemoteConfigTurnsItOff() {
         Tuning.pyFix = false
         nano("""{"reason":"look","tool":"read_file","tool_args":{"path":"calc.py"}}""")

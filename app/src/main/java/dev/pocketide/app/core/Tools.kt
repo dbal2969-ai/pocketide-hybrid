@@ -156,6 +156,12 @@ object Tools {
      * its rounds hunting for the hidden test file and trying to run tests it could not reach (polyglot rest-api: 7 commands, no edit).
      */
     @Volatile var only: Set<String>? = null
+    /**
+     * 1.5.206: [only] was set by the agent's own narrowing (SmallTools), not by its caller (the repair turn). It was cleared only when a
+     * request ended normally, so after reliability run 1126-2203's rich_3518 timed out it stayed on for every later task (the Python
+     * fix path and edit_lines refused as "Not available in this turn" for 7 tasks). The next request clears a narrowing left over.
+     */
+    @Volatile var onlyNarrowed = false
     private val EXPLORE_DEF = Def("explore", "Hand a read-only question about this project to a helper with a fresh context (and a cheaper model when one is set), " +
         "for example \"Where is the player's HP changed and shown, and which file draws the HUD?\". It reads the files itself and returns a short summary with " +
         "file names and line numbers, so your own conversation stays small and cheap. Use it before reading many files to find your way.",

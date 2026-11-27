@@ -156,6 +156,16 @@ object PyFix {
         return best?.qual
     }
 
+    /**
+     * The blocks to rewrite, in order (1.5.206): a class over [BIG] lines becomes its member that shares most with the test, whether
+     * Nano or the app picked it (rich_3518: Nano picked the 400-line Table class, too long for its prompt, and all 9 tries were unusable).
+     */
+    fun narrow(text: String, us: List<Unit>, names: List<String>, about: String): List<String> = names.flatMap { q ->
+        val u = unitNamed(us, q)
+        if (u == null || u.kind != "class" || u.end - u.start <= BIG) listOf(q)
+        else listOfNotNull(shared(text, us.filter { it.start > u.head && it.end <= u.end }, about))
+    }.distinct()
+
     /** The unit called [name] ("Class.method" or a bare name); with several of a bare name (methods of different classes), the longest. */
     fun unitNamed(us: List<Unit>, name: String): Unit? = us.firstOrNull { it.qual == name } ?: us.filter { it.name == name }.maxByOrNull { it.end - it.start }
 
