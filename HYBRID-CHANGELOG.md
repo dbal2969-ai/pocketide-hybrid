@@ -1423,7 +1423,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Not checked here:** the web SDK path against a real Firebase project in Chrome (gstatic is not reachable from the build
   machine), and the bridge on the phone.
 
-### HASH · 2026-11-27 16:50 · Demo scene 8: the agent builds an AI web app, and the page asks Nano in Preview; 1.5.215
+### 239eedf · 2026-11-27 16:50 · Demo scene 8: the agent builds an AI web app, and the page asks Nano in Preview; 1.5.215
 
 - **Why:** the owner said yes to a demo scene that shows apps built in PocketIDE using Firebase AI Logic too.
 - **Change:** the demo has 8 scenes; "Apps that use it too" comes after the Python fix.
