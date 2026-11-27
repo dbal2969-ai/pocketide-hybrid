@@ -89,8 +89,10 @@ class MainActivity : Activity() {
             window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
         }
         // add-ons: registered here (the core never refers to their code), off when the person switched them off.
-        // 1.5.207: the hackathon edition registers none. The RuneScape game-cache add-on (addon/osrs) is not part of the
-        // #BuildHybridAI entry (no third-party game names in the app), so it shows nowhere: no Settings box, no tools.
+        // 1.5.207: the judges' build registers none. The RuneScape game-cache add-on (addon/osrs) is not part of the
+        // #BuildHybridAI entry (no third-party game names in the app), so there it shows nowhere: no Settings box, no tools.
+        // 1.5.217: the owner's own build (no judges' token) has it again, as before 1.5.207.
+        if (!resources.getBoolean(R.bool.judges_build)) dev.pocketide.app.core.AddOns.register(dev.pocketide.app.addon.osrs.OsrsAddOn)
         dev.pocketide.app.core.AddOns.disabled = settings.disabledAddOns
         ModelClient.workspaceId = settings.anthropicWorkspace
         dev.pocketide.app.core.Tools.webEnabled = settings.webResearch

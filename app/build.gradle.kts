@@ -20,8 +20,8 @@ android {
         // The name on the home screen and in Android's installer; the app code is shared, so each edition sets its own (1.5.131).
         resValue("string", "app_name", "PocketIDE")
         targetSdk = 35
-        versionCode = 264
-        versionName = "1.5.216-hybrid"
+        versionCode = 265
+        versionName = "1.5.217-hybrid"
     }
 
     // A fixed debug key, so every build is signed the same way and a new APK
@@ -46,6 +46,8 @@ android {
             // The App Check SDK reads R.string.firebase_app_check_debug_token and ignores it in release builds.
             val judgeToken = (project.findProperty("judgeAppCheckToken") as String?) ?: System.getenv("JUDGE_APPCHECK_TOKEN") ?: ""
             if (judgeToken.isNotBlank()) resValue("string", "firebase_app_check_debug_token", judgeToken.trim())
+            // 1.5.217: the judges' build leaves out the owner's own add-ons (the RuneScape game-cache tools); the owner's build keeps them
+            resValue("bool", "judges_build", judgeToken.isNotBlank().toString())
         }
     }
 
