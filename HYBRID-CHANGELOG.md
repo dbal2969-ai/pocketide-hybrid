@@ -1439,7 +1439,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   the typing and reading scripts were run in jsdom on a page with the starter's ids: typed, clicked, and read back. 1,396 unit
   tests, 0 failures.
 
-### HASH · 2026-11-27 18:05 · Linux installs survive a passing DNS error; the Firebase CLI in one tap; 1.5.216
+### a4146d3 · 2026-11-27 18:05 · Linux installs survive a passing DNS error; the Firebase CLI in one tap; 1.5.216
 
 - **Why:**
   - The owner's one-tap Linux setup stopped at "Install the basics": `apk update` hit "DNS: transient error (try again later)" for
