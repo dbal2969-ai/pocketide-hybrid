@@ -1090,7 +1090,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-reliable-python-benchmark-1126-1923-partial-4of13.
 
 
-### (next) · 2026-11-26 20:25 · Python fix path asks the cloud when Nano's rewrites fail; benchmark dialogs fixed; 1.5.203
+### 26695f9 · 2026-11-26 20:25 · Python fix path asks the cloud when Nano's rewrites fail; benchmark dialogs fixed; 1.5.203
 
 - **Why:** the owner asked for 80-100% on the Python tasks. Run 1126-1923 showed that Nano's reasoning is the limit (the app found
   the right function every time; Nano's changes were wrong), and no tool on the phone closes that.
