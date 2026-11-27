@@ -77,8 +77,25 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
 | **Cloud model tiers**: Fast (`gemini-3.5-flash-lite`), Balanced (`gemini-3.8-flash`) and Best (`gemini-4-hydrogen`, high thinking), all without billing on the Gemini Developer API. **Auto** starts on Balanced and passes a request that proves hard (two failed steps, a check failing twice, or the app's checks sending it back twice) to Best, saying so in the chat; a model the project cannot use is skipped and the next one down answers, and a busy one (high demand) hands just that step down; a reply cut off at its token limit is asked again with more room | `core/CloudTier.kt`, `HybridAgent.kt`, `HybridAi.kt`, `HybridScreen.kt` |
 | **Crashlytics** and **Performance Monitoring** (phone vs cloud request times); a **Private** switch and a first-run explanation on the Hybrid AI screen | `HybridCloud.kt`, `HybridScreen.kt` |
 | Judges' build: one App Check debug token for every phone, given at build time and never in git | `app/build.gradle.kts` |
-| One-tap hybrid benchmark in the app (Models → Hybrid AI): eight phone tasks run unattended and checked, results saved as a zip; fixes from each run are in the change record | `HybridBench.kt`, `core/HybridBenchTasks.kt`, `bench/hybrid/` |
+| In-app benchmark (Models → Hybrid AI): suites for Gemini Nano alone, cloud only, both, Python only and Python with the cloud, run unattended on the phone and checked by tests and hidden checks; results saved as a zip, interrupted runs resumable, a total run of every suite; fixes from each run are in the change record | `HybridBench.kt`, `core/HybridBenchTasks.kt`, `core/ReliableBench.kt`, `bench/hybrid/` |
+| The model's thinking in the agent's work log: cloud thought summaries (tiers that think) and Gemini Nano's reasoning, like an API model's thinking | `HybridAgent.kt`, `HybridAi.kt` |
 | Build: Firebase is applied only when `app/google-services.json` exists; CI writes it from the `GOOGLE_SERVICES_JSON` secret, so the config is not in git and the app still builds without it | `build.gradle.kts`, `app/build.gradle.kts`, `.github/workflows/build-apk.yml`, `.gitignore` |
+
+## Results, measured on a Galaxy S24+
+
+Every number comes from the in-app benchmark: the real agent works on a real project on the phone, unattended, and each task is
+checked by its tests and by hidden checks the model never sees. A script re-checks every results zip on its own
+(`bench/hybrid/analyze.py`). Each run, and the fixes it led to, is a row in [`HYBRID-CHANGELOG.md`](HYBRID-CHANGELOG.md).
+
+| What | Where it ran | Result |
+| --- | --- | --- |
+| JavaScript coding tasks (find, explain, fix, add, new files, two files, long files) | Gemini Nano only, on the phone (Private) | 41 of 44 (run 1126-1352); 55 of 63 (run 1126-2203) |
+| Real Python bug fixes from `rich` and `requests` (their own failing tests and hidden test suites) | Gemini Nano only | 1 of 13 (run 1126-1710), before the Python fix path |
+| The same 13 Python bugs | Nano first, cloud when Nano's rewrites fail | 12 of 13, and all 13 fixes correct (the 13th failed only a test that also fails on this phone with the reference fix). **Gemini Nano wrote 10 of the 13 fixes on the phone**: 6 on its own, 4 from a short plan written by the cloud (run 1126-2032) |
+| JavaScript tasks, cloud only | Cloud Gemini (Flash-Lite after the free quota ran low) | 13 of 13 before the free quota ran out (run 1126-0731) |
+
+What the phone is good at, and where the cloud matters, is the point of the design: small, checkable steps stay on the phone, free
+and private; a request that needs the web or more reasoning is passed on, and the reply says so.
 
 ## Why hybrid fits a phone IDE
 
@@ -110,7 +127,7 @@ Galaxy S flagships). Other phones use the cloud model automatically.
 
 ## Testing
 
-`./gradlew testDebugUnitTest` runs 1,200+ JVM tests. The hybrid ones run PocketIDE's real agent loop headless (Robolectric) with
+`./gradlew testDebugUnitTest` runs about 1,380 JVM tests. The hybrid ones run PocketIDE's real agent loop headless (Robolectric) with
 scripted stand-ins for Gemini Nano and the cloud model (`app/src/test/.../bench/HybridAgentLoopTest.kt`): Nano doing a whole fix
 on the phone; prose code, a refusal, a claimed edit that never happened and a web request each passed on with the handoff line;
 two failed steps in a row; an edit that deletes a definition still in use; and the cloud-first mode. Real Gemini Nano was tested

@@ -1180,6 +1180,28 @@ the files after the run, `transcript.txt` and `check.txt`.
   0 failures.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1126-2203-partial-76of171.
 
+
+### (next) · 2026-11-27 08:30 · Submission check: HACKATHON.md gets measured results; lint and secrets reviewed
+
+- **Why:** the owner asked to get the submission ready. The official rules (Devpost) require:
+  - a public repo with an open-source license showing in About (MIT, detected);
+  - Firebase AI Logic actually called;
+  - a free test build available through judging (App Check debug tokens accepted);
+  - a public YouTube video of 3 minutes or less;
+  - a description of how AI Logic is used, the features and the value;
+  - disclosure of earlier code with a summary of what was built in the period;
+  - no secrets in the repo.
+- **Checked:**
+  - No secrets in git history: the matches are fake test strings, and google-services.json was never committed.
+  - Every usage record the app writes passes the Firestore rules.
+  - The Remote Config template has 30 keys and is valid.
+  - Android lint has 7 errors, all false alarms: an API-30 call behind a version check, deliberate byte-order marks in test
+    strings, a theme attribute older phones ignore, and a radio-button id set on purpose.
+- **Change:** HACKATHON.md has a "Results, measured on a Galaxy S24+" section (JavaScript on Nano alone, Python on Nano alone and
+  Nano + cloud, cloud only, each with its run). The benchmark and thinking rows and the test count are up to date.
+- **Still open, owner only:** the JUDGE_APPCHECK_TOKEN secret and the judges' release (no release exists yet), the video, and the
+  Devpost form.
+
 ---
 
 ## Outside the code
