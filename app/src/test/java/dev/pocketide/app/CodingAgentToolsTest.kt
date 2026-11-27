@@ -41,4 +41,13 @@ class CodingAgentToolsTest {
         assertTrue("apk-only tools are unchanged", ToolCatalog.isInstalled(ToolCatalog.byId("git")!!, setOf("git")))
         assertFalse(ToolCatalog.isInstalled(ToolCatalog.byId("ts-lsp")!!, setOf("nodejs", "npm", "npm:typescript")))
     }
+
+    /** 1.5.216: the Firebase CLI installs in one tap with npm, and says how to sign in on a phone. */
+    @org.junit.Test fun theFirebaseCliIsOneTap() {
+        val t = ToolCatalog.byId("firebase")!!
+        org.junit.Assert.assertTrue(ToolCatalog.installCommand(listOf(t)).endsWith("&& npm install -g firebase-tools"))
+        org.junit.Assert.assertTrue(t.description.contains("firebase login --no-localhost"))
+        org.junit.Assert.assertTrue(ToolCatalog.isInstalled(t, setOf("nodejs", "npm", "npm:firebase-tools")))
+        org.junit.Assert.assertFalse(ToolCatalog.isInstalled(t, setOf("nodejs", "npm")))
+    }
 }

@@ -1439,6 +1439,26 @@ the files after the run, `transcript.txt` and `check.txt`.
   the typing and reading scripts were run in jsdom on a page with the starter's ids: typed, clicked, and read back. 1,396 unit
   tests, 0 failures.
 
+### HASH · 2026-11-27 18:05 · Linux installs survive a passing DNS error; the Firebase CLI in one tap; 1.5.216
+
+- **Why:**
+  - The owner's one-tap Linux setup stopped at "Install the basics": `apk update` hit "DNS: transient error (try again later)" for
+    one repository and exited 1, so `apk add` never ran. A retry by hand worked. (The owner had uninstalled the standalone Linux
+    add-on; that was not the cause, since apk itself ran.)
+  - The owner asked for a one-tap Firebase CLI, to push Remote Config and Firestore rules from the phone.
+- **Change:**
+  - Install commands (`ToolCatalog.installCommand`): the package index is refreshed up to three times (`ALPINE_REFRESH`,
+    `UBUNTU_REFRESH`), a refresh that still fails no longer stops the install (the older index is used), and the install itself is
+    tried twice, 5 s apart. Checked in sh with a stand-in apk: one failed refresh then success installs and runs the follow-up; a
+    failing install still exits 1.
+  - Tools → "Firebase CLI" (`npm install -g firebase-tools`, Alpine; not offered on Ubuntu, whose Node is older than the CLI
+    needs). Its card says how to sign in on a phone (`firebase login --no-localhost`: open the link, sign in, paste the code back;
+    the person's own step) and how to push Remote Config with the repository's firebase.json
+    (`firebase deploy --only remoteconfig --project <id>`).
+- **Files:** core/ToolCatalog.kt, core/AppMapData.kt; app/build.gradle.kts (1.5.216-hybrid, code 264).
+- **Tests:** ToolsTest and UbuntuToolsTest (the new command shape), CodingAgentToolsTest `theFirebaseCliIsOneTap`. 1,397 unit tests,
+  0 failures.
+
 ---
 
 ## Outside the code

@@ -36,7 +36,7 @@ object UbuntuToolsSelfTest {
     private fun commands() {
         val py = ToolCatalog.byId("python")!!
         val node = ToolCatalog.byId("node")!!
-        eq(ToolCatalog.installCommand(listOf(py)), "apk update && apk add python3 py3-pip", "Alpine install command is unchanged")
+        eq(ToolCatalog.installCommand(listOf(py)), ToolCatalog.ALPINE_REFRESH + "apk add python3 py3-pip || { sleep 5; apk add python3 py3-pip; }", "Alpine install: index refreshed (retried), then apk add (tried twice)")
         eq(ToolCatalog.installCommand(listOf(py), "alpine"), ToolCatalog.installCommand(listOf(py)), "naming alpine gives the same command as the default")
         eq(ToolCatalog.removeCommand(py), "apk del python3 py3-pip", "Alpine remove command is unchanged")
         val u = ToolCatalog.installCommand(listOf(py, node), "ubuntu")
@@ -53,7 +53,7 @@ object UbuntuToolsSelfTest {
     private fun coverage() {
         val missing = ToolCatalog.all.filter { !ToolCatalog.available(it, "ubuntu") }.map { it.id }.sorted()
         // 1.5.180: Gemini CLI and Claude Code need a newer Node than Ubuntu 24.04's 18
-        eq(missing, listOf("claude-code", "gemini-cli", "llamacpp", "ollama"), "only Ollama, llama.cpp and the agents that need Node 20+ are unavailable on Ubuntu")
+        eq(missing, listOf("claude-code", "firebase", "gemini-cli", "llamacpp", "ollama"), "only Ollama, llama.cpp and the npm tools that need Node 20+ (agents, Firebase CLI) are unavailable on Ubuntu")
         ok(ToolCatalog.all.all { ToolCatalog.available(it, "alpine") }, "everything is available on Alpine")
         for (t in ToolCatalog.all.filter { ToolCatalog.available(it, "ubuntu") }) {
             val cmd = try { ToolCatalog.installCommand(listOf(t), "ubuntu") } catch (e: IllegalArgumentException) { "" }

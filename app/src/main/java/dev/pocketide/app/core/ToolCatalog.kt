@@ -59,6 +59,11 @@ object ToolCatalog {
         // offers Claude Code, Codex and OpenCode). npm picks the Alpine (musl) ARM64 build where the package has one.
         Tool("opencode", "OpenCode (coding agent)", "Another AI coding agent for the full terminal. Has free models with no account; also takes your own keys. Run: opencode", listOf("nodejs", "npm"), "opencode --version", 120, after = "npm install -g opencode-ai"),
         Tool("gemini-cli", "Gemini CLI (coding agent)", "Google's coding agent for the terminal. Sign in with a Google account or a Gemini API key. Run: gemini", listOf("nodejs", "npm"), "gemini --version", 150, after = "npm install -g @google/gemini-cli"),
+        // 1.5.216: the owner's ask, to push Remote Config and Firestore rules from the phone. Signing in is the person's own step: a
+        // link to open and a code to paste back (no localhost on a phone).
+        Tool("firebase", "Firebase CLI", "Deploy to Firebase from the terminal: Remote Config, Firestore rules, Hosting. Sign in once with: " +
+            "firebase login --no-localhost (open the link, sign in, paste the code back). Then, in a project with firebase.json: " +
+            "firebase deploy --only remoteconfig --project <your-project-id>", listOf("nodejs", "npm"), "firebase --version", 160, after = "npm install -g firebase-tools"),
         Tool("codex", "Codex CLI (coding agent)", "OpenAI's coding agent for the terminal. Needs a ChatGPT plan or an OpenAI key. Run: codex", listOf("nodejs", "npm"), "codex --version", 120, after = "npm install -g @openai/codex"),
         Tool("claude-code", "Claude Code (coding agent)", "Anthropic's coding agent for the terminal. Needs a Claude plan or an Anthropic key. Run: claude", listOf("nodejs", "npm", "libgcc", "libstdc++", "ripgrep"), "claude --version", 200, after = "npm install -g @anthropic-ai/claude-code"),
         Tool("pandoc", "Pandoc (convert documents)", "Convert between Markdown, Word, HTML, EPUB and more. Writing PDF also needs a LaTeX engine, which is not included.", listOf("pandoc-cli"), "pandoc --version | head -1", 110)
@@ -152,13 +157,21 @@ object ToolCatalog {
     }
 
     /** Refreshes the index first so a fresh install does not fail on stale package versions. */
+    /**
+     * 1.5.216 (the owner's one-tap setup): "apk update" failed on a passing DNS error ("DNS: transient error (try again later)") for
+     * one of the two repositories, so the whole install stopped at exit 1. The index is now refreshed up to three times, a failed
+     * refresh no longer stops the install (the older index is used), and the install itself is tried twice.
+     */
+    const val ALPINE_REFRESH = "for i in 1 2 3; do if apk update; then break; fi; sleep 3; done; "
+    const val UBUNTU_REFRESH = "for i in 1 2 3; do if apt-get -o APT::Sandbox::User=root update; then break; fi; sleep 3; done; "
+
     fun installCommand(tools: List<Tool>, distro: String = "alpine"): String {
         val tail = tools.map { after(it, distro) }.filter { it.isNotBlank() }.distinct().joinToString("") { " && $it" }
         return if (isUbuntu(distro)) {
             // ca-certificates: the Ubuntu base has none, and pip, npm and git need them for https. The apt sandbox user does not exist under PRoot.
-            "export DEBIAN_FRONTEND=noninteractive; apt-get -o APT::Sandbox::User=root update && " +
-                "apt-get -o APT::Sandbox::User=root install -y --no-install-recommends " + pkgs(tools, distro) + " ca-certificates" + tail
-        } else "apk update && apk add " + pkgs(tools) + tail
+            val add = "apt-get -o APT::Sandbox::User=root install -y --no-install-recommends " + pkgs(tools, distro) + " ca-certificates"
+            "export DEBIAN_FRONTEND=noninteractive; " + UBUNTU_REFRESH + add + " || { sleep 5; " + add + "; }" + tail
+        } else ("apk add " + pkgs(tools)).let { add -> ALPINE_REFRESH + add + " || { sleep 5; " + add + "; }" + tail }
     }
 
     fun removeCommand(tool: Tool, distro: String = "alpine"): String =

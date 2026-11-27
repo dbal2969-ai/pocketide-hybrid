@@ -43,15 +43,15 @@ object ToolsSelfTest {
         eq(ToolCatalog.byId("llamacpp")?.packages, listOf("llama-server"), "catalog: llama.cpp server package")
         eq(ToolCatalog.byId("java")?.packages, listOf("openjdk21-jdk"), "catalog: java package")
         val basics = ToolCatalog.basics.mapNotNull { ToolCatalog.byId(it) }
-        eq(ToolCatalog.installCommand(basics), "apk update && apk add python3 py3-pip nodejs npm git", "install: one apk call, index refreshed first")
-        eq(ToolCatalog.installCommand(listOf(ToolCatalog.byId("git")!!, ToolCatalog.byId("git")!!)), "apk update && apk add git", "install: duplicates dropped")
+        eq(ToolCatalog.installCommand(basics), ToolCatalog.ALPINE_REFRESH + "apk add python3 py3-pip nodejs npm git || { sleep 5; apk add python3 py3-pip nodejs npm git; }", "install: one apk call, index refreshed first")
+        eq(ToolCatalog.installCommand(listOf(ToolCatalog.byId("git")!!, ToolCatalog.byId("git")!!)), ToolCatalog.ALPINE_REFRESH + "apk add git || { sleep 5; apk add git; }", "install: duplicates dropped")
         eq(ToolCatalog.removeCommand(ToolCatalog.byId("rust")!!), "apk del rust cargo", "remove: apk del")
         throws("install: empty list refused") { ToolCatalog.installCommand(emptyList()) }
         eq(ToolCatalog.byId("office")?.packages, listOf("py3-lxml", "py3-pillow", "py3-openpyxl", "py3-xlsxwriter"), "catalog: office packages")
         eq(ToolCatalog.installCommand(listOf(ToolCatalog.byId("python")!!, ToolCatalog.byId("office")!!)),
-            "apk update && apk add python3 py3-pip py3-lxml py3-pillow py3-openpyxl py3-xlsxwriter && apk add py3-pip && pip install --break-system-packages python-docx python-pptx",
+            ToolCatalog.ALPINE_REFRESH + "apk add python3 py3-pip py3-lxml py3-pillow py3-openpyxl py3-xlsxwriter || { sleep 5; apk add python3 py3-pip py3-lxml py3-pillow py3-openpyxl py3-xlsxwriter; }" + " && apk add py3-pip && pip install --break-system-packages python-docx python-pptx",
             "install: a tool's follow-up command is chained after apk")
-        eq(ToolCatalog.installCommand(listOf(ToolCatalog.byId("office")!!, ToolCatalog.byId("office")!!)).split(" && ").size, 4, "install: follow-up command not repeated")
+        eq(ToolCatalog.installCommand(listOf(ToolCatalog.byId("office")!!, ToolCatalog.byId("office")!!)).split(" && ").size, 3, "install: follow-up command not repeated")
         eq(ToolCatalog.removeCommand(ToolCatalog.byId("office")!!), "apk del py3-lxml py3-pillow py3-openpyxl py3-xlsxwriter", "remove: office leaves python alone")
         eq(ToolCatalog.byId("pdf")?.packages, listOf("poppler-utils"), "catalog: pdf package")
         eq(ToolCatalog.byId("pandoc")?.packages, listOf("pandoc-cli"), "catalog: pandoc package")
