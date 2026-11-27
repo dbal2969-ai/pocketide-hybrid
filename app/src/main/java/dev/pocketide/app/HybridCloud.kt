@@ -166,8 +166,12 @@ object HybridCloud {
 
     // ---------------- Firestore ----------------
 
+    /** 1.5.213: sees every request's route as it is recorded (the demo recording's scene log). */
+    @Volatile var tap: ((where: String, seconds: Double, reason: String, kind: String) -> Unit)? = null
+
     /** Records one hybrid request: where it ran (phone, cloud or strong), its time, why Nano passed it on, and from where (chat, agent, try). */
     fun log(where: String, seconds: Double, reason: String, kind: String) {
+        try { tap?.invoke(where, seconds, reason, kind) } catch (e: Exception) { }
         if (off) return
         val ctx = HybridAi.appContext ?: return
         io.execute {

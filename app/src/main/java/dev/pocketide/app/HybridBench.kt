@@ -270,11 +270,11 @@ object HybridBench {
     }
 
     /** Saves a file to Downloads/PocketIDE (MediaStore, no permission needed); before Android 10, the app's own files. */
-    fun saveToDownloads(ctx: android.content.Context, fileName: String, write: (OutputStream) -> Unit): String {
+    fun saveToDownloads(ctx: android.content.Context, fileName: String, mime: String = "application/zip", write: (OutputStream) -> Unit): String {
         if (Build.VERSION.SDK_INT >= 29) {
             val v = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, "application/zip")
+                put(MediaStore.Downloads.MIME_TYPE, mime)
                 put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PocketIDE")
             }
             val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v) ?: error("Downloads refused the file")

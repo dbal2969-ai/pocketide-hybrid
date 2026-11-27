@@ -1363,6 +1363,34 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** ChatPane.kt.
 - **Tests:** no new test (text only). 1,385 unit tests, 0 failures.
 
+### HASH · 2026-11-27 16:30 · One-tap demo recording for the submission video; 1.5.213
+
+- **Why:** the owner asked for one button that plays a fresh-start demo to screen-record for the #BuildHybridAI video, with nothing
+  fabricated (the rules ask for footage of the project working on its platform, at most 3 minutes, on YouTube). Console footage is
+  not required, so it is left out. The airplane-mode scene pauses for the owner to switch it.
+- **Change:** ⋮ → AI → "Record a demo video (Hybrid AI, one tap)" (`DemoRun`, `core/DemoScript`).
+  - A checklist (battery, internet, Do Not Disturb, Python for the bug-fix scene, installed in Linux if missing), then Go and a
+    3-second countdown.
+  - Seven scenes, each tapping and typing as a person would, with a circle where it taps; every answer is live (Gemini Nano or the
+    cloud), none replayed:
+    1. The welcome screen as a new user sees it; the Hybrid AI card is tapped.
+    2. Try it: a short question, answered by Nano.
+    3. Offline: it waits for airplane mode, asks again, then waits for the connection to come back.
+    4. The agent builds the snake game (one HTML file) in a new "Demo snake game" project; Preview opens to play it.
+    5. A real requests bug (requests_7315) with the Python fix path; the test is run afterwards and its result logged.
+    6. A request that needs the web goes to the cloud with Nano's reason; notes.md is logged.
+    7. An end card with the measured results from HACKATHON.md and the repository link.
+  - A bar at the top names the scene, with ↺ (retake this scene), ▸ (next) and ■ (stop). The screen stays on.
+  - Settings and the open project are put back at the end (`HybridBench.restore`); nothing is reset or deleted.
+  - A scene log (times from the countdown, each request's route and time from `HybridCloud.tap`, answers, test results) is saved to
+    Downloads/PocketIDE/PocketIDE-demo-log-<stamp>.txt for the captions.
+  - Hooks: `HybridScreen.demoOpened/demoAnswered`, `Welcome.show` returns the Hybrid AI card, `HybridCloud.tap`,
+    `MainActivity.benchSelect/demoWelcome/settingsForDemo/demoLinuxActive`, `HybridBench.saveToDownloads(mime)`.
+- **Files:** DemoRun.kt (new), core/DemoScript.kt (new), HybridScreen.kt, Welcome.kt, HybridCloud.kt, HybridBench.kt, MainActivity.kt,
+  core/AppMapData.kt; app/build.gradle.kts (1.5.213-hybrid, code 261).
+- **Tests:** DemoScriptTest (5: scene order, each request's routing, the Python task in the assets, the end card against
+  HACKATHON.md, the log). 1,390 unit tests, 0 failures (VcsTest failed once on file timing in the first run and passed on rerun).
+
 ---
 
 ## Outside the code

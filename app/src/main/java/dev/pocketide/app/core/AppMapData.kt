@@ -33,6 +33,7 @@ object AppMapData {
         AppMap.Item("⋮ Menu › AI", "Outside tool servers (MCP)", null, AppMap.Kind.MENU),
         AppMap.Item("⋮ Menu › AI", "Agent profile (reviewer, debugger, planner…)", null, AppMap.Kind.MENU),
         AppMap.Item("⋮ Menu › AI", "Multi-model workflow and advisor", null, AppMap.Kind.MENU),
+        AppMap.Item("⋮ Menu › AI", "Record a demo video (Hybrid AI, one tap)", null, AppMap.Kind.MENU),
         AppMap.Item("⋮ Menu › AI", "Sync chats & backups (Supabase)", null, AppMap.Kind.MENU),
         AppMap.Item("⋮ Menu › App", "Fix the app itself (crash, newest build)", null, AppMap.Kind.MENU),
         AppMap.Item("⋮ Menu › App", "Diagnostics (check everything)", null, AppMap.Kind.MENU),

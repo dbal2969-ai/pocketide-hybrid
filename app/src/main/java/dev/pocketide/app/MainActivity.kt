@@ -494,6 +494,18 @@ class MainActivity : Activity() {
     /** The from-scratch benchmark: "Build this as a project" on the current chat, sending the build request. Returns the project. */
     fun benchBuildFromChat(name: String): String = chat.buildAs(name, send = true)
 
+    /** 1.5.213, the demo recording: the settings it switches to Hybrid AI and Agent mode (HybridBench.restore puts them back). */
+    fun settingsForDemo(): AppSettings = settings
+
+    /** 1.5.213, the demo recording: whether Linux is running (the Python scene needs it). */
+    fun demoLinuxActive(): Boolean = linux.active
+
+    /** 1.5.213, the demo recording: shows a tab (0 Code, 1 Preview, 2 Terminal, 3 AI). */
+    fun benchSelect(i: Int) = select(i)
+
+    /** 1.5.213, the demo recording: the welcome screen as a new user sees it; [useHybrid] runs when its Hybrid AI card is chosen. */
+    fun demoWelcome(useHybrid: () -> Unit): View? = Welcome.show(this, {}, {}, useHybrid)
+
     fun benchSwitch(project: String) {
         editor.save()
         if (Projects.key(this) != project) Projects.switchTo(this, project)
@@ -570,6 +582,7 @@ class MainActivity : Activity() {
             "Outside tool servers (MCP)" to { McpScreen.show(this, settings) },
             "Agent profile (reviewer, debugger, planner…)" to { AgentProfileScreen.show(this, settings) { chat.refresh() } },
             "Multi-model workflow and advisor" to { WorkflowScreen.show(this, settings) },
+            "Record a demo video (Hybrid AI, one tap)" to { DemoRun.start(this) },
             "Sync chats & backups (Supabase)" to { SyncScreen.show(this, settings, store) { chat.refresh() } }
         ),
         "App" to listOf(

@@ -180,7 +180,7 @@ object HybridScreen {
         tryCard.addView(input, LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP))
         val answer = Ui.text(ctx, "", 14f, Ui.TEXT)
         val where = Ui.text(ctx, "", 12f, Ui.MUTED)
-        fs.buttonRow(tryCard, Ui.button(ctx, "Ask", true) {
+        val askBtn = Ui.button(ctx, "Ask", true) {
             val q = input.text.toString().trim()
             if (q.isEmpty()) return@button
             answer.text = "Thinking…"; where.text = ""
@@ -191,10 +191,13 @@ object HybridScreen {
                     r.onSuccess { answer.text = it.text.ifBlank { "(empty reply)" }; where.text = label(it)
                         HybridCloud.log(if (it.onDevice) "phone" else "cloud", it.seconds, "", "try") }
                         .onFailure { answer.text = HybridAi.explain(it); where.text = "" }
+                    demoAnswered?.invoke(r.getOrNull())
                 }
             }
-        })
+        }
+        fs.buttonRow(tryCard, askBtn)
         tryCard.addView(answer); tryCard.addView(where)
+        val tryHandle = DemoTry(fs.dialog, fs.scroll, tryCard, input, askBtn, answer)
 
         // ---- Benchmark (HybridBench): eight tasks with the real agent and Gemini Nano, no one watching ----
         // 1.5.210: the benchmarks are for measuring PocketIDE, not for using it: folded under one line unless a run is going on
@@ -418,6 +421,7 @@ object HybridScreen {
         fs.dialog.setOnDismissListener { closed = true; io.shutdown() }
         fs.show()
         refresh()
+        if (demoOpened != null) { demoOpened?.invoke(tryHandle); return }   // the demo recording: no first-time intro over it
         intro(activity)
     }
 
@@ -473,6 +477,14 @@ object HybridScreen {
             }.start()
         }.show()
     }
+
+    /**
+     * 1.5.213: the demo recording (DemoRun) types a question into Try it and presses Ask, as a person would; the answer is the real
+     * one. [demoOpened] gets this screen's Try it parts when it opens; [demoAnswered] gets each reply (null when it failed).
+     */
+    class DemoTry(val dialog: android.app.Dialog, val scroll: android.widget.ScrollView, val card: View, val input: EditText, val ask: View, val answer: TextView)
+    @Volatile var demoOpened: ((DemoTry) -> Unit)? = null
+    @Volatile var demoAnswered: ((HybridAi.Reply?) -> Unit)? = null
 }
 
 /**
