@@ -1283,7 +1283,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** StarterTest `hybridAiIsReadyWithNoKey`. 1,382 unit tests, 0 failures.
 
 
-### (next) · 2026-11-27 14:20 · Model chooser, chat builds and the Hybrid AI screen made friendlier; 1.5.210
+### fbb62d4 · 2026-11-27 14:20 · Model chooser, chat builds and the Hybrid AI screen made friendlier; 1.5.210
 
 - **Why:** the owner reviewed the judges' build (screenshots).
   - The model chooser listed Hybrid AI mid-list, and tapping it asked "Pick from Hybrid AI's list / Type a name", which means
