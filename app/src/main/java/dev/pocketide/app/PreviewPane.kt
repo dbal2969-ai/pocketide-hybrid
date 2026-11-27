@@ -164,6 +164,40 @@ class PreviewPane(private val ctx: Context, private val store: ProjectStore) : L
      * Handed to the page as window.PocketDebug while debugging. WebView calls it on its own background thread and the page's
      * JavaScript waits for the answer, so waiting here is the pause; the screen's thread is never held (the gate refuses it).
      */
+    /** 1.5.214: the page's address, kept for the AI bridge (its calls arrive off the main thread, where the WebView cannot be read). */
+    @Volatile private var pageUrl: String? = null
+
+    /**
+     * 1.5.214: PocketIDEAI, PocketIDE's Hybrid AI for the project's own pages (PreviewAi): Gemini Nano on this phone first, through
+     * PocketIDE's Firebase AI Logic; the cloud at most Tuning.previewCloudPerHour times an hour, then Gemini Nano only.
+     */
+    private inner class AiBridge {
+        @android.webkit.JavascriptInterface
+        fun ask(id: String, prompt: String) {
+            val p = dev.pocketide.app.core.PreviewAi
+            val url = pageUrl
+            fun back(json: String) = main.post { if (pageUrl == url) try { web.evaluateJavascript(p.callback(id, json), null) } catch (e: Exception) { } }
+            p.refusal(url, prompt)?.let { back(p.error(it)); return }
+            if (!HybridAi.configured(ctx)) { back(p.error("This PocketIDE build has no Firebase config, so Hybrid AI is off.")); return }
+            previewAiIo.execute {
+                val chosen = HybridScreen.mode(ctx)
+                val cloudOk = previewAllowance.cloudLeft(dev.pocketide.app.core.Tuning.previewCloudPerHour) > 0
+                val mode = if (cloudOk || chosen == HybridAi.Mode.ONLY_ON_DEVICE) chosen else HybridAi.Mode.ONLY_ON_DEVICE
+                val json = try {
+                    val r = HybridAi.ask(ctx, prompt, mode)
+                    if (!r.onDevice) previewAllowance.usedCloud()
+                    HybridCloud.log(if (r.onDevice) "phone" else "cloud", r.seconds, "", "preview")
+                    p.reply(r.text, r.onDevice, r.seconds, r.model)
+                } catch (e: Exception) {
+                    p.error(if (!cloudOk && mode != chosen) p.CLOUD_USED_UP else HybridAi.explain(e))
+                }
+                back(json)
+            }
+        }
+    }
+    private val previewAiIo = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val previewAllowance = dev.pocketide.app.core.PreviewAi.Allowance()
+
     private inner class DebugBridge(private val run: DebugRun) {
         @android.webkit.JavascriptInterface
         fun pause(file: String, line: Int, values: String): String {
@@ -382,6 +416,7 @@ class PreviewPane(private val ctx: Context, private val store: ProjectStore) : L
     /** Settings, clients and colours of the visible page's browser. */
     private fun setUpWeb(w: WebView) {
         configure(w)
+        w.addJavascriptInterface(AiBridge(), dev.pocketide.app.core.PreviewAi.NAME)
         w.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val run = debugRun
@@ -395,7 +430,10 @@ class PreviewPane(private val ctx: Context, private val store: ProjectStore) : L
                 return true
             }
 
+            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) { if (view === web) pageUrl = url }
+
             override fun onPageFinished(view: WebView, url: String) {
+                if (view === web) pageUrl = url
                 debugRun?.let { showRunning(it) }   // breakpoints that landed on another line are named once the files have loaded
             }
 

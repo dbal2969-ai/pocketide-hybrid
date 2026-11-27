@@ -1391,6 +1391,38 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** DemoScriptTest (5: scene order, each request's routing, the Python task in the assets, the end card against
   HACKATHON.md, the log). 1,390 unit tests, 0 failures (VcsTest failed once on file timing in the first run and passed on rerun).
 
+### HASH · 2026-11-27 16:40 · Apps built in PocketIDE use Firebase AI Logic: the Hybrid AI web app starter and the Preview bridge; 1.5.214
+
+- **Why:** the owner asked for both options for apps built with PocketIDE: (1) a starter that uses Firebase AI Logic's hybrid
+  inference itself, and (2) a bridge so pages in Preview can use PocketIDE's own Gemini Nano. Checked first: the Firebase web SDK's
+  on-device mode needs desktop Chrome 139+ with the Prompt API flag (firebase.google.com/docs/ai-logic/hybrid/web/get-started), so
+  in PocketIDE's Preview (Android WebView) it would only ever use the cloud; the bridge is what puts Nano behind a phone-built page.
+- **Change:**
+  - **"Hybrid AI web app" starter** (`core/AiWebTemplate.kt`, listed after "Web page"): index.html, style.css, app.js, ai.js,
+    firebase-config.js, README.md. `ask(prompt)` in ai.js returns `{ text, onDevice, seconds, via }`:
+    - in Preview, through the PocketIDEAI bridge;
+    - elsewhere, through Firebase AI Logic's web SDK 13.3.0 from gstatic (`getAI` + `GoogleAIBackend`,
+      `getGenerativeModel(ai, { mode: InferenceMode.PREFER_ON_DEVICE })`, `initializeDeviceModel()` after a tap,
+      `response.inferenceSource === 'on_device'`), with the app's own Firebase config and App Check (reCAPTCHA Enterprise, or a
+      debug token while testing). No Firebase project is shipped in the starter. API checked against `@firebase/ai` 3.1.0's
+      typings (firebase 13.3.0).
+  - **PocketIDEAI bridge** (`core/PreviewAi.kt`, `PreviewPane.AiBridge`): `PocketIDEAI.ask(id, prompt)` answers with
+    `HybridAi.ask` in the person's routing mode (Gemini Nano first) and calls back `window.__pocketideAI(id, json)`.
+    - Only pages served from the project (`https://<project>.pocketide.local/`) may ask, not a local server or another site.
+    - Prompts are capped at 6,000 characters.
+    - The cloud answers at most `hybrid_preview_cloud_per_hour` an hour (new Remote Config key, default 20, 0 = Nano only); after
+      that only Nano answers, because the free quota is shared with the agent and, during judging, with the judges.
+    - Each answer is recorded like the others (`HybridCloud.log`, kind "preview").
+  - Remote Config: 31 keys (template, `Tuning`, HACKATHON.md).
+  - HACKATHON.md lists both, and the demo recording.
+- **Files:** core/AiWebTemplate.kt (new), core/PreviewAi.kt (new), PreviewPane.kt, core/Templates.kt, core/Tuning.kt,
+  remoteconfig.template.json, HACKATHON.md, core/AppMapData.kt; app/build.gradle.kts (1.5.214-hybrid, code 262).
+- **Tests:** PreviewAiTest (5: only the project's pages, the hourly allowance, the callback's escaping, the starter listed and
+  rendered, its JavaScript parsed by `node --check`). A Node smoke test of ai.js (outside the suite): the bridge path resolves with
+  the answer, and the web path without a config says to fill in firebase-config.js. 1,395 unit tests, 0 failures.
+- **Not checked here:** the web SDK path against a real Firebase project in Chrome (gstatic is not reachable from the build
+  machine), and the bridge on the phone.
+
 ---
 
 ## Outside the code

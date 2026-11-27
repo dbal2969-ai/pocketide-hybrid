@@ -79,7 +79,7 @@ object Templates {
         "README.md" to "# {{name}}\n\nRun it with:\n\n```\njava Main.java\n```\n"
     ), "Main.java")
 
-    private val base: List<Template> = listOf(WEB, GameTemplates.GAME2D, GameTemplates.GAME3D, EMPTY, PYTHON, NODE, GO, JAVA)
+    private val base: List<Template> = listOf(WEB, AiWebTemplate.TEMPLATE, GameTemplates.GAME2D, GameTemplates.GAME3D, EMPTY, PYTHON, NODE, GO, JAVA)
     /** Templates only one edition offers (the GPL edition's Linux projects), set at start-up. */
     @Volatile var extra: List<Template> = emptyList()
     val all: List<Template> get() = base + extra

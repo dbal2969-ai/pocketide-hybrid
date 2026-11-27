@@ -209,6 +209,13 @@
       },
       "description": "Rewrites the Python fix path tries for the first block it picks (half as many for each next one), 1-10. Replaces hybrid_python_fix_samples (no longer read).",
       "valueType": "NUMBER"
+    },
+    "hybrid_preview_cloud_per_hour": {
+      "defaultValue": {
+        "value": "20"
+      },
+      "description": "Cloud answers an hour for pages in PocketIDE's Preview that use the PocketIDEAI bridge (the Hybrid AI web app starter), 0-500. 0 = Gemini Nano only. Keeps apps built in PocketIDE from using up the project's free quota.",
+      "valueType": "NUMBER"
     }
   }
 }

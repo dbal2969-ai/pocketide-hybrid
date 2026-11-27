@@ -78,6 +78,8 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
 | **Crashlytics** and **Performance Monitoring** (phone vs cloud request times); a **Private** switch and a first-run explanation on the Hybrid AI screen | `HybridCloud.kt`, `HybridScreen.kt` |
 | Judges' build: one App Check debug token for every phone, given at build time and never in git | `app/build.gradle.kts` |
 | In-app benchmark (Models → Hybrid AI): suites for Gemini Nano alone, cloud only, both, Python only and Python with the cloud, run unattended on the phone and checked by tests and hidden checks; results saved as a zip, interrupted runs resumable, a total run of every suite; fixes from each run are in the change record | `HybridBench.kt`, `core/HybridBenchTasks.kt`, `core/ReliableBench.kt`, `bench/hybrid/` |
+| **Apps built in PocketIDE use Firebase AI Logic too**: a "Hybrid AI web app" starter whose `ask(prompt)` uses the Firebase AI Logic web SDK in `PREFER_ON_DEVICE` mode (Gemini Nano in desktop Chrome 139+ with the Prompt API, the cloud elsewhere; the app's own Firebase project and App Check) and, inside PocketIDE's Preview, the **PocketIDEAI bridge**: PocketIDE answers through its own Firebase AI Logic, Gemini Nano on the phone first. Only the project's own pages may ask; the cloud answers at most `hybrid_preview_cloud_per_hour` (Remote Config, 20 by default) of them an hour, then Nano only | `core/AiWebTemplate.kt`, `core/PreviewAi.kt`, `PreviewPane.kt` |
+| One-tap demo recording (⋮ → AI → Record a demo video): the welcome screen, Try it, offline, the agent building a game, a real Python fix and a cloud handoff, each with live answers, and a scene log of what ran where | `DemoRun.kt`, `core/DemoScript.kt` |
 | The model's thinking in the agent's work log: cloud thought summaries (tiers that think) and Gemini Nano's reasoning, like an API model's thinking | `HybridAgent.kt`, `HybridAi.kt` |
 | Build: Firebase is applied only when `app/google-services.json` exists; CI writes it from the `GOOGLE_SERVICES_JSON` secret, so the config is not in git and the app still builds without it | `build.gradle.kts`, `app/build.gradle.kts`, `.github/workflows/build-apk.yml`, `.gitignore` |
 
@@ -115,7 +117,7 @@ and private; a request that needs the web or more reasoning is passed on, and th
 5. Firebase console → **Firestore Database** → Create database, then paste `firestore.rules` from this repository into Rules
    (or `npx -y firebase-tools@latest deploy --only firestore:rules`). Records are create-only, owner-only, typed and size-limited;
    see `docs/FIREBASE-AGENT-SKILLS.md` for the audit.
-6. Firebase console → **Remote Config** (optional; the app has built-in defaults for all 30 keys): every key, its default and what it
+6. Firebase console → **Remote Config** (optional; the app has built-in defaults for all 31 keys): every key, its default and what it
    does is in `remoteconfig.template.json`, and `firebase deploy --only remoteconfig` publishes it. Besides the cloud model, on-phone
    limit, routing and cloud switch, the keys tune Gemini Nano without an app update: extra instructions, the Python helper's note
    and worked examples, Nano's temperature, top-K, reply length and model, the cloud tier, handoff and quota thresholds, and

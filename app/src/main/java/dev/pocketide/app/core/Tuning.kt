@@ -46,6 +46,8 @@ object Tuning {
     @Volatile var pyFixCascade = true
     /** 1.5.204: the cloud model's thought summaries and Gemini Nano's reasoning are shown in the thinking block. */
     @Volatile var showThoughts = true
+    /** 1.5.214: cloud answers an hour for pages in Preview (the PocketIDEAI bridge); 0 = Gemini Nano only. */
+    @Volatile var previewCloudPerHour = 20
 
     /** The Remote Config keys, in the order of the template. */
     object Keys {
@@ -70,6 +72,7 @@ object Tuning {
         const val PY_FIX_CLOUD = "hybrid_python_fix_cloud"
         const val PY_FIX_CASCADE = "hybrid_python_fix_cascade"
         const val SHOW_THOUGHTS = "hybrid_show_thoughts"
+        const val PREVIEW_CLOUD = "hybrid_preview_cloud_per_hour"
     }
 
     /** The built-in value of each key, as Remote Config's in-app defaults. */
@@ -79,7 +82,7 @@ object Tuning {
         Keys.HANDOFF_FAILURES to 2L, Keys.QUOTA_WAITS to 2L, Keys.BUSY_WAIT_MS to 8_000L, Keys.CLOUD_OUT_MINUTES to 15L, Keys.NANO_RESHOWS to 2L,
         Keys.REPAIR_JSON to true, Keys.ASK_AGAIN to true, Keys.PY_SYNTAX to true, Keys.PAGE_WIRING to true,
         Keys.PY_FIX to true, Keys.PY_FIX_SAMPLES to 6L, Keys.PY_FIX_TEMPERATURE to 0.7,
-        Keys.PY_FIX_CLOUD to true, Keys.PY_FIX_CASCADE to true, Keys.SHOW_THOUGHTS to true)
+        Keys.PY_FIX_CLOUD to true, Keys.PY_FIX_CASCADE to true, Keys.SHOW_THOUGHTS to true, Keys.PREVIEW_CLOUD to 20L)
 
     /**
      * Copies values in. [str] gives a key's value as text, or null when Remote Config has none (then the built-in value stays);
@@ -107,6 +110,7 @@ object Tuning {
         pyFixCloud = bool(Keys.PY_FIX_CLOUD) ?: true
         pyFixCascade = bool(Keys.PY_FIX_CASCADE) ?: true
         showThoughts = bool(Keys.SHOW_THOUGHTS) ?: true
+        previewCloudPerHour = num(Keys.PREVIEW_CLOUD)?.toInt()?.takeIf { it in 0..500 } ?: 20
         pyFixTemperature = num(Keys.PY_FIX_TEMPERATURE)?.toFloat()?.takeIf { it in HybridSettings.TEMP_MIN..HybridSettings.TEMP_MAX } ?: 0.7f
     }
 
