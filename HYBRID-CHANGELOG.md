@@ -1335,7 +1335,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   app/build.gradle.kts (1.5.211-hybrid, code 259).
 - **Tests:** DeferralTest `workNamedAfterChangesIsLeft`. 1,384 unit tests, 0 failures.
 
-### HASH · 2026-11-27 14:56 · The snake game again: Agent mode by default, the one-file note, the continue check in suggest mode; 1.5.212
+### 2dd5552 · 2026-11-27 14:56 · The snake game again: Agent mode by default, the one-file note, the continue check in suggest mode; 1.5.212
 
 - **Why:** the owner's snake game on 1.5.211 (screenshots) still stopped at "Now I need to create the app.js file to implement the
   game logic", and the page threw `Cannot read properties of null (reading 'addEventListener')` at app.js:2.
