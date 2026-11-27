@@ -164,6 +164,9 @@ class PreviewPane(private val ctx: Context, private val store: ProjectStore) : L
      * Handed to the page as window.PocketDebug while debugging. WebView calls it on its own background thread and the page's
      * JavaScript waits for the answer, so waiting here is the pause; the screen's thread is never held (the gate refuses it).
      */
+    /** 1.5.215 (the demo recording): runs [js] in the visible page; [result] gets WebView's JSON result ("null" when there is none). */
+    fun runScript(js: String, result: (String) -> Unit) = try { web.evaluateJavascript(js) { r -> result(r ?: "null") } } catch (e: Exception) { result("null") }
+
     /** 1.5.214: the page's address, kept for the AI bridge (its calls arrive off the main thread, where the WebView cannot be read). */
     @Volatile private var pageUrl: String? = null
 

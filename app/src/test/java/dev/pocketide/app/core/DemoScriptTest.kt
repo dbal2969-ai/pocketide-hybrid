@@ -9,7 +9,7 @@ import java.io.File
 /** 1.5.213: the demo recording's scenes, requests and scene log. */
 class DemoScriptTest {
     @Test fun scenesAreInTheVideosOrder() {
-        assertEquals(listOf("welcome", "try", "offline", "build", "python", "cloud", "results"), DemoScript.SCENES.map { it.id })
+        assertEquals(listOf("welcome", "try", "offline", "build", "python", "aiweb", "cloud", "results"), DemoScript.SCENES.map { it.id })
         assertEquals(DemoScript.SCENES.size, DemoScript.SCENES.map { it.id }.toSet().size)
     }
 
@@ -22,6 +22,7 @@ class DemoScriptTest {
         // the build scene's request gets the one-file note and is a build request
         assertTrue(SmallLocal.isOneFile(DemoScript.SNAKE))
         assertTrue(ChatHome.isBuildRequest(DemoScript.SNAKE))
+        assertEquals(null, HybridRoute.needsCloud(DemoScript.AIWEB))
     }
 
     @Test fun thePythonTaskIsInTheAppsAssets() {
@@ -52,5 +53,16 @@ class DemoScriptTest {
         assertTrue(t, t.contains("1:15  agent step ☁ in the cloud (Gemini), 5.0 s; passed on because this needs the web"))
         assertFalse(t.contains("replay"))
         assertEquals("12:05", DemoScript.clock(725_000))
+    }
+
+    /** The page scripts are valid JavaScript, and the typed text is escaped (node --check, when Node is installed). */
+    @Test fun thePageScriptsParse() {
+        val node = try { ProcessBuilder("node", "--version").start().waitFor() == 0 } catch (e: Exception) { false }
+        org.junit.Assume.assumeTrue(node)
+        for (js in listOf(DemoScript.typeIntoPage("eggs, \"feta\" & 'spinach'"), DemoScript.READ_PAGE)) {
+            val f = File.createTempFile("demo", ".js"); f.writeText(js + ";\n")
+            val p = ProcessBuilder("node", "--check", f.path).redirectErrorStream(true).start()
+            assertEquals(p.inputStream.readBytes().toString(Charsets.UTF_8), 0, p.waitFor()); f.delete()
+        }
     }
 }

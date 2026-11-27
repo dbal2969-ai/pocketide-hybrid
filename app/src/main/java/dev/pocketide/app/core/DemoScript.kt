@@ -14,6 +14,7 @@ object DemoScript {
         Scene("offline", "Offline", "Airplane mode on: Gemini Nano still answers."),
         Scene("build", "The agent builds", "Gemini Nano builds a snake game in one HTML file; then it is played in Preview."),
         Scene("python", "A real bug fix", "A real bug from the requests library: the app runs the test, Nano rewrites the function, the test decides."),
+        Scene("aiweb", "Apps that use it too", "The agent turns the Hybrid AI web app starter into a recipe helper; in Preview the page asks Gemini Nano on this phone through PocketIDE's Firebase AI Logic."),
         Scene("cloud", "Cloud handoff", "A request that needs the web: Nano says why and hands it to Gemini in the cloud."),
         Scene("results", "Measured", "Results measured on this phone with the in-app benchmark."),
     )
@@ -23,6 +24,27 @@ object DemoScript {
     const val SNAKE = "Make a snake game in one HTML file with arrow-key and swipe controls, a score, and a restart button."
     const val CLOUD = "Look up the latest stable version of the Phaser game library on the web, and write it with its release date and the " +
         "source link into notes.md."
+    const val AIWEB = "Make this page a recipe helper: the person types the ingredients they have, and it suggests one quick recipe. " +
+        "Keep using ask() from ai.js for the AI, and keep the ids prompt, ask, answer and where."
+    /** What the demo types into the finished page in Preview. */
+    const val AIWEB_INPUT = "eggs, spinach, feta"
+
+    /**
+     * Types [text] into the page's first text box (#prompt if it is there) a few letters at a time, then presses #ask (or the first
+     * button). Returns "typed", or why it could not.
+     */
+    fun typeIntoPage(text: String): String {
+        val t = MiniJson.write(text)
+        return "(function(){var b=document.getElementById('prompt')||document.querySelector('textarea,input[type=text],input:not([type])');" +
+            "var k=document.getElementById('ask')||document.querySelector('button');if(!b||!k)return 'no text box or button';" +
+            "var s=$t,i=0;b.focus();var h=setInterval(function(){i+=2;b.value=s.slice(0,i);b.dispatchEvent(new Event('input',{bubbles:true}));" +
+            "if(i>=s.length){clearInterval(h);setTimeout(function(){k.click();},500);}},60);return 'typed';})()"
+    }
+
+    /** Reads the page's answer and where-it-ran lines (#answer, #where) as JSON. */
+    const val READ_PAGE = "(function(){var a=document.getElementById('answer'),w=document.getElementById('where');" +
+        "return JSON.stringify({answer:a?a.textContent:'',where:w?w.textContent:''});})()"
+
     /** A Python task Nano fixed in every measured run (requests 3 of 3 in runs 1126-2032 and 1126-2203; on its own in 1126-1710). */
     const val PYTHON_TASK = "requests_7315"
 

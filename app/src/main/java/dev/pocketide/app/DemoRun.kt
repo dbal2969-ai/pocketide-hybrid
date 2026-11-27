@@ -186,6 +186,7 @@ object DemoRun {
             "offline" -> offline()
             "build" -> agent("Demo snake game", DemoScript.SNAKE, emptyMap()) { log.add("Opened Preview to play the game."); act.benchSelect(1); say("${at + 1}/${DemoScript.SCENES.size} · Play it: arrow keys or swipe. ▸ when done."); later(60_000) { next() } }
             "python" -> python()
+            "aiweb" -> aiWeb()
             "cloud" -> agent("Demo research", DemoScript.CLOUD, emptyMap()) {
                 val notes = File(Projects.root(act), Projects.key(act) + "/notes.md")
                 log.add(if (notes.isFile) "notes.md written:\n" + notes.readText().take(600) else "notes.md was not written.")
@@ -280,11 +281,12 @@ object DemoRun {
      * Sends [request] to the agent in a new project, in Agent mode with Hybrid AI (phone first), and calls [after] when the agent has
      * stayed idle, as the benchmark does.
      */
-    private fun agent(name: String, request: String, files: Map<String, String>, pythonFix: Boolean = false, after: () -> Unit) {
+    private fun agent(name: String, request: String, files: Map<String, String>, pythonFix: Boolean = false,
+                      template: dev.pocketide.app.core.Template = dev.pocketide.app.core.Templates.EMPTY, after: () -> Unit) {
         val s = act.settingsForDemo()
         s.provider = "hybrid"; s.workflow = dev.pocketide.app.core.Workflow.SINGLE; s.agent = true; s.mode = "agent"; s.pythonHelper = pythonFix
         HybridScreen.setMode(act, HybridAi.Mode.PREFER_ON_DEVICE)
-        val project = Projects.create(act, name, dev.pocketide.app.core.Templates.EMPTY)
+        val project = Projects.create(act, name, template)
         val root = File(Projects.root(act), project)
         for ((p, text) in files) File(root, p).apply { parentFile?.mkdirs(); writeText(text) }
         log.add("New project \"$project\", Agent mode, Hybrid AI (phone first). Sent: \"${request.take(200)}\"")
@@ -324,6 +326,29 @@ object DemoRun {
                     log.add("The test afterwards (`$cmd`): " + (if (code == 0) "passes. " else "fails. ") + out.lines().lastOrNull { it.isNotBlank() }.orEmpty().take(160))
                     later(8000) { next() }
                 }
+            }
+        }
+    }
+
+    /** The agent changes the Hybrid AI web app starter; then the page is used in Preview, where it asks PocketIDE's Gemini Nano. */
+    private fun aiWeb() {
+        agent("Demo recipe helper", DemoScript.AIWEB, emptyMap(), template = dev.pocketide.app.core.AiWebTemplate.TEMPLATE) {
+            log.add("Opened Preview; typing \"${DemoScript.AIWEB_INPUT}\" into the page.")
+            act.benchSelect(1)
+            later(4000) {
+                act.demoPreviewScript(DemoScript.typeIntoPage(DemoScript.AIWEB_INPUT)) { r -> log.add("The page: " + r.trim('"')) }
+                var tries = 0
+                fun read() {
+                    act.demoPreviewScript(DemoScript.READ_PAGE) { raw ->
+                        val o = try { dev.pocketide.app.core.MiniJson.obj(dev.pocketide.app.core.MiniJson.parse(dev.pocketide.app.core.MiniJson.parse(raw) as String)) } catch (e: Exception) { null }
+                        val where = o?.get("where")?.toString().orEmpty()
+                        if (where.isNotBlank() || tries++ > 40) {
+                            log.add("The page's answer (" + where.ifBlank { "no where-it-ran line" } + "): " + o?.get("answer")?.toString().orEmpty().take(400))
+                            later(12_000) { next() }
+                        } else later(1500) { read() }
+                    }
+                }
+                later(3000) { read() }
             }
         }
     }

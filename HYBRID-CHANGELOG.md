@@ -1423,6 +1423,22 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Not checked here:** the web SDK path against a real Firebase project in Chrome (gstatic is not reachable from the build
   machine), and the bridge on the phone.
 
+### HASH · 2026-11-27 16:50 · Demo scene 8: the agent builds an AI web app, and the page asks Nano in Preview; 1.5.215
+
+- **Why:** the owner said yes to a demo scene that shows apps built in PocketIDE using Firebase AI Logic too.
+- **Change:** the demo has 8 scenes; "Apps that use it too" comes after the Python fix.
+  - A "Demo recipe helper" project is made from the Hybrid AI web app starter. The agent is asked to make it a recipe helper,
+    still using ask() from ai.js and keeping the ids prompt, ask, answer and where.
+  - Preview opens; the demo types "eggs, spinach, feta" into the page and presses Ask (`DemoScript.typeIntoPage`, run with
+    `PreviewPane.runScript` / `MainActivity.demoPreviewScript`). The page asks through the PocketIDEAI bridge.
+  - The page's answer and where-it-ran line are read back (`DemoScript.READ_PAGE`) into the scene log; the bridge's own route is
+    logged as well.
+- **Files:** DemoRun.kt, core/DemoScript.kt, PreviewPane.kt, MainActivity.kt, core/AppMapData.kt; app/build.gradle.kts (1.5.215-hybrid,
+  code 263).
+- **Tests:** DemoScriptTest: the scene order, the request stays on the phone, `thePageScriptsParse` (node --check). Outside the suite,
+  the typing and reading scripts were run in jsdom on a page with the starter's ids: typed, clicked, and read back. 1,396 unit
+  tests, 0 failures.
+
 ---
 
 ## Outside the code

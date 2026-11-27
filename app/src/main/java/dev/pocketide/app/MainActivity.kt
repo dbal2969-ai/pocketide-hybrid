@@ -494,6 +494,9 @@ class MainActivity : Activity() {
     /** The from-scratch benchmark: "Build this as a project" on the current chat, sending the build request. Returns the project. */
     fun benchBuildFromChat(name: String): String = chat.buildAs(name, send = true)
 
+    /** 1.5.215, the demo recording: runs [js] in the visible Preview page and gives back its result (JSON text, as WebView gives it). */
+    fun demoPreviewScript(js: String, result: (String) -> Unit) = preview.runScript(js, result)
+
     /** 1.5.213, the demo recording: the settings it switches to Hybrid AI and Agent mode (HybridBench.restore puts them back). */
     fun settingsForDemo(): AppSettings = settings
 
