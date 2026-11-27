@@ -1146,6 +1146,21 @@ the files after the run, `transcript.txt` and `check.txt`.
   - 1,376 unit tests, 0 failures.
 - **Evidence:** pocketide-hybrid-reliable-python-hybrid-benchmark-1126-2032.
 
+
+### (next) · 2026-11-27 07:20 · Benchmark runs keep the screen on for every PocketIDE screen; 1.5.205
+
+- **Why:** the owner ran the full benchmark overnight on 1.5.203 and the phone no longer stayed awake. A run set "keep the screen
+  on" only on the window of the screen it started from, and cleared it the same way. When Android rebuilt PocketIDE's screen
+  during the run (a theme or system change, or memory being reclaimed), the new screen never got the flag. The phone slept, and
+  Gemini Nano, which only runs while PocketIDE is on screen, stopped.
+- **Change:** `HybridBench.awake` sets or clears the flag on both the run's screen and the screen showing now (`live`). Every
+  screen that comes on while a run goes on (`screen(act, true)`) gets it. Ending or stopping a run clears it on all of them.
+- **Files:** HybridBench.kt; app/build.gradle.kts (1.5.205-hybrid, code 253).
+- **Build note:** the cloud workspace was reset, so the APK was first built without the local-model engine (`engine/out`, not in git):
+  23.3 MB instead of 29 MB. `libllama_server.so` was restored from the 1.5.19x APK (the engine has not changed) and the APK rebuilt
+  (29.1 MB).
+- **Tests:** unit tests unchanged (the flag is Android window state); 1,376 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

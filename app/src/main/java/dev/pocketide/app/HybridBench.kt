@@ -93,7 +93,19 @@ object HybridBench {
 
     fun screen(act: MainActivity, on: Boolean) {
         onScreen = on
-        if (on) { live = act; current?.backOnScreen() }
+        if (on) { live = act; if (running) awake(act, true); current?.backOnScreen() }
+    }
+
+    /**
+     * Keeps the screen on while a run goes on (1.5.205). The flag belongs to one window: a run set it only on the screen it started from,
+     * so when Android rebuilt PocketIDE's screen overnight (the owner's full run on 1.5.203) the new screen let the phone sleep, and
+     * Gemini Nano, which only runs on screen, stopped. Now every screen that shows during a run gets it, and ending a run clears it on
+     * all of them.
+     */
+    fun awake(act: MainActivity?, on: Boolean) {
+        for (a in setOfNotNull(act, live)) try {
+            if (on) a.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else a.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } catch (e: Exception) { }
     }
 
     /**
@@ -456,7 +468,7 @@ object HybridBench {
         fun toast(s: String) = try { Toast.makeText(act.applicationContext, s, Toast.LENGTH_LONG).show() } catch (e: Exception) { }
 
         fun begin() {
-            act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            awake(act, true)
             // 1.5.188: a task the run was interrupted during LIMIT times is recorded as failed, so a run can never get stuck on it
             if (resume != null) for (id in BenchResume.givenUp(resume)) byId[id]?.let { t ->
                 if (results.none { it.task.id == id }) {
@@ -744,7 +756,7 @@ object HybridBench {
         fun finish(problem: String?) {
             HybridAgent.recorder = null
             restore(act, before)
-            act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            awake(act, false)
             state = state.copy(active = false, finished = true); save(null)
             val report = reportText(act, kind, helping, stamp, results, problem, state.order.size, runs, pythonNote, deselect, unsound,
                 if (reruns.isEmpty()) "" else "Run again because PocketIDE left the screen during them (Gemini Nano only runs while it is shown; not scored): " +
@@ -774,7 +786,7 @@ object HybridBench {
             save(if (charge) state.current else null)   // the task running now (set when it starts, cleared when its result is saved): it goes to the back
             state = BenchResume.interrupt(state); save(out, state)
             restore(act, before)
-            act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            awake(act, false)
             running = false; current = null
             if (total != null) { savePartial(act, out, kind, state, how, zip = false); total.stopped(how); return }
             val where = savePartial(act, out, kind, state, how)
