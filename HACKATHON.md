@@ -89,8 +89,8 @@ checked by its tests and by hidden checks the model never sees. A script re-chec
 
 | What | Where it ran | Result |
 | --- | --- | --- |
-| JavaScript coding tasks (find, explain, fix, add, new files, two files, long files) | Gemini Nano only, on the phone (Private) | 41 of 44 (run 1126-1352); 55 of 63 (run 1126-2203) |
-| Real Python bug fixes from `rich` and `requests` (their own failing tests and hidden test suites) | Gemini Nano only | 1 of 13 (run 1126-1710), before the Python fix path |
+| JavaScript coding tasks (find, explain, fix, add, new files, two files, long files) | Gemini Nano only, on the phone (Private) | 114 of 132 over three runs of every task (86%, run 1126-2203); 41 of 44 (run 1126-1352) |
+| Real Python bug fixes from `rich` and `requests` (their own failing tests and hidden test suites) | Gemini Nano only | 1 of 13 (run 1126-1710), before the Python fix path; 13 of 39 over three runs with it (run 1126-2203), 12 of them written by the fix path |
 | The same 13 Python bugs | Nano first, cloud when Nano's rewrites fail | 12 of 13, and all 13 fixes correct (the 13th failed only a test that also fails on this phone with the reference fix). **Gemini Nano wrote 10 of the 13 fixes on the phone**: 6 on its own, 4 from a short plan written by the cloud (run 1126-2032) |
 | JavaScript tasks, cloud only | Cloud Gemini (Flash-Lite after the free quota ran low) | 13 of 13 before the free quota ran out (run 1126-0731) |
 
