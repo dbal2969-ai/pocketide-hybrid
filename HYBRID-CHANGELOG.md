@@ -1312,7 +1312,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   app/build.gradle.kts (1.5.210-hybrid, code 258).
 - **Tests:** Fixes172Test `buildRequestsAreRecognised`. 1,383 unit tests, 0 failures.
 
-### HASH · 2026-11-27 14:40 · One-tap Linux setup, and a build that stops after its first file goes on; 1.5.211
+### 1630eb2 · 2026-11-27 14:40 · One-tap Linux setup, and a build that stops after its first file goes on; 1.5.211
 
 - **Why:** the owner's snake game in the judges' build (screenshots).
   - Gemini Nano wrote index.html, ended "Now I need to create the JavaScript logic in app.js", and the run stopped there. The page
