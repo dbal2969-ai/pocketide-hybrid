@@ -201,6 +201,73 @@ object PyFix {
         return (lines.subList(0, from) + block.split("\n") + lines.subList(u.end, lines.size)).joinToString("\n")
     }
 
+    // ---- 1.5.202: keeping only Nano's real changes ----
+
+    /** The lines of [lines] (0-based) inside a triple-quoted string or a comment, or blank. */
+    private fun quiet(lines: List<String>, strings: Boolean): Set<Int> {
+        val out = HashSet<Int>(); var tri: String? = null
+        for ((i, l) in lines.withIndex()) {
+            val t = l.trim()
+            if (tri != null) { out.add(i); if (t.contains(tri)) tri = null; continue }
+            if (t.isEmpty() || t.startsWith("#")) { out.add(i); continue }
+            if (strings) for (q in listOf("\"\"\"", "'''")) if (t.startsWith(q) || t.startsWith("r$q") || t.startsWith("f$q")) {
+                out.add(i); val rest = t.substringAfter(q); if (!rest.contains(q)) tri = q; break
+            }
+        }
+        return out
+    }
+
+    /** The changed stretches between [a] and [b], as (from, to) in a and (from, to) in b, ends exclusive; lines compared without trailing spaces. */
+    fun hunks(a: List<String>, b: List<String>): List<IntArray> {
+        val x = a.map { it.trimEnd() }; val y = b.map { it.trimEnd() }
+        val n = x.size; val m = y.size
+        val L = Array(n + 1) { IntArray(m + 1) }
+        for (i in n - 1 downTo 0) for (j in m - 1 downTo 0) L[i][j] = if (x[i] == y[j]) L[i + 1][j + 1] + 1 else maxOf(L[i + 1][j], L[i][j + 1])
+        val out = ArrayList<IntArray>(); var i = 0; var j = 0; var si = -1; var sj = -1
+        while (i < n || j < m) {
+            if (i < n && j < m && x[i] == y[j]) { if (si >= 0) { out.add(intArrayOf(si, i, sj, j)); si = -1 }; i++; j++; continue }
+            if (si < 0) { si = i; sj = j }
+            if (j < m && (i == n || L[i][j + 1] >= L[i + 1][j])) j++ else i++
+        }
+        if (si >= 0) out.add(intArrayOf(si, n, sj, m))
+        return out
+    }
+
+    /**
+     * What to test from one of Nano's rewrites [block] of [old] (1.5.202, Python run 1126-1923: 0 of 26 rewrites passed, most of them
+     * a real attempt buried in copying slips: docstrings lower-cased, `orgetattr`, `except**ValueError`, `Dir(obj)`). Stretches that
+     * change only comments, docstrings, blank lines, case or spacing are put back as they were; then the rewrite with all its real
+     * changes is tried, then each real change alone. Empty when it changes nothing real.
+     */
+    fun variants(old: String, block: String, kind: String, max: Int = 5): List<String> {
+        val a = old.split("\n"); val b = block.split("\n")
+        val qa = quiet(a, kind != "constant"); val qb = quiet(b, kind != "constant")
+        // compared without case, spaces and (outside a constant) a trailing comment
+        fun squash(s: String) = (if (kind == "constant") s else s.replace(Regex("""\s+#[^"']*$"""), "")).lowercase().replace(Regex("""\s+"""), "")
+        // a stretch of as many new lines as old is split line by line, so a slip next to a real change is put back on its own
+        val split = hunks(a, b).flatMap { h -> if (h[1] - h[0] == h[3] - h[2] && h[1] > h[0]) (0 until h[1] - h[0]).map { k -> intArrayOf(h[0] + k, h[0] + k + 1, h[2] + k, h[2] + k + 1) } else listOf(h) }
+        val real = split.filter { h ->
+            val ra = (h[0] until h[1]); val rb = (h[2] until h[3])
+            val onlyQuiet = ra.all { it in qa } && rb.all { it in qb }
+            val sameish = ra.count() == rb.count() && ra.zip(rb).all { (i, j) -> squash(a[i]) == squash(b[j]) } ||
+                ra.map { squash(a[it]) }.filter { it.isNotEmpty() } == rb.map { squash(b[it]) }.filter { it.isNotEmpty() }
+            !onlyQuiet && !sameish
+        }
+        if (real.isEmpty()) return emptyList()
+        fun with(sel: List<IntArray>): String {
+            val out = ArrayList<String>(); var i = 0
+            for (h in sel.sortedBy { it[0] }) { while (i < h[0]) out.add(a[i++]); for (j in h[2] until h[3]) out.add(b[j]); i = h[1] }
+            while (i < a.size) out.add(a[i++])
+            return out.joinToString("\n")
+        }
+        val all = listOf(with(real)) + (if (real.size > 1) real.map { with(listOf(it)) } else emptyList())
+        return all.distinct().filter { it != old }.take(max)
+    }
+
+    /** The original lines a [block] from [candidate] replaces (from the decorators when it has them, else from the def line). */
+    fun replaced(text: String, u: Unit, block: String): String =
+        text.split("\n").subList(if (block.trimStart().startsWith("@")) u.start else u.head, u.end).joinToString("\n")
+
     /** The temperature of try [k] (0-based): the person's first, then higher so the answers differ. */
     fun temperature(k: Int, base: Float): Float = if (k == 0) base else maxOf(base, Tuning.pyFixTemperature)
 

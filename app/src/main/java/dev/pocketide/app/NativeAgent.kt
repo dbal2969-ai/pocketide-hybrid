@@ -536,7 +536,7 @@ class NativeAgent(
             val guesses = Fix.guesses(p, orig, us, request, out0)
             val targets = (picks.filter { it in guesses } + guesses.take(1) + picks + guesses).distinct()
                 .mapNotNull { Fix.unitNamed(us, it) }.filter { it.end - it.start <= 220 }.distinctBy { it.qual }.take(3)
-            val seen = HashSet<String>(); var tries = 0; var last = out0
+            val seen = HashSet<String>(); var tries = 0; var rewrites = 0; var last = out0
             for ((n, u) in targets.withIndex()) {
                 val samples = if (n == 0) dev.pocketide.app.core.Tuning.pyFixSamples else maxOf(1, dev.pocketide.app.core.Tuning.pyFixSamples / 2)
                 var tried = ""
@@ -545,26 +545,33 @@ class NativeAgent(
                     status("rewriting ${u.qual} (${k + 1} of $samples)")
                     val ans = nano(Fix.fixPrompt(p, orig, u, request, out0, tried), Fix.temperature(k, base), u.qual) ?: continue
                     val block = Fix.candidate(ans, orig, u) ?: continue
-                    if (!seen.add(block.lines().joinToString("\n") { it.trimEnd() })) continue
-                    tries++
-                    put(Fix.splice(orig, u, block))
-                    status("testing rewrite $tries")
-                    val (c, o) = test()
-                    if (c == 0) {
-                        pyMain.post {
-                            changed.add(p); writeMark = round; checkMark = round; readFiles.remove(p)
-                            proofChecks.add(dev.pocketide.app.core.Proof.command(cmd, 0, round) { q -> store.exists(q) || staged.containsKey(q) })
-                            reply("PocketIDE's Python fix rewrote ${u.kind} ${u.qual} in $p (rewrite $tries tried, ${(System.currentTimeMillis() - t0) / 1000} s) and `$cmd` passes now:\n" +
-                                dev.pocketide.app.core.Verify.trim(o, 500) + "\nThe fix is saved. Answer the person with what was fixed, unless the request asks for more.", "Python fix: ${u.qual} rewritten, test passes")
+                    rewrites++
+                    // 1.5.202: Nano's copying slips are put back, then all its real changes are tested, then each alone
+                    var lastOut: String? = null
+                    for (v in Fix.variants(Fix.replaced(orig, u, block), block, u.kind)) {
+                        if (!seen.add(v.lines().joinToString("\n") { it.trimEnd() })) continue
+                        tries++
+                        put(Fix.splice(orig, u, v))
+                        status("testing rewrite $rewrites (${tries} tests)")
+                        val (c, o) = test()
+                        if (c == 0) {
+                            pyMain.post {
+                                changed.add(p); writeMark = round; checkMark = round; readFiles.remove(p)
+                                proofChecks.add(dev.pocketide.app.core.Proof.command(cmd, 0, round) { q -> store.exists(q) || staged.containsKey(q) })
+                                reply("PocketIDE's Python fix rewrote ${u.kind} ${u.qual} in $p (rewrite $rewrites, $tries tests, ${(System.currentTimeMillis() - t0) / 1000} s) and `$cmd` passes now:\n" +
+                                    dev.pocketide.app.core.Verify.trim(o, 500) + "\nThe fix is saved. Answer the person with what was fixed, unless the request asks for more.", "Python fix: ${u.qual} rewritten, test passes")
+                            }
+                            return@Thread
                         }
-                        return@Thread
+                        if (lastOut == null) lastOut = o
                     }
+                    val o = lastOut ?: continue
                     last = o
                     tried = "\nAn earlier rewrite of it did not pass; the test then said:\n" + dev.pocketide.app.core.Verify.trim(o, 500) + "\n"
                 }
             }
             put(orig)
-            finish(Fix.gaveUp(p, targets.joinToString(", ") { it.qual }.ifEmpty { "the code" }, tries, last), "Python fix ($tries rewrites, none passed)")
+            finish(Fix.gaveUp(p, targets.joinToString(", ") { it.qual }.ifEmpty { "the code" }, rewrites, last), "Python fix ($rewrites rewrites, $tries tests, none passed)")
         }.start()
     }
 

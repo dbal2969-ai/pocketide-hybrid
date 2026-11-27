@@ -66,6 +66,48 @@ class PyFixTest {
         assertEquals(report.joinToString("\n"), tasks.size, passed)
     }
 
+    /**
+     * 1.5.202: Gemini Nano's 24 rewrites from Python run 1126-1923 (1.5.201, 0 passed), each tried as the app now tries it: copying
+     * slips put back, then all real changes, then each alone. Prints how many tasks a variant passes.
+     */
+    @Test fun nanosRealRewritesFromRun1923() {
+        assumeTrue(python() && root.isDirectory)
+        val recs = File("src/test/resources/nano/pyfix/run-1126-1923.jsonl").readLines().filter { it.isNotBlank() }.map { MiniJson.obj(MiniJson.parse(it))!! }
+        val passedTasks = HashSet<String>(); var tests = 0; var raw = 0; val report = ArrayList<String>()
+        for (r in recs) {
+            val id = r["task"] as String
+            val t = tasks.first { it["id"] == id }
+            val fix = t["fix"] as String; val cmd = (t["visible"] as String).replace("python3 -m", "python3 -B -m")
+            val dir = copy(id)
+            try {
+                val orig = File(dir, fix).readText()
+                val u = PyFix.unitNamed(PyFix.units(orig), r["unit"] as String) ?: continue
+                val block = PyFix.candidate(r["reply"] as String, orig, u) ?: continue
+                File(dir, fix).writeText(PyFix.splice(orig, u, block)); if (run(dir, cmd).first == 0) raw++
+                val vs = PyFix.variants(PyFix.replaced(orig, u, block), block, u.kind)
+                val ok = vs.map { v -> tests++; File(dir, fix).writeText(PyFix.splice(orig, u, v)); run(dir, cmd).first == 0 }
+                if (ok.any { it }) passedTasks.add(id)
+                report.add("$id ${u.qual} T=${r["temperature"]}: ${vs.size} variants, passing ${ok.count { it }}")
+            } finally { dir.deleteRecursively() }
+        }
+        println("run 1126-1923 rewrites: as sent ${raw} of ${recs.size} pass; with variants ($tests tests) tasks passed: $passedTasks\n" + report.joinToString("\n"))
+        assertEquals("as sent, none passed on the phone either", 0, raw)
+    }
+
+    @Test fun copyingSlipsArePutBack() {
+        val old = "    def f(self, obj):\n        \"\"\"The name.\"\"\"\n        x = dir(obj)  # the keys\n        return getattr(obj, \"__qualname__\", None)"
+        val block = "    def f(self, obj):\n        \"\"\"the name.\"\"\"\n        x = Dir(obj)  # keys\n        return str(getattr(obj, \"__qualname__\", None))"
+        val vs = PyFix.variants(old, block, "def")
+        assertEquals(listOf("    def f(self, obj):\n        \"\"\"The name.\"\"\"\n        x = dir(obj)  # the keys\n        return str(getattr(obj, \"__qualname__\", None))"), vs)
+        // nothing real changed: nothing to test
+        assertTrue(PyFix.variants(old, old.replace("The name", "the name"), "def").isEmpty())
+        // two real changes: both, then each alone
+        val two = PyFix.variants("a = 1\nb = 2\nc = 3", "a = 10\nb = 2\nc = 30", "def")
+        assertEquals(listOf("a = 10\nb = 2\nc = 30", "a = 10\nb = 2\nc = 3", "a = 1\nb = 2\nc = 30"), two)
+        // a template string's text is code for a constant (rich_3043's HTML)
+        assertEquals(1, PyFix.variants("T = \"\"\"\n<b>x</b>\n\"\"\"", "T = \"\"\"\n<i>x</i>\n\"\"\"", "constant").size)
+    }
+
     @Test fun blocksAreFoundWhole() {
         val text = """
             |import re

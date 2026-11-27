@@ -59,7 +59,7 @@ class PyFixLoopTest {
         val o = run()
         val r = o.resultsOf("python_fix")
         assertEquals(r.toString(), 1, r.size)
-        assertTrue(r[0], r[0].contains("rewrote def add in calc.py (rewrite 2 tried") && r[0].contains("passes now"))
+        assertTrue(r[0], r[0].contains("rewrote def add in calc.py (rewrite 2, 2 tests") && r[0].contains("passes now"))
         assertTrue(o.files["calc.py"], o.files["calc.py"]!!.contains("def add(a, b):\n    return a + b\n") && o.files["calc.py"]!!.contains("def double(x)"))
         // Nano was asked which block, then shown add whole, and never asked to copy search text
         assertTrue(prompts[0].contains("Which one must change") && prompts[0].contains("8: def add(a, b):"))
