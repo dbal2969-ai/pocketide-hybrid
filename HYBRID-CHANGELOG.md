@@ -1089,6 +1089,35 @@ the files after the run, `transcript.txt` and `check.txt`.
   PyFixLoopTest updated. 1,370 unit tests, 0 failures.
 - **Evidence:** pocketide-hybrid-reliable-python-benchmark-1126-1923-partial-4of13.
 
+
+### (next) · 2026-11-26 20:25 · Python fix path asks the cloud when Nano's rewrites fail; benchmark dialogs fixed; 1.5.203
+
+- **Why:** the owner asked for 80-100% on the Python tasks. Run 1126-1923 showed that Nano's reasoning is the limit (the app found
+  the right function every time; Nano's changes were wrong), and no tool on the phone closes that.
+  - The owner also reported that the total benchmark had no Start button.
+- **Change: the fix path's cloud steps** (NativeAgent `pythonFix`; core/PyFix `CLOUD_SYSTEM`, `sketchPrompt`, `sketchNote`):
+  - They run only when Nano's own rewrites fail and the cloud is allowed (not Private mode, online, quota left).
+  - Cascade (`hybrid_python_fix_cascade`): one cloud call says in at most 8 lines what to change in the block the app picked
+    first, with how Nano's last try failed. Nano then writes the block from that plan, twice, so most of the output stays on the
+    phone.
+  - Then (`hybrid_python_fix_cloud`): the cloud writes the fixed block itself, twice at most, the second time with the new failure.
+  - Every answer goes through the same slip check, variants and test. The success message says who wrote the fix. The cloud calls
+    go to nano.jsonl as `python_fix_cloud` with the model.
+- **Change: benchmark:**
+  - New suite and buttons "Python, Nano + cloud: quick / full" (`hybrid-reliable-python-hybrid`): the 13 Python tasks in the
+    on-phone-first mode, with the cloud allowed (`ReliableBench.withCloud`; a cloud step no longer fails the task). Every other
+    Python run was Private mode, where the cloud steps can never run. analyze.py knows its title.
+  - The Python-only dialogs have the Python helper ticked by default.
+  - The total benchmark has a Python helper option, ticked (`BenchTotal.State.pyHelper`); total runs had the helper off before.
+  - Benchmark dialogs put their text and options in one scrolling view (`benchSheet`). With a long message set apart and the
+    options under it, the phone had no room for the buttons.
+- **Remote Config:** 2 new keys; 29 in all.
+- **Files:** NativeAgent.kt, core/PyFix.kt, core/Tuning.kt, HybridBench.kt, HybridScreen.kt, core/ReliableBench.kt, core/BenchTotal.kt,
+  remoteconfig.template.json, bench/hybrid/analyze.py, HACKATHON.md; app/build.gradle.kts (1.5.203-hybrid, code 251).
+- **Tests:** PyFixLoopTest `nanoWritesTheCloudsPlan` (Nano's try fails; the cloud's plan is shown with the failure; Nano's rewrite
+  from it passes), `theCloudWritesTheBlockLast`, `privateModeNeverAsksTheCloud`; the Remote Config template check covers the new
+  keys. 1,373 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

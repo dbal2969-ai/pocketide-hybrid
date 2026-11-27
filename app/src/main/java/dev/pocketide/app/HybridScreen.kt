@@ -275,17 +275,20 @@ object HybridScreen {
             val m = activity as? MainActivity
             val cloud = suite == HybridBench.Suite.RELIABLE_CLOUD || suite == HybridBench.Suite.RELIABLE_BOTH
             val both = suite == HybridBench.Suite.RELIABLE_BOTH
-            val pyOnly = suite == HybridBench.Suite.RELIABLE_PY
+            val pyHybrid = suite == HybridBench.Suite.RELIABLE_PY_HYBRID
+            val pyOnly = suite == HybridBench.Suite.RELIABLE_PY || pyHybrid
             when {
                 m == null -> toast("Open this from PocketIDE's main screen.")
                 HybridBench.running -> toast("The benchmark is already running.")
                 else -> {
                     val py = CheckBox(ctx).also { it.text = "Include the Python track (installs Python and pytest in Linux once)"; it.isChecked = true }
-                    val helper = CheckBox(ctx).also { it.text = "Python helper for Gemini Nano on (compare a run with it on and one with it off)"; it.isChecked = false }
+                    val helper = CheckBox(ctx).also { it.text = "Python helper for Gemini Nano on (compare a run with it on and one with it off)"; it.isChecked = pyOnly }
                     val boxes = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; if (!pyOnly) addView(py); if (suite != HybridBench.Suite.RELIABLE_CLOUD) addView(helper) }
                     val n = 57 * runs   // cloud runs (the side-by-side suite also runs each on Nano)
                     AlertDialog.Builder(ctx).setTitle("Run the ${if (pyOnly) "Python" else if (both) "side-by-side" else if (cloud) "cloud" else "on-device"} reliability benchmark (${if (runs == 1) "quick" else "full, $runs runs per task"})?")
-                        .setMessage((if (pyOnly) "Only the 13 real Python bug fixes (from rich and requests), on Gemini Nano alone in Private mode, so no cloud quota is used. " +
+                        .setView(benchSheet(ctx, (if (pyHybrid) "The 13 real Python bug fixes (from rich and requests) with the cloud allowed: Gemini Nano works first, " +
+                            "and with the Python helper on, the Python fix path asks the cloud for a plan and then for the fixed function when Nano's own rewrites " +
+                            "fail, with the test deciding each time. This uses some of the free cloud quota (a few requests a task). " else if (pyOnly) "Only the 13 real Python bug fixes (from rich and requests), on Gemini Nano alone in Private mode, so no cloud quota is used. " +
                             "Run it once with the Python helper on and once with it off to compare. " else if (both) "Every task runs twice in a row: on Gemini Nano alone (Private mode), then with every step on Gemini in the cloud " +
                             "(${HybridAi.cloudChoice(ctx).label}). The report has both scores and a side-by-side table. The cloud half uses the project's free " +
                             "quota: about ${n * 6} to ${n * 10} requests. If every cloud model runs out, the run stops and can be resumed after the quota resets " +
@@ -296,8 +299,7 @@ object HybridScreen {
                             "(midnight Pacific time). "
                             else "Gemini Nano runs every task alone in Private mode, so no cloud quota is used. ") +
                             "Each task's reference fix is first checked on this phone. The screen stays on; do not use the app or leave it while it runs. " +
-                            "The results zip goes to Downloads/PocketIDE.")
-                        .setView(boxes)
+                            "The results zip goes to Downloads/PocketIDE.", boxes))
                         .setPositiveButton("Start") { _, _ -> fs.dialog.dismiss(); HybridBench.start(m, suite, false, runs, py.isChecked, helper.isChecked) }
                         .setNegativeButton("Cancel", null).show()
                 }
@@ -316,6 +318,8 @@ object HybridScreen {
         benchCard.addView(Ui.text(ctx, "Side by side runs each task on Gemini Nano and then in the cloud, and the report compares the two.", 13f, Ui.MUTED))
         benchCard.addView(Ui.text(ctx, "Python only runs just the 13 real Python bug fixes on Gemini Nano, to try the Python helper quickly.", 13f, Ui.MUTED))
         fs.buttonRow(benchCard, Ui.button(ctx, "Python only: quick") { startReliable(1, HybridBench.Suite.RELIABLE_PY) }, Ui.button(ctx, "Python only: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_PY) })
+        benchCard.addView(Ui.text(ctx, "Python with the cloud runs the same 13 Python fixes with the cloud allowed, Gemini Nano first, so the Python fix path can ask the cloud when Nano's own rewrites fail.", 13f, Ui.MUTED))
+        fs.buttonRow(benchCard, Ui.button(ctx, "Python, Nano + cloud: quick") { startReliable(1, HybridBench.Suite.RELIABLE_PY_HYBRID) }, Ui.button(ctx, "Python, Nano + cloud: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_PY_HYBRID) })
         fs.buttonRow(benchCard, Ui.button(ctx, "Nano + cloud: quick") { startReliable(1, HybridBench.Suite.RELIABLE_BOTH) }, Ui.button(ctx, "Nano + cloud: full (3 runs)") { startReliable(dev.pocketide.app.core.ReliableBench.RUNS, HybridBench.Suite.RELIABLE_BOTH) })
         // 1.5.192: the total benchmark, every chosen suite in one run and one zip, with a summary of them all
         fun startTotalNew() {
@@ -331,18 +335,18 @@ object HybridScreen {
             box.addView(group)
             val full = CheckBox(ctx).also { it.text = "Full reliability (3 runs per task); otherwise quick (1 run)"; box.addView(it) }
             val py = CheckBox(ctx).also { it.text = "Include the Python track"; it.isChecked = true; box.addView(it) }
+            val pyHelp = CheckBox(ctx).also { it.text = "Python helper for Gemini Nano on (and its Python fix path)"; it.isChecked = true; box.addView(it) }
             AlertDialog.Builder(ctx).setTitle("Run the total benchmark?")
-                .setMessage("Every suite you pick runs one after another in one run, each in its own folder with its own report, and the zip has a summary of " +
+                .setView(benchSheet(ctx, "Every suite you pick runs one after another in one run, each in its own folder with its own report, and the zip has a summary of " +
                     "them all. The hybrid suites and the reliability cloud runs use the free cloud quota: if it runs out, the hybrid suites carry on with " +
                     "Gemini Nano alone and a cloud reliability run stops (resume it after midnight Pacific time). A full total run takes most of a day; " +
-                    "keep PocketIDE on screen and plugged in. Stop and save works at any time, and Resume carries on where it stopped.")
-                .setView(android.widget.ScrollView(ctx).also { it.addView(box) })
+                    "keep PocketIDE on screen and plugged in. Stop and save works at any time, and Resume carries on where it stopped.", box))
                 .setPositiveButton("Start") { _, _ ->
                     val rel = engines[radios.indexOfFirst { it.isChecked }.coerceAtLeast(0)].second
                     val suites = picks.filter { it.second.isChecked }.map { it.first } + listOfNotNull(rel)
                     if (suites.isEmpty()) { toast("Pick at least one suite."); return@setPositiveButton }
                     fs.dialog.dismiss()
-                    HybridBench.startTotal(m, suites, if (full.isChecked) dev.pocketide.app.core.ReliableBench.RUNS else 1, py.isChecked)
+                    HybridBench.startTotal(m, suites, if (full.isChecked) dev.pocketide.app.core.ReliableBench.RUNS else 1, py.isChecked, pyHelp.isChecked)
                 }
                 .setNegativeButton("Cancel", null).show()
         }
@@ -455,4 +459,16 @@ object HybridScreen {
             }.start()
         }.show()
     }
+}
+
+/**
+ * 1.5.203: a benchmark dialog's text and options in one scrolling view. With a long message set apart (setMessage) and the options
+ * below it, a phone screen had no room left for the buttons: the total benchmark showed no Start button.
+ */
+internal fun benchSheet(ctx: android.content.Context, message: String, options: android.view.View): android.view.View {
+    val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(Ui.dp(ctx, 20), Ui.dp(ctx, 12), Ui.dp(ctx, 20), 0) }
+    col.addView(Ui.text(ctx, message, 14f, Ui.TEXT))
+    (options.parent as? android.view.ViewGroup)?.removeView(options)
+    col.addView(options)
+    return android.widget.ScrollView(ctx).also { it.addView(col) }
 }

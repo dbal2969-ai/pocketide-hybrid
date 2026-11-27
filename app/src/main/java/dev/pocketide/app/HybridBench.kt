@@ -48,10 +48,12 @@ object HybridBench {
         /** 1.5.190: each task run on Gemini Nano and then in the cloud, side by side, with a comparison in the report. */
         RELIABLE_BOTH("hybrid-reliable-both", "Reliability benchmark (Gemini Nano and the cloud)"),
         /** 1.5.196: only the 13 real Python tasks, on Gemini Nano alone, to measure the Python helper quickly. */
-        RELIABLE_PY("hybrid-reliable-python", "Python reliability benchmark (Gemini Nano)");
+        RELIABLE_PY("hybrid-reliable-python", "Python reliability benchmark (Gemini Nano)"),
+        /** 1.5.203: the 13 Python tasks with the cloud allowed (Nano first), so the Python fix path's cloud steps can run. */
+        RELIABLE_PY_HYBRID("hybrid-reliable-python-hybrid", "Python reliability benchmark (Gemini Nano + cloud)");
 
         /** The reliability suites share their tasks, checks, Python track and report. */
-        val reliable get() = this == RELIABLE || this == RELIABLE_CLOUD || this == RELIABLE_BOTH || this == RELIABLE_PY
+        val reliable get() = this == RELIABLE || this == RELIABLE_CLOUD || this == RELIABLE_BOTH || this == RELIABLE_PY || this == RELIABLE_PY_HYBRID
     }
 
     /** The strong model "Hybrid helps my strong model" would use (the one picked in Workflow settings), or null. */
@@ -177,7 +179,8 @@ object HybridBench {
         Suite.RELIABLE -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs)
         Suite.RELIABLE_CLOUD -> dev.pocketide.app.core.ReliableBench.forCloud(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs))
         Suite.RELIABLE_BOTH -> dev.pocketide.app.core.ReliableBench.both(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, python), runs))
-        Suite.RELIABLE_PY -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, true).filter { it.track == "Python" }, runs) }
+        Suite.RELIABLE_PY -> dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, true).filter { it.track == "Python" }, runs)
+        Suite.RELIABLE_PY_HYBRID -> dev.pocketide.app.core.ReliableBench.withCloud(dev.pocketide.app.core.ReliableBench.repeated(reliableTasks(ctx, true).filter { it.track == "Python" }, runs)) }
 
     /** The settings a run changes, as they are now, to put back afterwards. */
     fun beforeNow(act: MainActivity): Map<String, String> = AppSettings(act).let { s ->
@@ -309,10 +312,10 @@ object HybridBench {
 
     private fun saveTotal(dir: File, s: BenchTotal.State) = try { File(dir.apply { mkdirs() }, BenchTotal.FILE).writeText(BenchTotal.encode(s)) } catch (e: Exception) { }
 
-    fun startTotal(act: MainActivity, suites: List<Suite>, runs: Int, python: Boolean) {
+    fun startTotal(act: MainActivity, suites: List<Suite>, runs: Int, python: Boolean, pyHelper: Boolean = false) {
         if (running || suites.isEmpty()) return
         running = true
-        Total(act, BenchTotal.State(SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date()), suites.map { it.id }, 0, runs, python)).startSuite()
+        Total(act, BenchTotal.State(SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date()), suites.map { it.id }, 0, runs, python, pyHelper = pyHelper)).startSuite()
     }
 
     fun resumeTotal(act: MainActivity, s: BenchTotal.State) {
@@ -354,7 +357,7 @@ object HybridBench {
             if (prev != null && prev.finished) { state = state.copy(index = state.index + 1); startSuite(); return }
             try { Toast.makeText(act.applicationContext, "Total benchmark: ${kind.title} (${state.index + 1} of ${state.suites.size})", Toast.LENGTH_LONG).show() } catch (e: Exception) { }
             val runs = if (kind.reliable) state.runs else 1
-            Run(act, kind, false, runs, state.python, prev?.takeIf { it.resumable }, d, this).also { current = it }.begin()
+            Run(act, kind, false, runs, state.python, prev?.takeIf { it.resumable }, d, this, pyHelper = state.pyHelper).also { current = it }.begin()
         }
 
         fun suiteDone() { state = state.copy(index = state.index + 1); saveTotal(dir, state); main.postDelayed({ startSuite() }, 3000) }

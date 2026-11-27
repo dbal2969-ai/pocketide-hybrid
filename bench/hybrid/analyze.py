@@ -11,7 +11,7 @@ Usage: python3 bench/hybrid/analyze.py <results.zip> [play scripts dir from Game
 import collections, html.parser, json, os, re, shutil, subprocess, sys, tempfile, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch", "(in-app questions)": "app", "(Gemini Nano)": "reliable", "(Gemini in the cloud)": "reliable", "(Gemini Nano and the cloud)": "reliable"}
+SUITES = {"(hard)": "hard", "(games)": "games", "(local model)": "local", "(from scratch)": "scratch", "(in-app questions)": "app", "(Gemini Nano)": "reliable", "(Gemini in the cloud)": "reliable", "(Gemini Nano and the cloud)": "reliable", "(Gemini Nano + cloud)": "reliable"}
 PYTHON = os.environ.get("ANALYZE_PYTHON", "python3")   # needs pytest, pygments, markdown-it-py, urllib3, idna, charset_normalizer, certifi
 APP_SRC = os.path.join(HERE, "..", "..", "app", "src", "main", "java", "dev", "pocketide", "app")
 

@@ -108,6 +108,16 @@ object ReliableBench {
             t.solution, t.split, t.track) { f -> cloudJudge(t, f) }
     }
 
+    /**
+     * 1.5.203: the Python tasks with the cloud allowed: Nano first (the on-phone-first mode), the Python fix path's cloud steps and
+     * the usual handoffs can run, and a cloud step no longer fails the task.
+     */
+    fun withCloud(tasks: List<HybridBenchTasks.Task>): List<HybridBenchTasks.Task> = tasks.map { t ->
+        HybridBenchTasks.Task(t.id, t.title, t.prompt, t.command, false, t.skill, t.entry, t.startFiles ?: t.files, t.hidden, t.hiddenCommand,
+            t.solution, t.split, t.track) { f -> t.judge(HybridBenchTasks.Facts(f.files, f.original, f.commandExit, f.commandOut,
+                f.transcript.replace("☁ Ran in the cloud", "☁ Cloud step"), f.ended, f.settingsChanged, f.hiddenExit, f.hiddenOut)) }
+    }
+
     const val ON_PHONE = "a step ran on this phone in the cloud-only run"
 
     fun cloudJudge(t: HybridBenchTasks.Task, f: HybridBenchTasks.Facts): String? {

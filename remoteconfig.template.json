@@ -188,6 +188,20 @@
       },
       "description": "Temperature of the fix path's rewrites after the first (the first uses the person's own), 0-2.",
       "valueType": "NUMBER"
+    },
+    "hybrid_python_fix_cloud": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "When Gemini Nano's rewrites fail and the cloud is allowed (not Private mode, online, quota left), the cloud model is shown the block, the test and its failure and writes the fixed block; the test decides (two calls at most). false keeps the fix path on the phone.",
+      "valueType": "BOOLEAN"
+    },
+    "hybrid_python_fix_cascade": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Before the cloud writes the block itself, it says in a few lines what to change and Gemini Nano writes the code from that (one call). false skips this step.",
+      "valueType": "BOOLEAN"
     }
   }
 }

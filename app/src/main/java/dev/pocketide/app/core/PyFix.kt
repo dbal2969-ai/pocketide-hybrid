@@ -167,6 +167,24 @@ object PyFix {
             "with the same name. Reply with one ```python block and nothing else."
     }
 
+    // ---- 1.5.203: the cloud's help, when the cloud is allowed ----
+
+    /** The cloud model's instructions for the fix path's two kinds of request. */
+    const val CLOUD_SYSTEM = "You fix bugs in Python code. You are shown one function, class or constant, the failing test and its output. " +
+        "Fix the bug itself so the test passes for every input; never special-case the test's values, and never change the test."
+
+    /** For the cascade: the cloud says what to change in a few lines, and Gemini Nano writes the code. */
+    fun sketchPrompt(path: String, text: String, u: Unit, request: String, failure: String, tried: String = ""): String {
+        val what = when (u.kind) { "class" -> "class ${u.name}"; "constant" -> u.name; else -> "function ${u.name}" }
+        return "You are fixing a bug in $path.\n\nTHE TASK:\n${issue(request)}\n\nTHE TEST FAILS LIKE THIS:\n${Verify.trim(failure, 1500)}\n\n" +
+            "The code to change is $what (lines ${u.start + 1}-${u.end} of $path):\n```python\n${code(text, u)}\n```\n" + tried +
+            "\nSay exactly what to change in $what to fix the bug, in at most 8 short lines: which lines, and the new code for each, " +
+            "written out exactly. Do not repeat the rest of $what."
+    }
+
+    /** The cloud's plan, as Nano's fix prompt shows it. */
+    fun sketchNote(sketch: String) = "\nWHAT TO CHANGE (from a stronger model; follow it exactly):\n" + sketch.trim().take(1500) + "\n"
+
     // ---- Nano's answer ----
 
     /**

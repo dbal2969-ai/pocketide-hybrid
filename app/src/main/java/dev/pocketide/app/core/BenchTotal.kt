@@ -24,6 +24,8 @@ object BenchTotal {
         val python: Boolean = true,
         val active: Boolean = true,
         val finished: Boolean = false,
+        /** 1.5.203: the Python helper for Gemini Nano is on in every suite (a total run had it off before). */
+        val pyHelper: Boolean = false,
     ) {
         val resumable get() = !active && !finished && index < suites.size
     }
@@ -32,6 +34,7 @@ object BenchTotal {
         Properties().apply {
             this["stamp"] = s.stamp; this["suites"] = s.suites.joinToString(","); this["index"] = s.index.toString(); this["runs"] = s.runs.toString()
             this["python"] = s.python.toString(); this["active"] = s.active.toString(); this["finished"] = s.finished.toString()
+            this["pyHelper"] = s.pyHelper.toString()
         }.store(w, "PocketIDE total benchmark progress")
     }.toString()
 
@@ -39,7 +42,7 @@ object BenchTotal {
         val p = Properties().apply { load(StringReader(text)) }
         State(p.getProperty("stamp") ?: return null, p.getProperty("suites").orEmpty().split(',').filter { it.isNotBlank() },
             p.getProperty("index")?.toIntOrNull() ?: 0, p.getProperty("runs")?.toIntOrNull() ?: 1, p.getProperty("python") != "false",
-            p.getProperty("active") == "true", p.getProperty("finished") == "true")
+            p.getProperty("active") == "true", p.getProperty("finished") == "true", p.getProperty("pyHelper") == "true")
     } catch (e: Exception) { null }
 
     /** One suite's line in the summary. [ran]: null when the suite has not run yet. */

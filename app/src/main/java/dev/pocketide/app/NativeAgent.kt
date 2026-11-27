@@ -537,41 +537,83 @@ class NativeAgent(
             val targets = (picks.filter { it in guesses } + guesses.take(1) + picks + guesses).distinct()
                 .mapNotNull { Fix.unitNamed(us, it) }.filter { it.end - it.start <= 220 }.distinctBy { it.qual }.take(3)
             val seen = HashSet<String>(); var tries = 0; var rewrites = 0; var last = out0
+            /** Tests one answer (slips put back, all real changes, then each alone); true once one passed and was kept. */
+            fun attempt(ans: String, u: dev.pocketide.app.core.PyFix.Unit, who: String): Boolean {
+                val block = Fix.candidate(ans, orig, u) ?: return false
+                rewrites++
+                var lastOut: String? = null
+                for (v in Fix.variants(Fix.replaced(orig, u, block), block, u.kind)) {
+                    if (!seen.add(v.lines().joinToString("\n") { it.trimEnd() })) continue
+                    tries++
+                    put(Fix.splice(orig, u, v))
+                    status("testing rewrite $rewrites (${tries} tests)")
+                    val (c, o) = test()
+                    if (c == 0) {
+                        pyMain.post {
+                            changed.add(p); writeMark = round; checkMark = round; readFiles.remove(p)
+                            proofChecks.add(dev.pocketide.app.core.Proof.command(cmd, 0, round) { q -> store.exists(q) || staged.containsKey(q) })
+                            reply("PocketIDE's Python fix rewrote ${u.kind} ${u.qual} in $p ($who; rewrite $rewrites, $tries tests, ${(System.currentTimeMillis() - t0) / 1000} s) and `$cmd` passes now:\n" +
+                                dev.pocketide.app.core.Verify.trim(o, 500) + "\nThe fix is saved. Answer the person with what was fixed, unless the request asks for more.", "Python fix: ${u.qual} rewritten ($who), test passes")
+                        }
+                        return true
+                    }
+                    if (lastOut == null) lastOut = o
+                }
+                lastOut?.let { last = it }
+                return false
+            }
+            fun failedNote() = "\nAn earlier rewrite of it did not pass; the test then said:\n" + dev.pocketide.app.core.Verify.trim(last, 500) + "\n"
+            fun stopped(): Boolean { if (!stopRequested()) return false; put(orig); finish("Skipped: the user pressed Stop. $p is unchanged.", "Python fix (stopped)"); return true }
+            // 1. Gemini Nano's rewrites
             for ((n, u) in targets.withIndex()) {
                 val samples = if (n == 0) dev.pocketide.app.core.Tuning.pyFixSamples else maxOf(1, dev.pocketide.app.core.Tuning.pyFixSamples / 2)
                 var tried = ""
                 for (k in 0 until samples) {
-                    if (stopRequested()) { put(orig); finish("Skipped: the user pressed Stop. $p is unchanged.", "Python fix (stopped)"); return@Thread }
+                    if (stopped()) return@Thread
                     status("rewriting ${u.qual} (${k + 1} of $samples)")
                     val ans = nano(Fix.fixPrompt(p, orig, u, request, out0, tried), Fix.temperature(k, base), u.qual) ?: continue
-                    val block = Fix.candidate(ans, orig, u) ?: continue
-                    rewrites++
-                    // 1.5.202: Nano's copying slips are put back, then all its real changes are tested, then each alone
-                    var lastOut: String? = null
-                    for (v in Fix.variants(Fix.replaced(orig, u, block), block, u.kind)) {
-                        if (!seen.add(v.lines().joinToString("\n") { it.trimEnd() })) continue
-                        tries++
-                        put(Fix.splice(orig, u, v))
-                        status("testing rewrite $rewrites (${tries} tests)")
-                        val (c, o) = test()
-                        if (c == 0) {
-                            pyMain.post {
-                                changed.add(p); writeMark = round; checkMark = round; readFiles.remove(p)
-                                proofChecks.add(dev.pocketide.app.core.Proof.command(cmd, 0, round) { q -> store.exists(q) || staged.containsKey(q) })
-                                reply("PocketIDE's Python fix rewrote ${u.kind} ${u.qual} in $p (rewrite $rewrites, $tries tests, ${(System.currentTimeMillis() - t0) / 1000} s) and `$cmd` passes now:\n" +
-                                    dev.pocketide.app.core.Verify.trim(o, 500) + "\nThe fix is saved. Answer the person with what was fixed, unless the request asks for more.", "Python fix: ${u.qual} rewritten, test passes")
-                            }
-                            return@Thread
-                        }
-                        if (lastOut == null) lastOut = o
+                    if (attempt(ans, u, "Gemini Nano on this phone")) return@Thread
+                    tried = failedNote()
+                }
+            }
+            // 1.5.203: with the cloud allowed (not Private mode, online, quota left), it helps with the block the app picked first
+            val u0 = targets.firstOrNull()
+            val cloudOk = u0 != null && dev.pocketide.app.core.Tuning.pyFixCloud && HybridScreen.mode(ctx) != HybridAi.Mode.ONLY_ON_DEVICE &&
+                HybridAgent.online(ctx) && !HybridAi.cloudOut()
+            var cloudCalls = 0
+            fun cloud(prompt: String, what: String): String? {
+                val s0 = System.nanoTime()
+                val r = try { HybridAgent.cloud(ctx, Fix.CLOUD_SYSTEM, listOf(mapOf<String, Any?>("role" to "user", "content" to prompt)), null) } catch (e: Exception) { null }
+                cloudCalls++
+                try { HybridAgent.recorder?.invoke(dev.pocketide.app.core.MiniJson.write(mapOf("seconds" to "%.1f".format((System.nanoTime() - s0) / 1e9), "prompt_chars" to prompt.length,
+                    "previous_result" to "", "prompt" to prompt, "reply" to r?.turn?.text.orEmpty(), "tool" to "python_fix_cloud", "args" to what,
+                    "unusable" to if (r == null) "the cloud did not answer" else "", "model" to (r?.model ?: "")))) } catch (e: Exception) { }
+                return r?.turn?.text
+            }
+            if (cloudOk && u0 != null) {
+                // 2. the cloud says what to change, Gemini Nano writes the code (most of the output stays on the phone)
+                if (dev.pocketide.app.core.Tuning.pyFixCascade) {
+                    if (stopped()) return@Thread
+                    status("asking the cloud what to change in ${u0.qual}")
+                    val sketch = cloud(Fix.sketchPrompt(p, orig, u0, request, out0, if (rewrites > 0) failedNote() else ""), "sketch ${u0.qual}")
+                    if (!sketch.isNullOrBlank()) for (k in 0 until 2) {
+                        if (stopped()) return@Thread
+                        status("Gemini Nano writing ${u0.qual} from the cloud's plan (${k + 1} of 2)")
+                        val ans = nano(Fix.fixPrompt(p, orig, u0, request, out0, Fix.sketchNote(sketch)), Fix.temperature(k, base), "${u0.qual} (from the cloud's plan)") ?: continue
+                        if (attempt(ans, u0, "Gemini Nano on this phone, from the cloud's plan")) return@Thread
                     }
-                    val o = lastOut ?: continue
-                    last = o
-                    tried = "\nAn earlier rewrite of it did not pass; the test then said:\n" + dev.pocketide.app.core.Verify.trim(o, 500) + "\n"
+                }
+                // 3. the cloud writes the fixed block, once more with the new failure if it does not pass
+                for (k in 0 until 2) {
+                    if (stopped()) return@Thread
+                    status("asking the cloud to fix ${u0.qual} (${k + 1} of 2)")
+                    val ans = cloud(Fix.fixPrompt(p, orig, u0, request, out0, if (rewrites > 0) failedNote() else ""), u0.qual) ?: break
+                    if (attempt(ans, u0, "the cloud model")) return@Thread
                 }
             }
             put(orig)
-            finish(Fix.gaveUp(p, targets.joinToString(", ") { it.qual }.ifEmpty { "the code" }, rewrites, last), "Python fix ($rewrites rewrites, $tries tests, none passed)")
+            finish(Fix.gaveUp(p, targets.joinToString(", ") { it.qual }.ifEmpty { "the code" }, rewrites, last) +
+                (if (cloudCalls > 0) " (the cloud was asked $cloudCalls times too)" else ""), "Python fix ($rewrites rewrites, $tries tests, none passed)")
         }.start()
     }
 
