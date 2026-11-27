@@ -1147,7 +1147,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-reliable-python-hybrid-benchmark-1126-2032.
 
 
-### (next) · 2026-11-27 07:20 · Benchmark runs keep the screen on for every PocketIDE screen; 1.5.205
+### 23924ee · 2026-11-27 07:20 · Benchmark runs keep the screen on for every PocketIDE screen; 1.5.205
 
 - **Why:** the owner ran the full benchmark overnight on 1.5.203 and the phone no longer stayed awake. A run set "keep the screen
   on" only on the window of the screen it started from, and cleared it the same way. When Android rebuilt PocketIDE's screen
