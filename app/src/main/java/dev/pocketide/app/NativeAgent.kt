@@ -2274,7 +2274,7 @@ class NativeAgent(
     private fun intArg(x: Any?): Int? = (x as? Number)?.toInt() ?: (x as? String)?.trim()?.toIntOrNull()
 
     /** " · $0.42 of $1.00" for the live status line, or "" when no request limit is set. */
-    private fun meter(): String = budget()?.takeIf { !it.isOff }?.meter()?.takeIf { it.isNotEmpty() }?.let { " · $it" } ?: ""
+    private fun meter(): String = if (settings.provider == "hybrid") "" else budget()?.takeIf { !it.isOff }?.meter()?.takeIf { it.isNotEmpty() }?.let { " · $it" } ?: ""
 
     /** The request reached its spending limit: stop calling the model and let the person decide. Nothing is lost either way. */
     private fun pauseForBudget(b: dev.pocketide.app.core.RunBudget, why: String) {

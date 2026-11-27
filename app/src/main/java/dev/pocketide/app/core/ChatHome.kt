@@ -66,6 +66,12 @@ object ChatHome {
     fun projectName(title: String): String =
         title.replace(Regex("""[^A-Za-z0-9 _-]"""), " ").trim().replace(Regex("""\s+"""), " ").take(40).ifBlank { "New project" }
 
+    /**
+     * 1.5.210: a request to make something (a game, app, page, script…). In the chat with no project it can only be talked about, so
+     * the owner's "Make a snake game in one HTML file…" ended "Not done (read-only): write index.html"; it is offered as a project.
+     */
+    fun isBuildRequest(text: String): Boolean = Regex("""(?is)^\s*(?:please\s+|can you\s+|could you\s+)?(?:make|build|create|write|code|generate)\b.{0,120}?\b(?:game|app|website|web ?page|page|html|site|script|program|tool|calculator|clock|timer|tracker|to-?do|dashboard|bot|extension|project)s?\b""").containsMatchIn(text)
+
     /** Typed for the person after "Build this", in the new project's chat: the conversation above is the request. */
     const val BUILD_REQUEST = "Build what we discussed above."
 

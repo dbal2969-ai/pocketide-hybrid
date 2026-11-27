@@ -67,4 +67,15 @@ class Fixes172Test {
         assertEquals("fix it\n\nplease", dev.pocketide.app.core.ChatHome.typed("fix it\n\nplease"))
         assertEquals("fix the hud", dev.pocketide.app.core.ChatHome.typed("fix the hud\n\nWork only inside the folder \"game\"."))
     }
+
+    /** 1.5.210: a request to make something in the chat with no project is offered as a project; questions are not. */
+    @org.junit.Test fun buildRequestsAreRecognised() {
+        val c = dev.pocketide.app.core.ChatHome
+        org.junit.Assert.assertTrue(c.isBuildRequest("Make a snake game in one HTML file with arrow-key and swipe controls, a score, and a restart button."))
+        org.junit.Assert.assertTrue(c.isBuildRequest("can you build me a tip calculator app"))
+        org.junit.Assert.assertTrue(c.isBuildRequest("Create a website for my bakery"))
+        org.junit.Assert.assertFalse(c.isBuildRequest("Explain how HTTP caching works"))
+        org.junit.Assert.assertFalse(c.isBuildRequest("Compare SQLite and IndexedDB for a small web app"))
+        org.junit.Assert.assertFalse(c.isBuildRequest("Write a regex that matches email addresses"))
+    }
 }

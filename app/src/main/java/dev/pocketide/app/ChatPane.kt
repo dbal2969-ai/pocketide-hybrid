@@ -432,7 +432,7 @@ class ChatPane(
     }
 
     fun refresh() {
-        modelChip.text = dev.pocketide.app.core.Profiles.shortName(settings.model(settings.provider), Providers.byId(settings.provider).name) + " ▾"
+        modelChip.text = (if (settings.provider == "hybrid") "⚡ Hybrid AI" else dev.pocketide.app.core.Profiles.shortName(settings.model(settings.provider), Providers.byId(settings.provider).name)) + " ▾"
         agentChip.text = modeLabel() + (if (settings.autoMode && !settings.askOnly) " · auto" else "") + dev.pocketide.app.core.AgentProfiles.chipSuffix(settings.profile)
         agentChip.setTextColor(if (settings.askOnly || (!settings.agent && !settings.planMode)) Ui.MUTED else Ui.GOOD)
         undoChip.visibility = if (undoStack.any { it.snaps.isNotEmpty() }) View.VISIBLE else View.GONE
@@ -568,6 +568,8 @@ class ChatPane(
         if (pendingImages.isEmpty() && pendingFiles.isEmpty() && t.length <= 300 && dev.pocketide.app.core.ApkGuide.isApkRequest(t)) { input.setText(""); showApkGuide(t); return }
         if (pendingImages.isEmpty() && pendingFiles.isEmpty() && dev.pocketide.app.core.StatusQuestion.matches(t)) { input.setText(""); showStatusReply(t); return }
         if (pendingImages.isEmpty() && pendingFiles.isEmpty() && dev.pocketide.app.core.ExportRequest.matches(t)) { input.setText(""); showExportHint(t); return }
+        if (!talkOnly && Projects.isChat(ctx) && dev.pocketide.app.core.ChatHome.isBuildRequest(t)) { offerBuild(t); return }
+        talkOnly = false
         exchangeDone = null; settings.override = null; reviewOnly = false
         escalation.newRequest()   // 1.5.126: a carried-on run that ended off the tool-calling path must not block the next offer
         val imgs = ArrayList(pendingImages)
@@ -579,7 +581,7 @@ class ChatPane(
             pendingImages.clear(); pendingFiles.clear(); refreshAttachments()
             task = cleaned
             (ctx as? android.app.Activity)?.let { Notifier.askOnce(it) }
-            runBudget = dev.pocketide.app.core.RunBudget(settings.runUsd, settings.runTokens).takeIf { !it.isOff }
+            runBudget = dev.pocketide.app.core.RunBudget(settings.runUsd, settings.runTokens).takeIf { !it.isOff && settings.provider != "hybrid" }   // 1.5.210: Hybrid AI costs nothing; "$0.00 of $1.00" meant nothing
             beginExchange(cleaned)
             if (!settings.askOnly) applyAutoMode(cleaned, files)
             val routed = applyRoute(cleaned, files)
@@ -1993,6 +1995,31 @@ class ChatPane(
      * "Build this" in the Chat home (1.5.125): makes a project named after the chat, copies the conversation into it, opens it in
      * Plan mode and types the request, so the plan is written from everything discussed. Nothing is sent until the person taps Send.
      */
+    /** 1.5.210: the person chose to only talk about a build request in the chat with no project (sent once without the offer). */
+    private var talkOnly = false
+
+    /** A build request in the chat with no project: make it a project and build it there, or just talk about it here. */
+    private fun offerBuild(t: String) {
+        android.app.AlertDialog.Builder(ctx).setTitle("Build this as a project?")
+            .setMessage("This chat has no project, so here the assistant can only talk and write code in its replies. To make it, PocketIDE creates a project and builds it there, with files you can run in Preview.")
+            .setPositiveButton("Build it") { _, _ ->
+                val name = dev.pocketide.app.core.ChatHome.projectName(t.take(40))
+                input.setText("")
+                buildRequest(name, t)
+            }
+            .setNegativeButton("Just talk about it") { _, _ -> talkOnly = true; submit() }
+            .show()
+    }
+
+    /** A new project named [name] that builds [request] at once, in Agent mode (the chat's own Build this uses Plan mode). */
+    private fun buildRequest(name: String, request: String) {
+        val created = Projects.create(ctx, name.trim().ifBlank { "New project" }, dev.pocketide.app.core.Templates.EMPTY)
+        modeBeforeBuild = Triple(created, settings.mode, settings.agent)
+        settings.mode = "agent"; settings.agent = true
+        Projects.switchTo(ctx, created)
+        post { onShowChat(); newChat(); ask(request) }
+    }
+
     private fun buildThis() {
         if (call != null) { toast("Wait until the assistant has finished."); return }
         saveSession()

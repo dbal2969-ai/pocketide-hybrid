@@ -128,7 +128,12 @@ object HybridScreen {
         setCard.addView(Ui.text(ctx, "Temperature: lower is more predictable. Top-K: how many likely words the model picks from. " +
             "Max output tokens: the longest reply. On-phone limit: longer requests go to the cloud in the on-phone-first mode. " +
             "Changes apply to the next request.", 12f, Ui.MUTED))
-        for (box in listOf(tempBox, topKBox, outBox, charsBox)) setCard.addView(box, LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP))
+        // 1.5.210: each box has its name above it (the hint disappears once a value is in it, so the boxes read 0.2, 40, 1024, 14000)
+        for ((label, box) in listOf("Temperature (0 to 2)" to tempBox, "Top-K (1 to 100)" to topKBox, "Max output tokens (64 to 8192)" to outBox,
+                "On-phone limit, characters (1000 to 30000)" to charsBox)) {
+            setCard.addView(Ui.text(ctx, label, 12f, Ui.MUTED), LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP).also { it.topMargin = Ui.dp(ctx, 8) })
+            setCard.addView(box, LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP))
+        }
         setCard.addView(fullBox)
         // 1.5.184: the cloud model tier (CloudTier). Auto starts on Balanced and moves a hard request up to Best, and says so in the chat.
         setCard.addView(Ui.text(ctx, "Cloud model (used when Gemini Nano passes a request on)", 14f, Ui.TEXT))
@@ -192,8 +197,17 @@ object HybridScreen {
         tryCard.addView(answer); tryCard.addView(where)
 
         // ---- Benchmark (HybridBench): eight tasks with the real agent and Gemini Nano, no one watching ----
-        fs.heading("Benchmark")
+        // 1.5.210: the benchmarks are for measuring PocketIDE, not for using it: folded under one line unless a run is going on
+        val benchHead = fs.heading("Benchmarks (for measuring PocketIDE) ▸")
         val benchCard = fs.card()
+        benchCard.visibility = if (HybridBench.running) View.VISIBLE else View.GONE
+        if (HybridBench.running) benchHead.text = "Benchmarks (for measuring PocketIDE) ▾"
+        benchHead.isClickable = true
+        benchHead.setOnClickListener {
+            val open = benchCard.visibility != View.VISIBLE
+            benchCard.visibility = if (open) View.VISIBLE else View.GONE
+            benchHead.text = "Benchmarks (for measuring PocketIDE) " + if (open) "▾" else "▸"
+        }
         benchCard.addView(Ui.text(ctx, "Runs ${dev.pocketide.app.core.HybridBenchTasks.ALL.size} coding tasks with the real agent and Gemini Nano, checks each one, " +
             "and saves a results zip to Downloads/PocketIDE. About 30 to 60 minutes: keep the phone plugged in with PocketIDE open. " +
             "Needs Linux with Node (Terminal tab). Your settings and project are put back afterwards.", 13f, Ui.MUTED))

@@ -1282,6 +1282,36 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** Welcome.kt, MainActivity.kt, AppSettings.kt, HomeScreen.kt, core/Starter.kt; app/build.gradle.kts (1.5.209-hybrid, code 257).
 - **Tests:** StarterTest `hybridAiIsReadyWithNoKey`. 1,382 unit tests, 0 failures.
 
+
+### (next) · 2026-11-27 14:20 · Model chooser, chat builds and the Hybrid AI screen made friendlier; 1.5.210
+
+- **Why:** the owner reviewed the judges' build (screenshots).
+  - The model chooser listed Hybrid AI mid-list, and tapping it asked "Pick from Hybrid AI's list / Type a name", which means
+    nothing for Hybrid AI.
+  - Every provider without a key said "(no key)", which reads as "needs no key". "Save current (Hybrid AI · ) as a profile" had an
+    empty model.
+  - "Make a snake game in one HTML file…" in the chat with no project ended "Not done (read-only): write index.html".
+  - A "$0.00 of $1.00" meter showed for Hybrid AI.
+  - On the Hybrid AI screen the number boxes read 0.2, 40, 1024, 14000 with no names, and about 20 benchmark buttons filled half of
+    it.
+- **Change:**
+  - Switch model (`ChatDialogs.model`):
+    - "⚡ Hybrid AI: Gemini Nano on this phone + Gemini in the cloud (no key needed)" comes first, in builds with Firebase; tapping
+      it selects Hybrid AI and opens its screen.
+    - Then saved profiles, then providers marked "(no key needed)", "(add a key first)" or "(key added)", then search, save as a
+      profile (not offered for Hybrid AI or the demo) and smart routing. "Demo: sample replies, no AI" is last.
+    - The header chip reads "⚡ Hybrid AI ▾".
+  - Chat with no project: a request to make something (`ChatHome.isBuildRequest`: make, build, create, write, code or generate a
+    game, app, page, site, script, tool…) asks "Build this as a project?". "Build it" creates a project named from the request and
+    builds it there in Agent mode. "Just talk about it" sends it to the chat as before.
+  - No cost meter for Hybrid AI (`RunBudget` and `NativeAgent.meter`).
+  - Hybrid AI screen: each number box has its name above it. The benchmarks are folded under "Benchmarks (for measuring
+    PocketIDE) ▸", open while a run goes on.
+  - The in-app map is regenerated (`scripts/gen_app_map.py`).
+- **Files:** ChatDialogs.kt, ChatPane.kt, NativeAgent.kt, HybridScreen.kt, core/ChatHome.kt, core/AppMapData.kt;
+  app/build.gradle.kts (1.5.210-hybrid, code 258).
+- **Tests:** Fixes172Test `buildRequestsAreRecognised`. 1,383 unit tests, 0 failures.
+
 ---
 
 ## Outside the code
