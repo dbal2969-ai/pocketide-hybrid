@@ -1363,7 +1363,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** ChatPane.kt.
 - **Tests:** no new test (text only). 1,385 unit tests, 0 failures.
 
-### HASH · 2026-11-27 16:30 · One-tap demo recording for the submission video; 1.5.213
+### fc5bf87 · 2026-11-27 16:30 · One-tap demo recording for the submission video; 1.5.213
 
 - **Why:** the owner asked for one button that plays a fresh-start demo to screen-record for the #BuildHybridAI video, with nothing
   fabricated (the rules ask for footage of the project working on its platform, at most 3 minutes, on YouTube). Console footage is
