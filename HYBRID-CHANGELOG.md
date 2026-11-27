@@ -1202,6 +1202,25 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Still open, owner only:** the JUDGE_APPCHECK_TOKEN secret and the judges' release (no release exists yet), the video, and the
   Devpost form.
 
+
+### (next) · 2026-11-27 09:35 · The RuneScape add-on is not part of the hackathon edition; the judges' build is made locally; 1.5.207
+
+- **Why:**
+  - The owner asked whether the judges' build shows the RuneScape / 2009scape add-on. It did: Settings had a box "RuneScape game
+    caches: Build games from an Old School or 2009 RuneScape cache…", on by default. The rules forbid third-party IP, logos and
+    endorsements, and the owner had already decided a store release would not include the add-on.
+  - The owner's GitHub account cannot run Actions for now (billing), so the judges' release workflow cannot run.
+- **Change:**
+  - MainActivity registers no add-on. The core never refers to the add-on's code (`core/AddOn.kt`), so it shows nowhere: no
+    Settings box (the Add-ons group hides when empty) and no tools.
+  - `Design.kitFor` sends RuneScape-style requests to the game starter kits unless that add-on is registered. Before, they got no
+    kit, left to a cache recipe this edition does not have.
+  - The add-on's source stays in `addon/osrs` (not compiled into any screen) for the owner's other editions.
+  - The judges' APK is built here with `JUDGE_APPCHECK_TOKEN` from the environment (never in git or chat). It is published as a
+    GitHub release through the REST API, not Actions.
+- **Files:** MainActivity.kt, core/Design.kt; app/build.gradle.kts (1.5.207-hybrid, code 255).
+- **Tests:** 1,378 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

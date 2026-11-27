@@ -57,7 +57,7 @@ object Design {
 
     /** The starter kit that fits a game request best, or null. RuneScape-style requests are left to the cache recipe. */
     fun kitFor(request: String): String? {
-        if (Regex("""\b(runescape|osrs|rs2|2009 ?scape|rsps)\b""", RegexOption.IGNORE_CASE).containsMatchIn(request)) return null
+        if (AddOns.all().any { it.id == "osrs" } && Regex("""\b(runescape|osrs|rs2|2009 ?scape|rsps)\b""", RegexOption.IGNORE_CASE).containsMatchIn(request)) return null
         // a game request picks among the game kits; anything else among the app kits (a "quiz game" is still a quiz: the form kit scores it)
         if (GAMEY.containsMatchIn(request)) {
             val quiz = Regex("""\b(quiz|trivia)\b""", RegexOption.IGNORE_CASE).containsMatchIn(request)
