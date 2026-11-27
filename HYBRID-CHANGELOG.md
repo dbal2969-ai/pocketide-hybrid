@@ -1459,7 +1459,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** ToolsTest and UbuntuToolsTest (the new command shape), CodingAgentToolsTest `theFirebaseCliIsOneTap`. 1,397 unit tests,
   0 failures.
 
-### HASH · 2026-11-27 18:20 · Two APKs again: the judges' build and the owner's build (with the RuneScape add-on); 1.5.217
+### 2ae6e41 · 2026-11-27 18:20 · Two APKs again: the judges' build and the owner's build (with the RuneScape add-on); 1.5.217
 
 - **Why:** the owner noticed only judges' APKs had been sent lately; before, there was also the owner's own build. Since 1.5.207 the
   RuneScape game-cache add-on was left out of every build, the owner's included.
