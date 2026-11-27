@@ -66,7 +66,12 @@ object ToolsScreen {
         val pick: CheckBox
     )
 
-    fun show(activity: Activity, linux: LinuxRuntime, settings: AppSettings, onChanged: () -> Unit) {
+    /**
+     * [autoSetup] (1.5.211): one tap does the whole setup: the Linux add-on (Android asks to install it), then Linux, then the
+     * basics (Python, Node, git), each step starting when the one before ends. Before, it took a tap for each, with a return to
+     * this screen in between.
+     */
+    fun show(activity: Activity, linux: LinuxRuntime, settings: AppSettings, onChanged: () -> Unit, autoSetup: Boolean = false) {
         val act = activity
         val project = Projects.current(act)
         val home = File(act.filesDir, "home").also { it.mkdirs() }
@@ -285,14 +290,29 @@ object ToolsScreen {
             }
         }
 
-        // 1.5.128: coming back from Android's installer (the Linux add-on) shows the next step
-        dlg.window?.decorView?.viewTreeObserver?.addOnWindowFocusChangeListener { focused -> if (focused && dlg.isShowing) paint() }
+        // 1.5.128: coming back from Android's installer (the Linux add-on) shows the next step; 1.5.211: and takes it, in a one-tap setup
+        var auto = autoSetup
+        var addonAsked = false
+        fun nextStep() {
+            if (!auto || !dlg.isShowing || linux.busy || job != null) return
+            when {
+                !linux.prootPresent -> if (!addonAsked) { addonAsked = true; LinuxAddon.fetch(act, settings) }
+                !linux.installed -> lxMain.performClick()
+                else -> {
+                    auto = false
+                    if (ToolCatalog.basics.mapNotNull { ToolCatalog.byId(it) }.any { !ToolCatalog.isInstalled(it, installed, linux.distro().id) }) basics.performClick()
+                }
+            }
+        }
+        dlg.window?.decorView?.viewTreeObserver?.addOnWindowFocusChangeListener { focused -> if (focused && dlg.isShowing) { paint(); nextStep() } }
 
         // ---- actions ----
         lxMain.setOnClickListener {
             if (linux.busy) { linux.cancelInstall(); return@setOnClickListener }
             // 1.5.128: without PRoot in this APK (the MIT edition), get the Linux add-on first
-            if (!linux.prootPresent) { LinuxAddon.fetch(act, settings); return@setOnClickListener }
+            // 1.5.211: a tap here sets up the rest too (Linux, then the basics), each step when the one before ends
+            auto = true
+            if (!linux.prootPresent) { addonAsked = true; LinuxAddon.fetch(act, settings); return@setOnClickListener }
             if (linux.installed) return@setOnClickListener
             lxProgress.visibility = View.VISIBLE
             linux.install({ s -> lxProgress.text = s }) { err ->
@@ -300,6 +320,7 @@ object ToolsScreen {
                 installed = installedPackages(linux)
                 if (dlg.isShowing) paint()
                 onChanged()
+                if (err == null) nextStep() else auto = false
             }
             paint()
         }
@@ -367,7 +388,7 @@ object ToolsScreen {
             LinuxService.listeners.remove(listener)
             // an install keeps running if the screen is closed; it just is not shown
         }
-        dlg.setOnShowListener { paint() }
+        dlg.setOnShowListener { paint(); nextStep() }
         dlg.show()
     }
 }

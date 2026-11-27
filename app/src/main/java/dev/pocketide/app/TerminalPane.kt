@@ -102,8 +102,12 @@ class TerminalPane(private val ctx: Context, private val store: ProjectStore, pr
     /** Updates the header line to say which shell commands run in. */
     fun refreshHint() {
         hint.text = if (linuxActive) (if (linuxDistroId == "ubuntu") "Ubuntu Linux in /work. One-tap installs: Tools button (or apt-get install …)." else "Alpine Linux in /work. One-tap installs: Tools button (or apk add …).")
-        else "Android shell (basic tools only). Set up Linux from the Tools button."
+        else "Android shell: no Python or Node yet. Tap here to set up Linux (one tap, about 2 minutes)."
+        hint.setTextColor(if (linuxActive) Ui.MUTED else Ui.ACCENT)
     }
+
+    /** 1.5.211: tapping the hint while Linux is not set up starts the one-tap setup. */
+    var onSetUpLinux: (() -> Unit)? = null
 
     init {
         orientation = VERTICAL
@@ -114,6 +118,7 @@ class TerminalPane(private val ctx: Context, private val store: ProjectStore, pr
         head.setPadding(Ui.dp(ctx, 12), Ui.dp(ctx, 2), Ui.dp(ctx, 4), Ui.dp(ctx, 2))
         hint.maxLines = 2
         head.addView(hint, Ui.lp(0, Ui.WRAP, 1f))
+        hint.setOnClickListener { if (!linuxActive) onSetUpLinux?.invoke() }
         val full = Ui.text(ctx, "Full terminal", 13f, Ui.ACCENT)
         full.setPadding(Ui.dp(ctx, 10), Ui.dp(ctx, 10), Ui.dp(ctx, 10), Ui.dp(ctx, 10))
         full.setOnClickListener { onOpenFull?.invoke() }

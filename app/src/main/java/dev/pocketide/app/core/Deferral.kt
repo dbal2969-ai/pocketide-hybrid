@@ -25,7 +25,7 @@ object Deferral {
     // "To fix this, I will change the line where totalPages is calculated." (Llama 3.3 70B, hard suite, 1.5.89): the change itself left for later
     private val CHANGE_NAMED = Regex(
         """\b(?:(?:i|we)\s*(?:should|need to|will|'ll|must|have to|would (?:first )?need to|am going to|'m going to)|let me|let's)\s+(?:now\s+|first\s+|next\s+)?$USE_TOOL""" +
-            """(?:change|fix|edit|update|modify|correct|replace|rewrite|add|remove|implement|write|make the change)\b""", I)
+            """(?:change|fix|edit|update|modify|correct|replace|rewrite|add|remove|implement|write|make the change|create|build|make|finish|complete)\b""", I)
 
     /** True when the closing lines of [reply] say the model is about to make a change. Only meaningful when nothing was changed. */
     fun stopsBeforeChange(reply: String): Boolean {
@@ -38,6 +38,16 @@ object Deferral {
         val tail = reply.trim().takeLast(300)
         return tail.isNotEmpty() && (NAMED.containsMatchIn(tail) || PURPOSE.containsMatchIn(tail) || CALL_AS_TEXT.containsMatchIn(tail))
     }
+
+    /**
+     * 1.5.211 (snake game, judges' build): Gemini Nano wrote index.html, ended with "Now I need to create the JavaScript logic in
+     * app.js", and the run stopped there, because a change named after other changes did not count. True when the closing lines
+     * name more work to do, whatever was changed before.
+     */
+    fun workLeft(reply: String): Boolean = stopsBeforeChange(reply)
+
+    const val MORE_ASK = "Your reply ends by saying there is more to do, so the work is not finished. Do it now with the tools " +
+        "(write_file or edit_file), check it, then reply. If you cannot, say what stops you."
 
     const val CHANGE_ASK = "Your reply ends by saying you will make a change, but nothing has been changed yet. Make it now with the tools " +
         "(edit_file or write_file), check it, then reply. If you cannot, say what stops you."

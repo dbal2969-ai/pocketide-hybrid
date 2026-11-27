@@ -1312,6 +1312,29 @@ the files after the run, `transcript.txt` and `check.txt`.
   app/build.gradle.kts (1.5.210-hybrid, code 258).
 - **Tests:** Fixes172Test `buildRequestsAreRecognised`. 1,383 unit tests, 0 failures.
 
+### HASH · 2026-11-27 14:40 · One-tap Linux setup, and a build that stops after its first file goes on; 1.5.211
+
+- **Why:** the owner's snake game in the judges' build (screenshots).
+  - Gemini Nano wrote index.html, ended "Now I need to create the JavaScript logic in app.js", and the run stopped there. The page
+    then threw `Cannot read properties of null (reading 'addEventListener')`, because app.js did not match it. A change named after
+    other changes was not counted (`Deferral` only looked when nothing had changed, and its verbs had no "create").
+  - Setting up Linux (for the Terminal and for running Python or Node) took a tap per step: the add-on, Linux, then the basics,
+    with a return to the Tools screen in between. The Terminal's hint only said "Set up Linux from the Tools button".
+- **Change:**
+  - `Deferral.workLeft` and `MORE_ASK`: a final reply whose closing lines name more work ("Now I need to create…", "Next I will
+    build…") after files were changed sends the model back to do it, at most twice per request. The change verbs now include
+    create, build, make, finish and complete.
+  - One-tap Linux (`ToolsScreen.show(autoSetup)`): one tap on Install, on the Terminal's hint, or on "Set up Linux" from Run does
+    the add-on (Android asks to install it), then Linux, then Python, Node and git, each step starting when the one before ends.
+  - The Terminal's hint, while Linux is not set up, reads "Android shell: no Python or Node yet. Tap here to set up Linux (one
+    tap, about 2 minutes)." in the accent colour, and is tappable.
+  - Checked: the judges' build and the public add-on (pocketide-linux-addon v1.0) are signed with the same certificate (SHA-256
+    06dcfefe…2abf, the repo's debug.keystore), so the add-on is accepted. Linux is not needed for Preview, only for the Terminal
+    and for running Python or Node.
+- **Files:** ToolsScreen.kt, TerminalPane.kt, MainActivity.kt, NativeAgent.kt, core/Deferral.kt, core/AppMapData.kt;
+  app/build.gradle.kts (1.5.211-hybrid, code 259).
+- **Tests:** DeferralTest `workNamedAfterChangesIsLeft`. 1,384 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

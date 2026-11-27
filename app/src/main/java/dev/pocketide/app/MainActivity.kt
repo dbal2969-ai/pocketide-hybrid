@@ -146,10 +146,11 @@ class MainActivity : Activity() {
         linux = LinuxRuntime(this, settings)
         serverHooks = LinuxServerHooks(this, linux, { store.root }, home)
         terminal.linux = linux
+        terminal.onSetUpLinux = { openTools(setUp = true) }
         terminal.onOpenFull = { editor.save(); startActivity(android.content.Intent(this, TerminalActivity::class.java)) }
 
         // v0.4 W3: Run button, Problems panel and local-server preview
-        runner = RunController(this, store, LinuxRunHost(this, linux, store, terminal) { openTools() }, terminal, preview)
+        runner = RunController(this, store, LinuxRunHost(this, linux, store, terminal) { openTools(setUp = true) }, terminal, preview)
         dev.pocketide.app.core.Templates.extra = dev.pocketide.app.core.AddOns.templates()   // GPL: projects that need Linux (the 2009scape server, from the RuneScape add-on)
         runner.currentFile = { editor.path }
         runner.beforeRun = { editor.save() }
@@ -610,8 +611,9 @@ class MainActivity : Activity() {
     }
 
     // GPL route: shared by the ⋮ menu and the Run button
-    private fun openTools() {
-        ToolsScreen.show(this, linux, settings) { terminal.refreshHint(); chat.refresh() }
+    /** [setUp]: start the whole Linux setup at once (add-on, Linux, Python/Node/git), as from "Set up Linux" (1.5.211). */
+    private fun openTools(setUp: Boolean = false) {
+        ToolsScreen.show(this, linux, settings, { terminal.refreshHint(); chat.refresh() }, autoSetup = setUp && !linux.active)
     }
 
     private fun showHelp(section: String?) {

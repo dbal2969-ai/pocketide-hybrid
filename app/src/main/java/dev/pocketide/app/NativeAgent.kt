@@ -417,6 +417,7 @@ class NativeAgent(
     private var toolTextAsked = false
     private var deferralAsked = false
     private var changeAsked = false
+    private var moreAsks = 0
     /** Asks for something a reply announced and never gave ("Here is the change:"), and the round of the last one: asked again only after tools ran. */
     private var announcedAsks = 0
     private var announcedRound = -1
@@ -1271,6 +1272,15 @@ class NativeAgent(
             note("The model stopped before doing what it said it would; asking it to finish.", Ui.ACCENT)
             goBack(text0, if (changeLeft) "the reply named a change it did not make" else "the reply stopped before a needed step",
                 if (changeLeft) dev.pocketide.app.core.Deferral.CHANGE_ASK else dev.pocketide.app.core.Deferral.ASK)
+            return
+        }
+        // 1.5.211: "Now I need to create app.js" after index.html was written: the rest of the work, asked for at most twice
+        if (!nested && !stopRequested() && agent && !question && !reportOnly && !readOnly() && moreAsks < 2 && round < maxRounds && wrapAt < 0 &&
+            (changed.isNotEmpty() || staged.isNotEmpty()) && dev.pocketide.app.core.Deferral.workLeft(text0)) {
+            moreAsks++
+            trace("the reply named more work after its changes; asking the model to do it")
+            note("The model said there is more to do; asking it to finish.", Ui.ACCENT)
+            goBack(text0, "the reply named work left to do", dev.pocketide.app.core.Deferral.MORE_ASK)
             return
         }
         // "Here is the change:" with nothing after it: ask for the change, at most twice and only after tools ran since the last ask

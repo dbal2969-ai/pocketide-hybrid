@@ -77,4 +77,12 @@ class DeferralTest {
         assertNull(Deferral.fileToRead("I will read index.js next.", files))
         assertNull(Deferral.fileToRead("Let me open paginate.test.js.", files) { it != "test/paginate.test.js" })
     }
+
+    /** 1.5.211: the snake game in the judges' build stopped after index.html, at "Now I need to create the JavaScript logic in app.js". */
+    @Test fun workNamedAfterChangesIsLeft() {
+        assertTrue(Deferral.workLeft("I created index.html with the canvas and the score. Now I need to create the JavaScript logic in app.js."))
+        assertTrue(Deferral.workLeft("The page is ready. Next I will build the game loop in game.js."))
+        assertFalse(Deferral.workLeft("The snake game is done: index.html and app.js. Open the Preview tab to play."))
+        assertFalse(Deferral.workLeft("Done. You could add a high score list next."))
+    }
 }
