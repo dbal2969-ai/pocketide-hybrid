@@ -419,7 +419,7 @@ object HybridAgent {
             (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + kitNote(messages) +
             // 1.5.194: the Python helper's note, when NativeAgent put it in the system prompt (Settings › Assistant › Python helper)
             (if (pyOn(messages)) "\n" + dev.pocketide.app.core.PyHelper.note() + REPLACE_FUNCTION else "") +
-            SmallLocal.remoteLine() +   // 1.5.197: Remote Config's hybrid_nano_note
+            SmallLocal.remoteLine(SmallLocal.isJs(requestOf(messages.firstOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty()))) +   // 1.5.197: Remote Config's hybrid_nano_note; 1.5.208: the JavaScript note
             "\n\nThe conversation so far, oldest first:\n"
     }
     private const val TAIL = "\nYour reply, one JSON object:"

@@ -37,7 +37,7 @@ object Tuning {
     /** The app finds the function, Nano rewrites it whole, the test picks the rewrite that passes. */
     @Volatile var pyFix = true
     /** Rewrites tried for the first function picked (half as many for the next). */
-    @Volatile var pyFixSamples = 4
+    @Volatile var pyFixSamples = 6
     /** The temperature of the rewrites after the first. */
     @Volatile var pyFixTemperature = 0.7f
     /** 1.5.203: when Nano's rewrites fail and the cloud is allowed, the cloud writes the fixed block (two calls at most). */
@@ -64,7 +64,8 @@ object Tuning {
         const val PY_SYNTAX = "hybrid_python_syntax_check"
         const val PAGE_WIRING = "hybrid_page_wiring_check"
         const val PY_FIX = "hybrid_python_fix"
-        const val PY_FIX_SAMPLES = "hybrid_python_fix_samples"
+        /** 1.5.208: replaces hybrid_python_fix_samples (default 4), whose published value would override the new default. */
+        const val PY_FIX_SAMPLES = "hybrid_python_fix_rewrites"
         const val PY_FIX_TEMPERATURE = "hybrid_python_fix_temperature"
         const val PY_FIX_CLOUD = "hybrid_python_fix_cloud"
         const val PY_FIX_CASCADE = "hybrid_python_fix_cascade"
@@ -77,7 +78,7 @@ object Tuning {
         Keys.NANO_MAX_OUTPUT to HybridSettings.DEFAULT_MAX_OUTPUT.toLong(), Keys.NANO_FULL_MODEL to false, Keys.CLOUD_TIER to CloudTier.Choice.AUTO.id,
         Keys.HANDOFF_FAILURES to 2L, Keys.QUOTA_WAITS to 2L, Keys.BUSY_WAIT_MS to 8_000L, Keys.CLOUD_OUT_MINUTES to 15L, Keys.NANO_RESHOWS to 2L,
         Keys.REPAIR_JSON to true, Keys.ASK_AGAIN to true, Keys.PY_SYNTAX to true, Keys.PAGE_WIRING to true,
-        Keys.PY_FIX to true, Keys.PY_FIX_SAMPLES to 4L, Keys.PY_FIX_TEMPERATURE to 0.7,
+        Keys.PY_FIX to true, Keys.PY_FIX_SAMPLES to 6L, Keys.PY_FIX_TEMPERATURE to 0.7,
         Keys.PY_FIX_CLOUD to true, Keys.PY_FIX_CASCADE to true, Keys.SHOW_THOUGHTS to true)
 
     /**
@@ -102,7 +103,7 @@ object Tuning {
         pythonSyntaxCheck = bool(Keys.PY_SYNTAX) ?: true
         pageWiringCheck = bool(Keys.PAGE_WIRING) ?: true
         pyFix = bool(Keys.PY_FIX) ?: true
-        pyFixSamples = num(Keys.PY_FIX_SAMPLES)?.toInt()?.takeIf { it in 1..10 } ?: 4
+        pyFixSamples = num(Keys.PY_FIX_SAMPLES)?.toInt()?.takeIf { it in 1..10 } ?: 6
         pyFixCloud = bool(Keys.PY_FIX_CLOUD) ?: true
         pyFixCascade = bool(Keys.PY_FIX_CASCADE) ?: true
         showThoughts = bool(Keys.SHOW_THOUGHTS) ?: true

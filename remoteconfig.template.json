@@ -39,7 +39,7 @@
       "defaultValue": {
         "value": ""
       },
-      "description": "Extra instructions added to Gemini Nano's prompt for every request (up to 1,500 characters). Empty adds nothing.",
+      "description": "Extra instructions added to Gemini Nano's prompt for every request, after the built-in JavaScript note (up to 1,500 characters). Empty adds nothing.",
       "valueType": "STRING"
     },
     "hybrid_python_note": {
@@ -175,13 +175,6 @@
       "description": "Python fix path for Gemini Nano: the app finds the function, Nano rewrites it whole several times, and the request's test keeps the first rewrite that passes. false leaves Nano to its usual tools.",
       "valueType": "BOOLEAN"
     },
-    "hybrid_python_fix_samples": {
-      "defaultValue": {
-        "value": "4"
-      },
-      "description": "Rewrites tried for the first function the fix path picks (half as many for the next), 1-10.",
-      "valueType": "NUMBER"
-    },
     "hybrid_python_fix_temperature": {
       "defaultValue": {
         "value": "0.7"
@@ -209,6 +202,13 @@
       },
       "description": "Show the cloud model's thought summaries (tiers that think) and Gemini Nano's reasoning in the agent's thinking block, as for API models. false asks for no thought summaries and puts Nano's reasoning back in the reply.",
       "valueType": "BOOLEAN"
+    },
+    "hybrid_python_fix_rewrites": {
+      "defaultValue": {
+        "value": "6"
+      },
+      "description": "Rewrites the Python fix path tries for the first block it picks (half as many for each next one), 1-10. Replaces hybrid_python_fix_samples (no longer read).",
+      "valueType": "NUMBER"
     }
   }
 }

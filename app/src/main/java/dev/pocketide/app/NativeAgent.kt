@@ -457,6 +457,8 @@ class NativeAgent(
      * shows the lines its last missed edit was aimed at ([smallMissed]), else the file again, up to Tuning.nanoReshows times a file.
      */
     private val smallMissed = HashMap<String, String>()
+    /** 1.5.208: edits applied in this request (path, search, replacement), so the same edit is not applied twice (run 1126-2203, r23). */
+    private val appliedEdits = HashSet<String>()
     private val smallReshown = HashMap<String, Int>()
 
     /** Long Python files already answered with an outline: a second whole read shows code (1.5.195). */
@@ -865,7 +867,7 @@ class NativeAgent(
         var signal = false
         var over = false
         HybridAgent.pythonHelp = pyHelp
-        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.note() else "") + dev.pocketide.app.core.SmallLocal.remoteLine() else (if (textTools) system + catalogue else system) +
+        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.note() else "") + dev.pocketide.app.core.SmallLocal.remoteLine(dev.pocketide.app.core.SmallLocal.isJs(request)) else (if (textTools) system + catalogue else system) +
             (if (pyHelp) "\n\n" + dev.pocketide.app.core.PyHelper.note() else ""), messages, !textMode, object : NativeListener {
             override fun onStatus(text: String) {
                 phase(text); if (text.contains("characters of reasoning")) signal = true
@@ -2611,8 +2613,17 @@ class NativeAgent(
                     if (nanoLike) smallMissed[p] = search   // 1.5.193: a reread then shows the lines this edit was aimed at
                     reply("Edit not applied to $p: ${res.error ?: "the search text was not found"}." + elsewhere(p, search).ifEmpty { " Read the file again and copy the text exactly." }, "$label (failed)"); return
                 }
+                // 1.5.208 (run 1126-2203): an edit that changes nothing was reported as "Edited main.js" (l17: the same text as search
+                // and replace), and the same edit sent five times was applied five times (r23: its replacement began with its search, so
+                // the search still matched and each time added another copy). Both are refused, saying why.
+                if (newText == cur) { reply("Edit not applied to $p: the replacement is the same as the text it replaces, so nothing would change. " +
+                    "Read the file, find what is really wrong, and change that.", "$label (no change)"); return }
+                val sig = p + "\u0000" + search + "\u0000" + replace0
+                if (sig in appliedEdits) { reply("Edit not applied to $p: this exact edit was already applied earlier in this request; applying it again " +
+                    "would add the same text a second time. Read $p to see it as it is now, then change what is still wrong.", "$label (already applied)"); return }
                 testGate(p, cur, newText, job)?.let { if (askTestNow(p, newText, label) { r, s -> reply(r, s) }) return; reply(it, "$label (refused)"); return }
                 readFiles.remove(p)
+                appliedEdits.add(sig)
                 if (agent) {
                     val gate = planGate(p, newText)
                     if (gate != null) { if (write(FileEdit(p, gate.first))) { changed.add(p); reply("Edited $p.${gate.second}", label) } else reply("Could not write $p.") }

@@ -1241,6 +1241,29 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Not fixable by Remote Config:** the app accepting an edit whose search and replace are the same, and applying an identical
   edit again and again (r23). That is an app change.
 
+
+### (next) · 2026-11-27 13:25 · Run 1126-2203's Remote Config values shipped in the app; no-op and repeated edits refused; 1.5.208
+
+- **Why:** the owner asked to publish the Remote Config values from the previous entry. They cannot be pushed from here: the
+  Firebase CLI is not signed in, and signing in would need the owner's one-time code or key typed in. So they ship in the APK.
+  A template already published from HACKATHON.md step 6 holds the old values ("4" and an empty note), and a published value
+  overrides an in-app default. So:
+  - The JavaScript note is built in (`SmallLocal.JS_NOTE`). It is sent when the request is about JavaScript (`isJs`: a .js, .mjs
+    or .cjs file, Node, require( or module.exports), so other prompts keep their room. Remote Config's `hybrid_nano_note` is added
+    after it.
+  - The fix path's rewrites move to a new key, `hybrid_python_fix_rewrites` (default 6). `hybrid_python_fix_samples` is no longer
+    read. `remoteconfig.live.json` is removed (its values are now the app's own); the template lists the new key.
+- **Bugs fixed (run 1126-2203):**
+  - An edit whose replacement equals what it replaces is refused with "the replacement is the same as the text it replaces". l17
+    had been told "Edited main.js" for an identical search and replace.
+  - The same edit (path, search, replacement) is applied once per request. r23's replacement began with its search, so each of
+    five repeats added another copy; now a repeat is refused with "this exact edit was already applied".
+- **Files:** NativeAgent.kt, HybridAgent.kt, core/SmallLocal.kt, core/Tuning.kt, remoteconfig.template.json; app/build.gradle.kts
+  (1.5.208-hybrid, code 256).
+- **Tests:** EditRepeatTest (new: the no-op edit, the same edit three times, the JavaScript note's trigger). 1,381 unit tests,
+  0 failures.
+- **Judges' build:** built here with the registered App Check debug token; published as the GitHub release `judges-1.5.208`.
+
 ---
 
 ## Outside the code

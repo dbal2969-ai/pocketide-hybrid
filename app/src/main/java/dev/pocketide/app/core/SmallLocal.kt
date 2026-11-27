@@ -133,7 +133,19 @@ object SmallLocal {
     @Volatile var remoteNote: String = ""
 
     /** [remoteNote] as a line to add to the prompt, or "". */
-    fun remoteLine(): String = remoteNote.trim().takeIf { it.isNotEmpty() }?.let { "\n" + it.take(1500) }.orEmpty()
+    fun remoteLine(js: Boolean = false): String = (if (js) "\n" + JS_NOTE else "") + remoteNote.trim().takeIf { it.isNotEmpty() }?.let { "\n" + it.take(1500) }.orEmpty()
+
+    /** The request is about JavaScript: it names a .js/.mjs/.cjs file or Node (the JavaScript note is sent only then, to keep Nano's prompt short). */
+    fun isJs(text: String): Boolean = Regex("""(?i)\.(m|c)?js\b|\bnode(\.js)?\s|\brequire\(|module\.exports|\bjavascript\b""").containsMatchIn(text)
+
+    /**
+     * 1.5.208, from reliability run 1126-2203: built in rather than sent by Remote Config, because a template already published with
+     * an empty hybrid_nano_note would override an in-app default. Remote Config's note is added after it.
+     */
+    const val JS_NOTE = "JavaScript: a file that other files load with require() must export what they use, at its end, for example " +
+        "module.exports = { greet }. When you add a function to such a file, add its name to module.exports too. A name with a number " +
+        "is the whole name: helper40 is not helper4, so search for the whole name, for example \"function helper40(\". If your edit " +
+        "was applied but the test still fails the same way, do not send the same edit again: read the file and change something else."
 
     const val QUOTES_NOTE = " Inside a JSON string, write a double quote as \\\" and a line break as \\n.\nYour reply, one JSON object:"
 
