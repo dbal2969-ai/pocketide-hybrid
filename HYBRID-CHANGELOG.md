@@ -1181,7 +1181,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1126-2203-partial-76of171.
 
 
-### (next) · 2026-11-27 08:30 · Submission check: HACKATHON.md gets measured results; lint and secrets reviewed
+### 9207a38 · 2026-11-27 08:30 · Submission check: HACKATHON.md gets measured results; lint and secrets reviewed
 
 - **Why:** the owner asked to get the submission ready. The official rules (Devpost) require:
   - a public repo with an open-source license showing in About (MIT, detected);
