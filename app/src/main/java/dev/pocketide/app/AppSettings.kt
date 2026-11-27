@@ -189,7 +189,8 @@ class AppSettings(ctx: Context) {
         set(v) { sp.edit().putBoolean("everything", v).apply() }
 
     var agent: Boolean
-        get() = sp.getBoolean("agent", false)
+        // 1.5.212: Agent mode (changes applied, then the page checked and its errors sent back) by default with Hybrid AI
+        get() = sp.getBoolean("agent", HybridAi.configured(appCtx))
         set(v) { sp.edit().putBoolean("agent", v).apply() }
 
     /** Choose agent mode for each request: questions stay in review, building or fixing applies changes. */

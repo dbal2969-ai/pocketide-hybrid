@@ -85,4 +85,12 @@ class DeferralTest {
         assertFalse(Deferral.workLeft("The snake game is done: index.html and app.js. Open the Preview tab to play."))
         assertFalse(Deferral.workLeft("Done. You could add a high score list next."))
     }
+
+    /** 1.5.212: a one-file request gets the one-file note; others do not. */
+    @Test fun oneFileRequestsAreRecognised() {
+        assertTrue(SmallLocal.isOneFile("Make a snake game in one HTML file with arrow-key and swipe controls, a score, and a restart button."))
+        assertTrue(SmallLocal.isOneFile("a single-file calculator page"))
+        assertFalse(SmallLocal.isOneFile("Make a snake game with a score."))
+        assertFalse(SmallLocal.isOneFile("Fix the bug in one of the files."))
+    }
 }

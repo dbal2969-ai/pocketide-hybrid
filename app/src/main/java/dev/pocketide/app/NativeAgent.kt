@@ -868,7 +868,7 @@ class NativeAgent(
         var signal = false
         var over = false
         HybridAgent.pythonHelp = pyHelp
-        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.note() else "") + dev.pocketide.app.core.SmallLocal.remoteLine(dev.pocketide.app.core.SmallLocal.isJs(request)) else (if (textTools) system + catalogue else system) +
+        cur = ModelGateway.current.startNative(settings, if (small) dev.pocketide.app.core.SmallLocal.system(catalogue) + (if (chatHome) "\n" + dev.pocketide.app.core.ChatHome.SMALL_NOTE else "") + (if (pyHelp) "\n" + dev.pocketide.app.core.PyHelper.note() else "") + (if (dev.pocketide.app.core.SmallLocal.isOneFile(request)) "\n" + dev.pocketide.app.core.SmallLocal.ONE_FILE_NOTE else "") + dev.pocketide.app.core.SmallLocal.remoteLine(dev.pocketide.app.core.SmallLocal.isJs(request)) else (if (textTools) system + catalogue else system) +
             (if (pyHelp) "\n\n" + dev.pocketide.app.core.PyHelper.note() else ""), messages, !textMode, object : NativeListener {
             override fun onStatus(text: String) {
                 phase(text); if (text.contains("characters of reasoning")) signal = true
@@ -1265,7 +1265,7 @@ class NativeAgent(
         }
         // "To find the rate, I should look at this file." as the last words: ask once for the look and the full answer. "I will edit X"
         // with nothing changed has its own one-time ask: Llama 3.3 (hard suite) used the first ask to read a file, then stopped at "I will edit".
-        val changeLeft = agent && !changeAsked && !question && !reportOnly && !readOnly() && changed.isEmpty() && staged.isEmpty() && dev.pocketide.app.core.Deferral.stopsBeforeChange(text0)
+        val changeLeft = (agent || small) && !changeAsked && !question && !reportOnly && !readOnly() && changed.isEmpty() && staged.isEmpty() && dev.pocketide.app.core.Deferral.stopsBeforeChange(text0)
         if (!nested && !stopRequested() && round < maxRounds && wrapAt < 0 && (changeLeft || (!deferralAsked && dev.pocketide.app.core.Deferral.stopsShort(text0)))) {
             if (changeLeft) changeAsked = true else deferralAsked = true
             trace("the reply ended by naming a step it did not take; asking the model to take it")
@@ -1275,7 +1275,7 @@ class NativeAgent(
             return
         }
         // 1.5.211: "Now I need to create app.js" after index.html was written: the rest of the work, asked for at most twice
-        if (!nested && !stopRequested() && agent && !question && !reportOnly && !readOnly() && moreAsks < 2 && round < maxRounds && wrapAt < 0 &&
+        if (!nested && !stopRequested() && !question && !reportOnly && !readOnly() && moreAsks < 2 && round < maxRounds && wrapAt < 0 &&
             (changed.isNotEmpty() || staged.isNotEmpty()) && dev.pocketide.app.core.Deferral.workLeft(text0)) {
             moreAsks++
             trace("the reply named more work after its changes; asking the model to do it")

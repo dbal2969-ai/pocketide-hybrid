@@ -142,6 +142,13 @@ object SmallLocal {
      * 1.5.208, from reliability run 1126-2203: built in rather than sent by Remote Config, because a template already published with
      * an empty hybrid_nano_note would override an in-app default. Remote Config's note is added after it.
      */
+    /** 1.5.212: "a snake game in one HTML file" (judges' build): Nano kept the starter's app.js link, and the old app.js broke the page. */
+    fun isOneFile(text: String): Boolean = Regex("""(?i)\b(?:one|a single|single|1)\s+(?:html\s+)?(?:file|page)\b|\bsingle[- ]file\b|\bself[- ]contained\b""").containsMatchIn(text)
+
+    const val ONE_FILE_NOTE = "One file was asked for: write the whole page with write_file as index.html, with its CSS in a <style> tag " +
+        "and its JavaScript in a <script> tag at the end of <body>. Do not link app.js or style.css, and do not leave a step for later: " +
+        "the page must work when that one file is saved."
+
     const val JS_NOTE = "JavaScript: a file that other files load with require() must export what they use, at its end, for example " +
         "module.exports = { greet }. When you add a function to such a file, add its name to module.exports too. A name with a number " +
         "is the whole name: helper40 is not helper4, so search for the whole name, for example \"function helper40(\". If your edit " +

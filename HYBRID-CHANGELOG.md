@@ -1335,6 +1335,24 @@ the files after the run, `transcript.txt` and `check.txt`.
   app/build.gradle.kts (1.5.211-hybrid, code 259).
 - **Tests:** DeferralTest `workNamedAfterChangesIsLeft`. 1,384 unit tests, 0 failures.
 
+### HASH · 2026-11-27 14:56 · The snake game again: Agent mode by default, the one-file note, the continue check in suggest mode; 1.5.212
+
+- **Why:** the owner's snake game on 1.5.211 (screenshots) still stopped at "Now I need to create the app.js file to implement the
+  game logic", and the page threw `Cannot read properties of null (reading 'addEventListener')` at app.js:2.
+  - The project was in "Agent: suggest" mode (the default), where `NativeAgent.agent` is false. 1.5.211's continue check, and the
+    "named a change it did not make" check, both required Agent mode, so neither ran.
+  - In suggest mode the page is not checked after the change, so the error never went back to the model.
+  - The request asked for one HTML file, but Nano linked the starter's app.js, whose code looks for the old page's button.
+- **Change:**
+  - The continue check (`Deferral.workLeft`) runs in suggest mode too (staged changes count); the "named a change" check runs for
+    the small on-phone model in either mode.
+  - Agent mode is the default when Hybrid AI is available (`AppSettings.agent`), so changes are applied and the page is checked,
+    with errors sent back. A mode chosen before is kept.
+  - `SmallLocal.isOneFile` / `ONE_FILE_NOTE`: a request for one file ("in one HTML file", "single-file", "self-contained") tells
+    Nano to write the whole page in index.html, CSS in `<style>`, JavaScript in `<script>`, with no app.js or style.css links.
+- **Files:** NativeAgent.kt, AppSettings.kt, core/SmallLocal.kt, core/AppMapData.kt; app/build.gradle.kts (1.5.212-hybrid, code 260).
+- **Tests:** DeferralTest `oneFileRequestsAreRecognised`. 1,385 unit tests, 0 failures.
+
 ---
 
 ## Outside the code
