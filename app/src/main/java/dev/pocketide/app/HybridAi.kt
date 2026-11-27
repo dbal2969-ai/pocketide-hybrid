@@ -131,11 +131,12 @@ object HybridAi {
         if (cloud) maxOutputTokens = maxOf(s.maxOutputTokens, if (bigOutput) 32768 else 8192)
         if (tier != null && tier !in noThinking) {
             maxOutputTokens = maxOf(maxOutputTokens ?: 0, if (tier == dev.pocketide.app.core.CloudTier.Tier.BEST) 16384 else 8192)
+            // 1.5.204: thought summaries come back (Remote Config hybrid_show_thoughts), shown like an API model's thinking
             thinkingConfig = com.google.firebase.ai.type.ThinkingConfig.Builder().setThinkingLevel(when (tier.thinking) {
                 "high" -> com.google.firebase.ai.type.ThinkingLevel.HIGH
                 "medium" -> com.google.firebase.ai.type.ThinkingLevel.MEDIUM
                 else -> com.google.firebase.ai.type.ThinkingLevel.LOW
-            }).build()
+            }).setIncludeThoughts(dev.pocketide.app.core.Tuning.showThoughts).build()
         }
     }.build()
 

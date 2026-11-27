@@ -58,6 +58,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 | standard 1125-1718 (cloud out of quota) | `4cb790a` | **5 of 8 on Nano Full (E4B) alone**; analysis 5 clean | 100 of 101 | with the cloud out, Nano carried on: 03 failed (`items` used before it was declared), 06 wrote DATES.md from memory and said so, 07 a NaN total; the cloud-out note was repeated under all 97 steps | `5d47c35` |
 | reliable 1125-1815 (reliability run 1, full, 3 runs) | `5d47c35` | **116 of 141 runs on Nano Full (E4B) alone**; dev pass@1 91% (pass^3 16 of 20), held-out 75%, Node 87%, Python 0 of 9; analysis 110 clean, 6 with problems, 25 failed | 996 of 996 (median 3.6 s) | 141 edits refused as "NOT SAVED: syntax error": with `all: true` and a function's first line as the search, the replace-all skipped the brace repair; r20 bare-name renames refused as ambiguous; r03 run 2 edited a file on a "do not fix anything" task; l13 run 3 passed its visible test but broke behaviour (dev tasks had no hidden checks on the phone); the Python statements were too short ("port bpo-39057"); 10 rich tasks' hidden tests fail on the phone with the reference fix; 5 analyzer false alarms on report-only tasks | `c2a5662` |
 | reliable 1125-2053 (reliability run 2, full, 3 runs, Python included) | `c2a5662` (1.5.187) | **114 of 171 on Nano Full alone**; dev pass@1 88% (pass^3 14 of 20), held-out 54%, Node 86% (114 of 132), Python 0 of 39; analysis 113 clean, 1 with problems, 57 failed | 1,529 of 1,529 | PocketIDE left the screen at 00:33: the last 10 rich runs (and rich_3043 run 2) each waited 10 minutes for AICore's "Background usage is blocked" with no step taken; 16 Nano replies thrown away as "not one JSON action" were the right action in broken JSON (unescaped quotes, `r"..."` values, YAML), and in Private mode each one ended the request (rich_3006 and rich_3067 never edited); every Python edit that broke the tests was a SyntaxError or IndentationError saved as written; Node: l05 and l06 hard-coded the visible test's value (caught by the new dev hidden checks), r14 `'grape',,`, r18 wrong JSON shape, r07 never fixed in 41 steps, r23 edited the wrong helper | `15c2dbd` |
+| reliable-python-hybrid 1126-2032 (Python, Nano + cloud, helper on, quick) | `7cd3c58` (1.5.203) | **12 of 13** (requests 3 of 3, rich 9 of 10); analysis 12 clean, 1 fail. The fail (rich_4077) is Nano's fix, the same as the reference fix, which passes all 274 hidden tests here: a test that fails on this phone even with the reference fix slipped past the soundness check. **Gemini Nano wrote 10 of the 13 fixes**: 6 alone through the fix path (requests_6644, requests_7315, rich_2943, rich_3006, rich_3043, rich_4077) and 4 from the cloud's plan (requests_7427, rich_3454, rich_3518, rich_3894); the cloud agent fixed rich_3067, rich_3718 and rich_3882 after the fix path failed | 98 Nano calls in the fix path (1,515 s) and 13 cloud calls (223 s). The report said "0 of 105 steps on this phone": the step counts left out the fix path, and after it every task was handed to the cloud as "this needs the web" for links in the pasted issue text. Cloud steps ran on gemini-3.5-flash-lite ×104 (Balanced was out of quota). Max output 4,048 tokens | (next) |
 | reliable-python 1126-1923 (Python only, helper on; stopped by the owner at task 5, partial 4 of 13) | `27f3523` (1.5.201) | **0 of 4** (requests 0 of 3, rich_3894 failed) | 96 of 96 on the phone | First run of the Python fix path. It ran on all 4 tasks (45-113 s each) and picked the block the reference fix changes in all 4 (should_bypass_proxies, request_url twice, _get_signature), but none of Nano's 24 rewrites passed. Each was a real attempt buried in copying slips: docstrings lower-cased, `orgetattr`, `except**ValueError`, `Dir(obj)`, stray non-Latin characters, several SyntaxErrors. The Python note and replace_function now reached all 98 loop prompts (the 1.5.201 fix works), but Nano never chose replace_function. requests_7427 timed out at 12 min | `fa42953` |
 | reliable-python 1126-1710 (Python only, helper on, AICore 8K) | `024c4e4` (1.5.199) | **1 of 13 on Nano Full alone** (requests_7315; requests 1 of 3, rich 0 of 10); analysis 1 clean, 12 failed | 309 of 309, 0 unusable replies | Private mode, on-phone limit 22,000, max output 8,000 tokens. 78 refused steps: the main loss was the app, not Nano. After a refused edit, StaleReads blanked the read before it as "changed afterwards" (nothing had changed) or the prompt cut it to a seventh, and the reread was then refused as already shown; Nano said "I cannot see the content of rich/repr.py" (rich_3006, 3043, 3454, 3067). rich_3894 sent `'__qualname__'` for the file's `"__qualname__"` 4 times. rich_3043 and requests_6644 searched the code for text from the test. The app's own check ran test_brokenpipeerror, which fails on this phone with the reference fix (rich_3882 spent its finish budget on it). requests_7427 wrote `if …: return False` on one line outside its function (SyntaxError) | `f29ee37` |
 | reliable 1126-1352 (quick, Python helper on) | `a9688e6` (1.5.194) | **41 of 57 on Nano Full alone**; JavaScript 41 of 44 (93%), Python 0 of 13; analysis 39 clean, 2 with problems (l08 edited test.js, restored before the check; l19 page error "module is not defined"), 16 failed | 751 of 751, 0 unusable replies | first run with the Python helper: IndentationError refusals fell from about 2 per Python run to under 1 (10 in 13 runs); the failing-test pointer never fired (0 of 33 failing pytest runs: the assertions are in the test, no source frame); a bare outline made Nano give up (rich_3882: "could you please specify which part of the file") or ask for the file 42 times (rich_2943) | `21ee11e` |
@@ -1117,6 +1118,33 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** PyFixLoopTest `nanoWritesTheCloudsPlan` (Nano's try fails; the cloud's plan is shown with the failure; Nano's rewrite
   from it passes), `theCloudWritesTheBlockLast`, `privateModeNeverAsksTheCloud`; the Remote Config template check covers the new
   keys. 1,373 unit tests, 0 failures.
+
+
+### (next) · 2026-11-26 22:10 · Thinking shown for hybrid; links in pasted issues stay on the phone; the report counts the fix path; 1.5.204
+
+- **Why:** the owner asked why hybrid mode does not show the model's thought process the way API models do.
+  - The cloud tiers that think were never asked for thought summaries (`includeThoughts`).
+  - HybridAgent's turns left the thinking field empty. Nano has no thinking stage, but its "reason" was shown as reply text.
+  - In Python run 1126-2032 (12 of 13), every task was handed to the cloud as "this needs the web" for links in the pasted issue
+    text, and the report counted none of the fix path's 98 Nano calls ("0 of 105 steps on this phone").
+- **Change:**
+  - Thinking: tiers that think ask for thought summaries (Remote Config `hybrid_show_thoughts`, on).
+    `HybridAgent.turn` puts thought parts in the turn's thinking, shown in the work log like an API model's thinking, and keeps
+    them out of the reply. Nano's reason with a tool call goes there too, as "Gemini Nano on this phone: …". An answer stays the
+    reply.
+  - Web routing (`HybridRoute.needsCloud`): the web words are read in the person's own words only (the request without the app's
+    project context, first paragraph, at most 400 characters). A link counts when the request asks to open, read, fetch,
+    summarise, download or clone it, or when the request is short.
+  - Report: `HybridBenchTasks.fixBy` reads who wrote the fix path's passing rewrite. The report has a line "Python fix path: ran
+    on N tasks · fixed by Gemini Nano alone · from the cloud's plan · by the cloud model · no rewrite passed".
+- **Remote Config:** 1 new key; 30 in all.
+- **Files:** HybridAi.kt, HybridAgent.kt, core/HybridRoute.kt, core/HybridBenchTasks.kt, core/Tuning.kt, remoteconfig.template.json;
+  app/build.gradle.kts (1.5.204-hybrid, code 252).
+- **Tests:**
+  - HybridRouteTest `linksInAPastedIssueStayOnThePhone`, plus a link to open still going to the cloud.
+  - HybridAgentTest `nanosReasonIsItsThinking` (and with the key off, in the reply as before) and `theReportCountsTheFixPath`.
+  - 1,376 unit tests, 0 failures.
+- **Evidence:** pocketide-hybrid-reliable-python-hybrid-benchmark-1126-2032.
 
 ---
 

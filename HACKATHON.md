@@ -98,7 +98,7 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
 5. Firebase console → **Firestore Database** → Create database, then paste `firestore.rules` from this repository into Rules
    (or `npx -y firebase-tools@latest deploy --only firestore:rules`). Records are create-only, owner-only, typed and size-limited;
    see `docs/FIREBASE-AGENT-SKILLS.md` for the audit.
-6. Firebase console → **Remote Config** (optional; the app has built-in defaults for all 29 keys): every key, its default and what it
+6. Firebase console → **Remote Config** (optional; the app has built-in defaults for all 30 keys): every key, its default and what it
    does is in `remoteconfig.template.json`, and `firebase deploy --only remoteconfig` publishes it. Besides the cloud model, on-phone
    limit, routing and cloud switch, the keys tune Gemini Nano without an app update: extra instructions, the Python helper's note
    and worked examples, Nano's temperature, top-K, reply length and model, the cloud tier, handoff and quota thresholds, and

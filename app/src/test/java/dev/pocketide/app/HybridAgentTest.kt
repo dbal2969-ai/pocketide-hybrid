@@ -116,4 +116,24 @@ class HybridAgentTest {
         check(c.last().parts.any { it is com.google.firebase.ai.type.FunctionResponsePart } && c.last().parts.any { it is com.google.firebase.ai.type.TextPart }) { "the result and the note are one user turn" }
         check(!HybridAgent.transient(RuntimeException("Role 'function' is not supported. Please use a valid role: user, model."))) { "not retried" }
     }
+
+    /** 1.5.204: Nano's reason goes to the thinking block, as API models' thinking does; an answer stays the reply. */
+    @Test fun nanosReasonIsItsThinking() {
+        val (t, _) = HybridAgent.phoneTurn("""{"reason":"I need to read game.js first.","tool":"read_file","tool_args":{"path":"game.js"}}""", request)
+        check(t != null && t.text.isEmpty() && t.thinking == "Gemini Nano on this phone: I need to read game.js first." && t.calls.single().name == "read_file") { "${t?.text} | ${t?.thinking}" }
+        dev.pocketide.app.core.Tuning.showThoughts = false
+        try {
+            val (t2, _) = HybridAgent.phoneTurn("""{"reason":"I need to read game.js first.","tool":"read_file","tool_args":{"path":"game.js"}}""", request)
+            check(t2!!.text == "I need to read game.js first." && t2.thinking.isEmpty())
+        } finally { dev.pocketide.app.core.Tuning.reset() }
+    }
+
+    /** 1.5.204: the report says who wrote each fix-path fix (Python run 1126-2032 counted none of Nano's work). */
+    @Test fun theReportCountsTheFixPath() {
+        check(dev.pocketide.app.core.HybridBenchTasks.fixBy("→ PocketIDE's Python fix rewrote def add in calc.py (Gemini Nano on this phone; rewrite 2, 2 tests, 3 s)") == "nano")
+        check(dev.pocketide.app.core.HybridBenchTasks.fixBy("→ PocketIDE's Python fix rewrote def add in calc.py (Gemini Nano on this phone, from the cloud's plan; rewrite 5)") == "plan")
+        check(dev.pocketide.app.core.HybridBenchTasks.fixBy("→ PocketIDE's Python fix rewrote def add in calc.py (the cloud model; rewrite 7)") == "cloud")
+        check(dev.pocketide.app.core.HybridBenchTasks.fixBy("→ Not written: PocketIDE tried 4 rewrites of add") == "none")
+        check(dev.pocketide.app.core.HybridBenchTasks.fixBy("nothing") == "")
+    }
 }

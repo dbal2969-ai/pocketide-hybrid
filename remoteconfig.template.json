@@ -202,6 +202,13 @@
       },
       "description": "Before the cloud writes the block itself, it says in a few lines what to change and Gemini Nano writes the code from that (one call). false skips this step.",
       "valueType": "BOOLEAN"
+    },
+    "hybrid_show_thoughts": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Show the cloud model's thought summaries (tiers that think) and Gemini Nano's reasoning in the agent's thinking block, as for API models. false asks for no thought summaries and puts Nano's reasoning back in the reply.",
+      "valueType": "BOOLEAN"
     }
   }
 }

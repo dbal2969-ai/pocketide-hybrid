@@ -10,6 +10,15 @@ class HybridRouteTest {
         check(HybridRoute.needsCloud("read https://example.com/docs") != null)
         check(HybridRoute.needsCloud("Add a score counter to game.js") == null)
         check(HybridRoute.needsCloud("make a simple snake game") == null)
+        check(HybridRoute.needsCloud("Fix this\n\nOpen https://github.com/x/y/issues/3 and fix what it says") != null)
+    }
+
+    /** 1.5.204 (Python run 1126-2032): links and words in a pasted issue are not a request for the web. */
+    @Test fun linksInAPastedIssueStayOnThePhone() {
+        val task = "Fix this issue in rich/_inspect.py. Then run `python3 -B -m pytest -q tests/test_inspect.py`; it must pass.\n\n" +
+            "The issue:\nHandle unusual __qualname__ in inspect\n\n- [x] I accept that @willmcgugan may be pedantic. See https://github.com/sponsors/willmcgugan " +
+            "and the latest black from https://github.com/psf/black for news."
+        check(HybridRoute.needsCloud(task) == null) { "a pasted issue's links went to the cloud" }
     }
 
     @Test fun refusalsAreSpotted() {

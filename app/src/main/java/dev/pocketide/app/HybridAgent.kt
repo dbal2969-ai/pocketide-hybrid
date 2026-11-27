@@ -131,7 +131,7 @@ object HybridAgent {
         if (streak >= dev.pocketide.app.core.Tuning.handoffAfterFailures && !only) return Phone(null, "my last $streak tool calls failed (the last: ${lastFailure(messages)})")
         // a request that needs the web skips the phone in the on-phone-first mode (Nano's tools cannot reach it)
         val ask = messages.lastOrNull { it["role"] == "user" }?.let { textOf(it["content"]) }.orEmpty()
-        val web = dev.pocketide.app.core.HybridRoute.needsCloud(ask)
+        val web = dev.pocketide.app.core.HybridRoute.needsCloud(requestOf(ask))
         if (web != null && !only) return Phone(null, web)
         // 1.5.184 (benchmark run 3, task 07): Nano saw 2,000 characters of a 22,000-character file, never reached total(), and
         // read it four more times. The newest result now gets most of the limit; one longer than that goes to the cloud.
@@ -560,6 +560,14 @@ object HybridAgent {
         }
     }
 
+    /**
+     * 1.5.204: Nano's "reason" with a tool call is its reasoning: it goes to the thinking block, where API models' thinking is shown,
+     * instead of the reply (Remote Config hybrid_show_thoughts off: in the reply, as before).
+     */
+    private fun nanoTurn(reason: String, calls: List<ToolCall>): ToolTurn =
+        if (dev.pocketide.app.core.Tuning.showThoughts && reason.isNotBlank()) ToolTurn("", calls, "tool_calls", thinking = "Gemini Nano on this phone: " + reason.trim())
+        else ToolTurn(reason, calls, "tool_calls")
+
     /** Nano's reply as a turn, or null and why it cannot be used. */
     fun phoneTurn(reply: String, messages: List<Map<String, Any?>>): Pair<ToolTurn?, String> {
         if (!SmallLocal.isAction(reply)) return null to "did not reply with one JSON action"
@@ -571,16 +579,16 @@ object HybridAgent {
                 val a = MiniJson.obj(MiniJson.parse(c.arguments)) ?: emptyMap<String, Any?>()
                 val after = (a["after"] as? Number)?.toInt() ?: a["after"]?.toString()?.toIntOrNull() ?: return null to "gave insert_lines no line number"
                 val args = MiniJson.write(mapOf("path" to a["path"], "start" to after + 1, "end" to after, "text" to (a["text"] ?: "")))
-                return ToolTurn(p.text, listOf(ToolCall(c.id, "edit_lines", args)), "tool_calls") to ""
+                return nanoTurn(p.text, listOf(ToolCall(c.id, "edit_lines", args))) to ""
             }
             // 1.5.201: replace_function (the Python helper's tool for Nano) is handled by NativeAgent, not a cloud tool
-            if (c.name == "replace_function") return ToolTurn(p.text, listOf(c), "tool_calls") to ""
+            if (c.name == "replace_function") return nanoTurn(p.text, listOf(c)) to ""
             if (Tools.paramTypes(c.name) == null) {
                 val keys = (MiniJson.obj(MiniJson.parse(c.arguments)) ?: emptyMap<String, Any?>()).keys
                 val known = toolFromArgs(c.name, keys) ?: return null to "asked for a tool that does not exist (${c.name})"
-                return ToolTurn(p.text, listOf(ToolCall(c.id, known, c.arguments)), "tool_calls") to ""
+                return nanoTurn(p.text, listOf(ToolCall(c.id, known, c.arguments))) to ""
             }
-            return ToolTurn(p.text, p.calls, "tool_calls") to ""
+            return nanoTurn(p.text, p.calls) to ""
         }
         if (dev.pocketide.app.core.HybridRoute.refused(p.text)) return null to "said it could not do it"
         val wrote = messages.any { m -> (m["tool_calls"] as? List<*>).orEmpty().any { callOf(it)?.name in WRITES } }
@@ -717,7 +725,11 @@ object HybridAgent {
     /** The cloud reply as a turn for the agent. */
     fun turn(r: GenerateContentResponse): ToolTurn {
         val cand = r.candidates.firstOrNull()
-        val text = cand?.content?.parts.orEmpty().filterIsInstance<TextPart>().joinToString("") { it.text }.trim()
+        val parts = cand?.content?.parts.orEmpty()
+        // 1.5.204: the model's thought summary goes to the thinking block, not the reply
+        val text = parts.filterIsInstance<TextPart>().filter { !it.isThought }.joinToString("") { it.text }.trim()
+        val thought = parts.filterIsInstance<TextPart>().filter { it.isThought }.joinToString("\n\n") { it.text.trim() }.trim()
+            .ifEmpty { try { r.thoughtSummary.orEmpty().trim() } catch (e: Exception) { "" } }
         val calls = r.functionCalls.map { fc ->
             val id = "hy${ids.incrementAndGet()}_${System.currentTimeMillis()}"
             synchronized(made) { made[id] = fc }
@@ -728,7 +740,7 @@ object HybridAgent {
             cand?.finishReason?.name == "MAX_TOKENS" -> "length"
             else -> "stop"
         }
-        return ToolTurn(text, calls, stop)
+        return ToolTurn(text, calls, stop, thinking = thought)
     }
 
     // ---------------- shared ----------------

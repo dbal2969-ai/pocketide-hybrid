@@ -50,7 +50,21 @@ object HybridBenchTasks {
     }
 
     /** [other]: steps by another model (the strong model in "Hybrid helps my strong model"), which carry no ⚡ or ☁ label. */
-    class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>, val other: Int = 0, val nano: Nano = Nano())
+    class Counts(val phone: Int, val cloud: Int, val handoffs: List<String>, val other: Int = 0, val nano: Nano = Nano(), val fix: String = "")
+
+    /**
+     * 1.5.204 (Python run 1126-2032: the report said "0 of 105 steps on this phone" while Gemini Nano wrote 10 of the 13 fixes in the
+     * Python fix path, whose calls were not counted): who the fix path's passing rewrite came from: "nano", "plan" (Nano from the
+     * cloud's plan), "cloud", "none" (it ran and none passed) or "" (it did not run).
+     */
+    fun fixBy(transcript: String): String {
+        val m = Regex("""PocketIDE's Python fix rewrote .*? \((Gemini Nano on this phone, from the cloud's plan|Gemini Nano on this phone|the cloud model);""").find(transcript)
+        return when {
+            m != null -> when { m.groupValues[1].contains("plan") -> "plan"; m.groupValues[1].startsWith("Gemini") -> "nano"; else -> "cloud" }
+            transcript.contains("Not written: PocketIDE tried") -> "none"
+            else -> ""
+        }
+    }
 
     /**
      * How Gemini Nano's steps went (the local suite, 1.5.184): tool calls the app refused (an edit that did not match, a file not
@@ -92,6 +106,7 @@ object HybridBenchTasks {
         HANDOFF.findAll(transcript).map { it.groupValues[1].trim() + ": " + it.groupValues[2].trim() }.distinct().toList(),
         maxOf(0, steps(transcript) - PHONE.findAll(transcript).count() - CLOUD.findAll(transcript).count()),
         nano(transcript),
+        fixBy(transcript),
     )
 
     /** The check command printed "ok" on its own line and exited cleanly. */
@@ -413,6 +428,11 @@ object HybridBenchTasks {
         val strong = title.contains("helping")
         if (phone + cloud > 0) append(" · steps on this phone: ").append(phone).append(" of ").append(phone + cloud + if (strong) other else 0)
         if (strong) append(" · steps by the strong model: ").append(other)
+        val fixes = results.map { it.counts.fix }.filter { it.isNotEmpty() }
+        if (fixes.isNotEmpty()) append("\n\n**Python fix path** (its Gemini Nano and cloud calls are in each task's nano.jsonl, not in the step counts): ran on ")
+            .append(fixes.size).append(" tasks · fixed by Gemini Nano alone: ").append(fixes.count { it == "nano" })
+            .append(" · by Gemini Nano from the cloud's plan: ").append(fixes.count { it == "plan" }).append(" · by the cloud model: ").append(fixes.count { it == "cloud" })
+            .append(" · no rewrite passed: ").append(fixes.count { it == "none" })
         // the local suite: how Nano's steps went, and the score per skill
         if (results.isNotEmpty() && results.all { it.task.skill.isNotEmpty() }) {
             val n = results.map { it.counts.nano }
