@@ -1030,7 +1030,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Evidence:** pocketide-hybrid-reliable-python-benchmark-1126-1710.
 
 
-### (next) · 2026-11-26 19:15 · Python fix path: the app finds the block, Nano rewrites it whole, the test picks; 1.5.201
+### 268eaa4 · 2026-11-26 19:15 · Python fix path: the app finds the block, Nano rewrites it whole, the test picks; 1.5.201
 
 - **Why:** the owner asked for the techniques small models use on real bugs. In Python run 1126-1710, 78 of Nano's 309 steps were
   refused, most of them search text that did not match the file. Two published ideas fit an on-phone model:
