@@ -1353,6 +1353,16 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** NativeAgent.kt, AppSettings.kt, core/SmallLocal.kt, core/AppMapData.kt; app/build.gradle.kts (1.5.212-hybrid, code 260).
 - **Tests:** DeferralTest `oneFileRequestsAreRecognised`. 1,385 unit tests, 0 failures.
 
+### HASH · 2026-11-27 15:10 · The background tip says Gemini Nano needs PocketIDE on screen (next build)
+
+- **Why:** the owner: the "Tip: Android may close PocketIDE…" note should say that hybrid mode's on-phone model only works while the
+  app is on screen.
+- **Change:** with Hybrid AI selected, the tip adds: Gemini Nano only works while PocketIDE is on screen; in another app or with the
+  screen off its steps go to the cloud model instead (in Private mode they wait until you come back). This matches
+  `HybridAgent`'s routing. Ships in the next APK.
+- **Files:** ChatPane.kt.
+- **Tests:** no new test (text only). 1,385 unit tests, 0 failures.
+
 ---
 
 ## Outside the code

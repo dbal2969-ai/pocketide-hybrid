@@ -1945,8 +1945,11 @@ class ChatPane(
         prefs.edit().putBoolean("background-run", true).apply()
         post {
             val box = Ui.vertical(ctx)
-            box.addView(note("Tip: Android may close PocketIDE while you are in another app, which stops the assistant mid-task. Allow it to keep working in the background?" +
-                if (BackgroundRun.samsung) " " + BackgroundRun.SAMSUNG_TIP else "", Ui.MUTED))
+            // 1.5.213: with Hybrid AI, Gemini Nano answers only while PocketIDE is on screen (Android AICore's rule), so say so
+            val nanoLine = if (settings.provider == "hybrid") " With Hybrid AI, Gemini Nano only works while PocketIDE is on screen: " +
+                "in another app or with the screen off, its steps go to the cloud model instead (in Private mode they wait until you come back)." else ""
+            box.addView(note("Tip: Android may close PocketIDE while you are in another app, which stops the assistant mid-task." + nanoLine +
+                " Allow it to keep working in the background?" + if (BackgroundRun.samsung) " " + BackgroundRun.SAMSUNG_TIP else "", Ui.MUTED))
             box.addView(Ui.button(ctx, "Let it keep working in the background") { BackgroundRun.ask(ctx); box.visibility = View.GONE }, Ui.lp(Ui.WRAP, Ui.WRAP))
             add(box, 6)
         }
