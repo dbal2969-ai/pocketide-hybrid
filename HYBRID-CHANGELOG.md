@@ -1242,7 +1242,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   edit again and again (r23). That is an app change.
 
 
-### (next) · 2026-11-27 13:25 · Run 1126-2203's Remote Config values shipped in the app; no-op and repeated edits refused; 1.5.208
+### 9a1d2b3 · 2026-11-27 13:25 · Run 1126-2203's Remote Config values shipped in the app; no-op and repeated edits refused; 1.5.208
 
 - **Why:** the owner asked to publish the Remote Config values from the previous entry. They cannot be pushed from here: the
   Firebase CLI is not signed in, and signing in would need the owner's one-time code or key typed in. So they ship in the APK.
