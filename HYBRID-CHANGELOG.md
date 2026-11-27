@@ -1265,7 +1265,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Judges' build:** built here with the registered App Check debug token; published as the GitHub release `judges-1.5.208`.
 
 
-### (next) · 2026-11-27 13:40 · First run offers Hybrid AI and starts on it; 1.5.209
+### 60920f3 · 2026-11-27 13:40 · First run offers Hybrid AI and starts on it; 1.5.209
 
 - **Why:** the owner installed the judges' build. It opened on "Welcome to PocketIDE" with "Free cloud AI (recommended)" (get a key),
   a local Ollama model and the demo, and no Hybrid AI. The default AI was the keyless gateway (`Starter.FIRST_PROVIDER` "kilo"),
