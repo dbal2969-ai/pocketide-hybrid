@@ -1203,7 +1203,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   Devpost form.
 
 
-### (next) · 2026-11-27 09:35 · The RuneScape add-on is not part of the hackathon edition; the judges' build is made locally; 1.5.207
+### af2866d · 2026-11-27 09:35 · The RuneScape add-on is not part of the hackathon edition; the judges' build is made locally; 1.5.207
 
 - **Why:**
   - The owner asked whether the judges' build shows the RuneScape / 2009scape add-on. It did: Settings had a box "RuneScape game
