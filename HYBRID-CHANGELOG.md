@@ -1391,7 +1391,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** DemoScriptTest (5: scene order, each request's routing, the Python task in the assets, the end card against
   HACKATHON.md, the log). 1,390 unit tests, 0 failures (VcsTest failed once on file timing in the first run and passed on rerun).
 
-### HASH · 2026-11-27 16:40 · Apps built in PocketIDE use Firebase AI Logic: the Hybrid AI web app starter and the Preview bridge; 1.5.214
+### 6391abf · 2026-11-27 16:40 · Apps built in PocketIDE use Firebase AI Logic: the Hybrid AI web app starter and the Preview bridge; 1.5.214
 
 - **Why:** the owner asked for both options for apps built with PocketIDE: (1) a starter that uses Firebase AI Logic's hybrid
   inference itself, and (2) a bridge so pages in Preview can use PocketIDE's own Gemini Nano. Checked first: the Firebase web SDK's
