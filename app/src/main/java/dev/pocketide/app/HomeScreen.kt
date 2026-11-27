@@ -31,6 +31,8 @@ class HomeScreen(private val act: Activity) : LinearLayout(act) {
     var hasAi: () -> Boolean = { true }
     /** The note shown while a no-key provider is in use (Starter.keylessNote), else null. */
     var aiNote: () -> String? = { null }
+    /** 1.5.209: Hybrid AI is the provider (the card says it is ready, with no key). */
+    var hybrid: () -> Boolean = { false }
     var used: () -> Boolean = { true }
 
     private val scroll = ScrollView(act)
@@ -82,7 +84,7 @@ class HomeScreen(private val act: Activity) : LinearLayout(act) {
             c.background = Ui.rounded(Ui.SELECTED, 12, act, Ui.ACCENT)
             c.addView(Ui.text(act, "Your first project in two minutes", 16f, Ui.TEXT).also { it.typeface = Typeface.DEFAULT_BOLD })
             val note = aiNote()
-            for (st in dev.pocketide.app.core.Starter.steps(hasAi(), used(), note != null)) c.addView(Ui.text(act, (if (st.done) "✓  " else "○  ") + st.text, 13f, if (st.done) Ui.GOOD else Ui.TEXT).also { pad(it, 0, 6, 0, 0) })
+            for (st in dev.pocketide.app.core.Starter.steps(hasAi(), used(), note != null, hybrid())) c.addView(Ui.text(act, (if (st.done) "✓  " else "○  ") + st.text, 13f, if (st.done) Ui.GOOD else Ui.TEXT).also { pad(it, 0, 6, 0, 0) })
             if (!hasAi()) c.addView(Ui.button(act, "Connect an AI", true) { onConnect() }, Ui.lp(Ui.WRAP, Ui.WRAP).also { it.topMargin = Ui.dp(act, 10) })
             else if (note != null) {
                 c.addView(Ui.text(act, note, 12f, Ui.MUTED).also { pad(it, 0, 8, 0, 0) })

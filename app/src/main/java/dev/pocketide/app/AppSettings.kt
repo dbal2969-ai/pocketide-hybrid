@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 
 /** Saved choices. API keys are kept in the app's private storage, which other apps cannot read. */
 class AppSettings(ctx: Context) {
+    private val appCtx: Context = ctx.applicationContext ?: ctx
     private val sp: SharedPreferences = ctx.getSharedPreferences("pocketide", Context.MODE_PRIVATE)
     private val app: Context = ctx.applicationContext  // v0.4 W1: per-project GitHub settings
 
@@ -14,7 +15,9 @@ class AppSettings(ctx: Context) {
     var provider: String
         get() = override?.provider ?: storedProvider
         set(v) { sp.edit().putString("provider", v).apply() }
-    private val storedProvider: String get() = sp.getString("provider", null) ?: dev.pocketide.app.core.Starter.FIRST_PROVIDER
+    // 1.5.209: a fresh install of a build with Firebase (the judges' build) starts on Hybrid AI, which needs no key; the judges'
+    // build opened on a welcome screen with no hybrid choice and a keyless gateway as the AI
+    private val storedProvider: String get() = sp.getString("provider", null) ?: (if (HybridAi.configured(appCtx)) "hybrid" else dev.pocketide.app.core.Starter.FIRST_PROVIDER)
 
     /** off, ask or auto (core/Advisor). */
     var advisorMode: String

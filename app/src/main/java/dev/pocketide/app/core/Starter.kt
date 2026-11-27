@@ -19,18 +19,21 @@ object Starter {
     const val FIRST_PROVIDER = "kilo"
 
     /** The setup checklist; the card is hidden once [used] is true (the AI has answered at least once). */
-    fun steps(hasAi: Boolean, used: Boolean, keyless: Boolean = false): List<Step> = listOf(
-        Step(if (hasAi && keyless) "Free AI ready: free models, no key needed" else "Connect an AI (a free key takes about two minutes)", hasAi),
+    fun steps(hasAi: Boolean, used: Boolean, keyless: Boolean = false, hybrid: Boolean = false): List<Step> = listOf(
+        Step(if (hasAi && hybrid) HYBRID_READY else if (hasAi && keyless) "Free AI ready: free models, no key needed" else "Connect an AI (a free key takes about two minutes)", hasAi),
         Step("Tap a sample below and approve the short list it shows", used),
         Step("Open Run to try what it built", used)
     )
 
     fun show(used: Boolean): Boolean = !used
 
+    /** 1.5.209: the first-run card's line with Hybrid AI (the hackathon edition's default). */
+    const val HYBRID_READY = "Hybrid AI ready: Gemini Nano on this phone, Gemini in the cloud when needed, no key needed"
+
     /** The line under the checklist while a no-key provider is in use: what it costs in privacy and how to change it. */
     fun keylessNote(provider: String, hasKey: Boolean): String? {
         val p = Providers.byId(provider)
-        return if (p.keyless && !hasKey && p.kind != ProviderKind.DEMO && !LocalModels.isLocal(provider))
+        return if (p.keyless && !hasKey && p.kind != ProviderKind.DEMO && p.kind != ProviderKind.HYBRID && !LocalModels.isLocal(provider))
             "${p.name}: shared free models with usage limits. Prompts may be logged, so add your own key before working on private code." else null
     }
 

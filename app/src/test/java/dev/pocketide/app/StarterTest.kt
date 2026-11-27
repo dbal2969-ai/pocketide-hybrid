@@ -34,4 +34,11 @@ class StarterTest {
         check(Starter.keylessNote("cloudflare", true) == null)
         check(Starter.keylessNote("demo", false) == null)
     }
+
+    /** 1.5.209: with Hybrid AI (the judges' build's default) the first-run card says it is ready with no key, and no "shared free models" note. */
+    @org.junit.Test fun hybridAiIsReadyWithNoKey() {
+        org.junit.Assert.assertEquals(dev.pocketide.app.core.Starter.HYBRID_READY, dev.pocketide.app.core.Starter.steps(true, false, false, true).first().text)
+        org.junit.Assert.assertNull(dev.pocketide.app.core.Starter.keylessNote("hybrid", false))
+        org.junit.Assert.assertTrue(dev.pocketide.app.core.Starter.connected("hybrid", false))
+    }
 }

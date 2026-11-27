@@ -243,6 +243,7 @@ class MainActivity : Activity() {
                 if (m == null) "Pick a model for the built-in engine: Menu ⋮ → Models (local AI) → Built-in engine." else EngineHost.ensure(applicationContext, m)
             }
             homeView.aiNote = { val p = settings.provider; dev.pocketide.app.core.Starter.keylessNote(p, settings.key(p).isNotBlank()) }
+            homeView.hybrid = { settings.provider == "hybrid" }
             homeView.used = { settings.usageJson.isNotBlank() }
             homeView.onConnect = { showHelp(dev.pocketide.app.core.HelpContent.KEYS) }
             homeView.onTry = { prompt -> select(3); chat.ask(prompt) }
@@ -285,7 +286,7 @@ class MainActivity : Activity() {
         select(if (Projects.isChat(this)) 3 else 0)   // an app last left in the Chat home opens on its chat (1.5.127)
         if (newLayout) { showRepo(); showHome(launch = true) }  // the app opens on Home, not on the code
         CrashReport.showIfAny(this)  // GPL route
-        Welcome.showIfFirstRun(this, settings, { showHelp(dev.pocketide.app.core.HelpContent.KEYS) }, { showModels() })
+        Welcome.showIfFirstRun(this, settings, { showHelp(dev.pocketide.app.core.HelpContent.KEYS) }, { showModels() }, welcomeHybrid())
     }
 
     private fun select(i: Int) {
@@ -574,7 +575,7 @@ class MainActivity : Activity() {
             "Fix the app itself (crash, newest build)" to { SelfFixScreen.show(this, settings) { report -> reportInOwnChat(report) } },
             "Diagnostics (check everything)" to { DiagnosticsScreen.show(this, settings, store) },
             "Help & FAQ" to { showHelp(null) },
-            "Welcome screen" to { Welcome.show(this, { showHelp(dev.pocketide.app.core.HelpContent.KEYS) }, { showModels() }) },
+            "Welcome screen" to { Welcome.show(this, { showHelp(dev.pocketide.app.core.HelpContent.KEYS) }, { showModels() }, welcomeHybrid()) },
             "Licenses" to { LinuxScreen.licenses(this) }
         )
     )
@@ -1186,4 +1187,12 @@ class MainActivity : Activity() {
         if (clip.itemCount == 0) return null
         return clip.getItemAt(0).coerceToText(this)?.toString()?.let { dev.pocketide.app.core.KeyClean.clean(it) }?.takeIf { it.isNotEmpty() && it.length < 400 }
     }
+
+    /** 1.5.209: the welcome screen's Hybrid AI choice: use it, refresh the home card, and open its screen (status of Gemini Nano, Try it). */
+    private fun welcomeHybrid(): (() -> Unit)? = if (!HybridAi.configured(this)) null else ({
+        settings.provider = "hybrid"
+        try { homeView.refresh() } catch (e: Exception) { }
+        HybridScreen.show(this)
+    })
+
 }

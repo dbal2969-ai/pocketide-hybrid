@@ -7,13 +7,14 @@ import android.widget.TextView
 
 /** First-run choice of how the AI runs. Shown once; everything is reachable later under ⋮. */
 object Welcome {
-    fun showIfFirstRun(activity: Activity, settings: AppSettings, openKeys: () -> Unit, openModels: () -> Unit) {
+    fun showIfFirstRun(activity: Activity, settings: AppSettings, openKeys: () -> Unit, openModels: () -> Unit, useHybrid: (() -> Unit)? = null) {
         if (settings.welcomed) return
         settings.welcomed = true
-        show(activity, openKeys, openModels)
+        show(activity, openKeys, openModels, useHybrid)
     }
 
-    fun show(activity: Activity, openKeys: () -> Unit, openModels: () -> Unit) {
+    /** [useHybrid]: 1.5.209, the first and recommended choice when this build has Firebase (Hybrid AI needs no key). */
+    fun show(activity: Activity, openKeys: () -> Unit, openModels: () -> Unit, useHybrid: (() -> Unit)? = null) {
         val ctx = activity
         val box = Ui.vertical(ctx)
         val pad = Ui.dp(ctx, 20)
@@ -31,7 +32,9 @@ object Welcome {
             card.setOnClickListener { dlg.dismiss(); action() }
             box.addView(card, Ui.lp(Ui.MATCH, Ui.WRAP).also { it.topMargin = Ui.dp(ctx, 10) })
         }
-        option("Free cloud AI (recommended)", "Get a free key from Groq, Gemini and others in about two minutes. Best answers.", true, openKeys)
+        if (useHybrid != null) option("Hybrid AI: Gemini Nano + cloud (recommended)", "No key needed. Runs on this phone with Gemini Nano when it can " +
+            "(private, works offline) and on Gemini in the cloud when it must, through Firebase AI Logic. Every reply says where it ran.", true, useHybrid)
+        option(if (useHybrid == null) "Free cloud AI (recommended)" else "Free cloud AI with your own key", "Get a free key from Groq, Gemini and others in about two minutes. Best answers.", useHybrid == null, openKeys)
         option("Local model on this phone", "Download a model and run it offline with Ollama. Private, but slower and weaker.", false, openModels)
         option("Just try the demo", "Sample replies, no key needed, so you can see how changes are reviewed.", false) {}
         val hint: TextView = Ui.text(ctx, "Find this again under ⋮ > Help & FAQ.", 12f, Ui.MUTED)

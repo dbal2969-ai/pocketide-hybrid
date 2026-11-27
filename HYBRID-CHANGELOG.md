@@ -1264,6 +1264,24 @@ the files after the run, `transcript.txt` and `check.txt`.
   0 failures.
 - **Judges' build:** built here with the registered App Check debug token; published as the GitHub release `judges-1.5.208`.
 
+
+### (next) · 2026-11-27 13:40 · First run offers Hybrid AI and starts on it; 1.5.209
+
+- **Why:** the owner installed the judges' build. It opened on "Welcome to PocketIDE" with "Free cloud AI (recommended)" (get a key),
+  a local Ollama model and the demo, and no Hybrid AI. The default AI was the keyless gateway (`Starter.FIRST_PROVIDER` "kilo"),
+  so a judge would not have met Gemini Nano or Firebase AI Logic at all without digging through Settings.
+- **Change:**
+  - In a build with Firebase (`HybridAi.configured`), the welcome screen's first and recommended choice is "Hybrid AI: Gemini Nano +
+    cloud (recommended)": no key needed, Nano on the phone when it can, Gemini in the cloud through Firebase AI Logic when it must.
+    Choosing it sets the provider and opens the Hybrid AI screen (Nano's status, Try it). "Free cloud AI with your own key" comes
+    second. A build without Firebase shows the old screen.
+  - A fresh install of such a build starts on Hybrid AI (`AppSettings.provider` when none is stored), even if the welcome screen is
+    dismissed.
+  - The first-run card says "Hybrid AI ready: Gemini Nano on this phone, Gemini in the cloud when needed, no key needed", with no
+    "shared free models… add your own key" note (`Starter.keylessNote` skips Hybrid AI).
+- **Files:** Welcome.kt, MainActivity.kt, AppSettings.kt, HomeScreen.kt, core/Starter.kt; app/build.gradle.kts (1.5.209-hybrid, code 257).
+- **Tests:** StarterTest `hybridAiIsReadyWithNoKey`. 1,382 unit tests, 0 failures.
+
 ---
 
 ## Outside the code
