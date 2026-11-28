@@ -1642,6 +1642,18 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** none added; 1,413 unit tests, 0 failures.
 - **Evidence:** none (not from a benchmark run).
 
+### HASH · 2026-11-28 13:00 · Licence changed from MIT to Apache-2.0; 1.5.222
+- **Why:** the owner chose Apache-2.0 for the public repository from here on. It is the licence the hackathon rules prefer, and
+  its section 6 says in the licence itself that no right to the licensor's names or trademarks is granted, which MIT leaves
+  unsaid. It also asks anyone who redistributes changed files to say so and to pass on the notices.
+- **Change:** no change to behaviour. `LICENSE` is now the Apache License 2.0 text. `README.md`, `NOTICE.md`, `TRADEMARK.md` and
+  `HACKATHON.md` name the new licence and say that versions up to 1.5.221 were published under MIT and stay available under it.
+  The licence file packaged in the app is named `PocketIDE-LICENSE.txt` (was `PocketIDE-LICENSE-MIT.txt`). "MIT edition" in the
+  app's help and in older notes is still the name of the edition without the GPL Linux runtime, not a statement of this licence.
+- **Files:** `LICENSE`, `README.md`, `NOTICE.md`, `TRADEMARK.md`, `HACKATHON.md`, `app/build.gradle.kts`.
+- **Tests:** none added; 1,413 unit tests, 0 failures.
+- **Evidence:** none (not from a benchmark run).
+
 ## Outside the code
 
 Changes and decisions that are not in a commit, kept here so the record is complete.

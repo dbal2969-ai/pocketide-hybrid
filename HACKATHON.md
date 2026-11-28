@@ -1,7 +1,7 @@
 # PocketIDE Hybrid — Firebase #BuildHybridAI 2026
 
 PocketIDE is a coding environment that runs on an Android phone: editor, terminal, git, previews and an AI agent.
-This repository is the MIT edition of PocketIDE with **hybrid AI** added for the
+This repository is the permissively licensed edition of PocketIDE (Apache-2.0; MIT up to 1.5.221) with **hybrid AI** added for the
 [#BuildHybridAI hackathon](https://firebasehybridaihackathon.devpost.com/): quick coding help runs **on the phone with
 Gemini Nano** through **Firebase AI Logic**, and falls back to a **cloud Gemini model** when Nano is missing,
 the request is too long for it, or the person prefers the cloud.
@@ -146,4 +146,4 @@ on a Galaxy S24+ (the benchmark runs that led to the reliability fixes above).
 
 ## Licence
 
-MIT (see `LICENSE`); third-party notices in `NOTICE.md` and `LICENSES/`.
+Apache-2.0 (see `LICENSE`); third-party notices in `NOTICE.md` and `LICENSES/`. The PocketIDE name is covered by `TRADEMARK.md`.

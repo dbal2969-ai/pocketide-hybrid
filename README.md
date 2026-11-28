@@ -78,7 +78,9 @@ was; everything after it was built during the submission period.
 
 ## Licence
 
-The code is MIT (see [LICENSE](LICENSE)); third-party notices are in [NOTICE.md](NOTICE.md) and [LICENSES/](LICENSES/).
+Copyright 2026 Daniel Joseph Ball. The code is licensed under the Apache License, Version 2.0 (see [LICENSE](LICENSE));
+third-party notices are in [NOTICE.md](NOTICE.md) and [LICENSES/](LICENSES/). Versions up to 1.5.221 were published under the
+MIT licence.
 
-PocketIDE™ and the PocketIDE icon are trademarks of Daniel Joseph Ball. The MIT licence covers the code, not the name or
+PocketIDE™ and the PocketIDE icon are trademarks of Daniel Joseph Ball. The Apache licence covers the code, not the name or
 icon; see [TRADEMARK.md](TRADEMARK.md). Website: [pocketide.app](https://pocketide.app) · Contact: help@pocketide.app

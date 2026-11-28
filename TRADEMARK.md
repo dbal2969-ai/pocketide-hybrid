@@ -2,8 +2,9 @@
 
 PocketIDE™ and the PocketIDE icon are trademarks of Daniel Joseph Ball, used for this app since 2026.
 
-The code in this repository is open source under the MIT licence (see `LICENSE`). That licence covers the code. It does not
-grant any right to the PocketIDE name or icon.
+The code in this repository is open source under the Apache License, Version 2.0 (see `LICENSE`). That licence covers the code.
+Its section 6 says it grants no permission to use the licensor's trade names, trademarks, service marks or product names, so it
+gives no right to the PocketIDE name or icon.
 
 You may:
 

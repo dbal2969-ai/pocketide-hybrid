@@ -1,8 +1,13 @@
 # PocketIDE (Kotlin) license and notices
 
-PocketIDE is released under the MIT License (see `LICENSE`). Copyright (c) 2026 Daniel Joseph Ball (dbal2969-ai).
+PocketIDE
+Copyright 2026 Daniel Joseph Ball (dbal2969-ai)
 
-PocketIDE™ and the PocketIDE icon are trademarks of Daniel Joseph Ball. The MIT License covers the code, not the name or icon
+PocketIDE is licensed under the Apache License, Version 2.0 (see `LICENSE`) from version 1.5.222. Versions up to 1.5.221 were
+published under the MIT License, and those versions remain available under it. Where the history below says the author's own code
+was licensed "under MIT", that code is the author's and is now licensed under Apache-2.0 with the rest of the app.
+
+PocketIDE™ and the PocketIDE icon are trademarks of Daniel Joseph Ball. The Apache License covers the code, not the name or icon
 (see `TRADEMARK.md`).
 
 ## Code ported from MobileCoder

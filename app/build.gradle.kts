@@ -22,8 +22,8 @@ android {
         // The name on the home screen and in Android's installer; the app code is shared, so each edition sets its own (1.5.131).
         resValue("string", "app_name", "PocketIDE")
         targetSdk = 35
-        versionCode = 269
-        versionName = "1.5.221-hybrid"
+        versionCode = 270
+        versionName = "1.5.222-hybrid"
     }
 
     // A fixed debug key, so every build is signed the same way and a new APK
@@ -79,7 +79,7 @@ android {
     packaging { jniLibs { useLegacyPackaging = true; keepDebugSymbols += setOf("**/libllama_server.so") } }
 }
 val copyLicenseAssets by tasks.registering(Copy::class) {
-    from(rootProject.file("LICENSE")) { rename { "PocketIDE-LICENSE-MIT.txt" } }
+    from(rootProject.file("LICENSE")) { rename { "PocketIDE-LICENSE.txt" } }
     from(rootProject.file("NOTICE.md")) { rename { "PocketIDE-NOTICE.md" } }
     from(rootProject.file("LICENSES/Apache-2.0.txt")) { rename { "Apache-2.0.txt" } }
     from(rootProject.file("third_party/termux/LICENSE.md")) { rename { "termux-terminal-LICENSE.md" } }
