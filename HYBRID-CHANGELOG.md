@@ -1642,7 +1642,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** none added; 1,413 unit tests, 0 failures.
 - **Evidence:** none (not from a benchmark run).
 
-### HASH · 2026-11-28 13:00 · Licence changed from MIT to Apache-2.0; 1.5.222
+### 32124b8 · 2026-11-28 13:00 · Licence changed from MIT to Apache-2.0; 1.5.222
 - **Why:** the owner chose Apache-2.0 for the public repository from here on. It is the licence the hackathon rules prefer, and
   its section 6 says in the licence itself that no right to the licensor's names or trademarks is granted, which MIT leaves
   unsaid. It also asks anyone who redistributes changed files to say so and to pass on the notices.
