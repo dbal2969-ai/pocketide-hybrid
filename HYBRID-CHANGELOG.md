@@ -1606,7 +1606,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Limits of the measurement:** the tracer ran on Python 3.13 in a workspace, not on the phone (3.14); the app's guesses
   were taken without Gemini Nano's pick; 13 tasks.
 
-### HASH · 2026-11-28 09:30 · Three experiments as switches for benchmarking on the phone; 1.5.220
+### 317eb8a · 2026-11-28 09:30 · Three experiments as switches for benchmarking on the phone; 1.5.220
 - **Why:** the owner asked to benchmark the three research recommendations with a switch in the app. The entry before this
   measured them in a workspace instead; that was not what was asked. They are now switches, off by default, under
   Models → Hybrid AI → Benchmarks → Experiments, and a benchmark report's first line says which were on.
