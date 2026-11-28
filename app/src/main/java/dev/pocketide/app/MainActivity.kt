@@ -620,7 +620,7 @@ class MainActivity : Activity() {
             }
         }
         val version = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (e: Exception) { null }
-        if (version != null) col.addView(Ui.text(this, "About: PocketIDE $version", 12f, Ui.MUTED).also { it.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 4)) })
+        if (version != null) col.addView(Ui.text(this, "About: PocketIDE™ $version · © 2026 Daniel Joseph Ball · pocketide.app", 12f, Ui.MUTED).also { it.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 4)) })
         val sv = ScrollView(this)
         sv.addView(col)
         dlg = AlertDialog.Builder(this).setTitle("Menu").setView(sv).setNegativeButton("Close", null).create()

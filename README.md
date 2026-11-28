@@ -1,4 +1,4 @@
-# PocketIDE Hybrid
+# PocketIDE™ Hybrid
 
 **A coding IDE on an Android phone whose AI agent runs on the phone first.** Gemini Nano writes and fixes code on-device, free,
 offline and in private. What the phone cannot do is handed to cloud Gemini, and every reply says which one answered. Both run
@@ -78,4 +78,7 @@ was; everything after it was built during the submission period.
 
 ## Licence
 
-MIT (see [LICENSE](LICENSE)); third-party notices in [NOTICE.md](NOTICE.md) and [LICENSES/](LICENSES/).
+The code is MIT (see [LICENSE](LICENSE)); third-party notices are in [NOTICE.md](NOTICE.md) and [LICENSES/](LICENSES/).
+
+PocketIDE™ and the PocketIDE icon are trademarks of Daniel Joseph Ball. The MIT licence covers the code, not the name or
+icon; see [TRADEMARK.md](TRADEMARK.md). Website: [pocketide.app](https://pocketide.app) · Contact: help@pocketide.app

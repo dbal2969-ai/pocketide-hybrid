@@ -1629,6 +1629,19 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **How to compare:** run a suite with no switch ticked, then again with one ticked; the Python suite for coverage, the
   JavaScript tasks for the other two. With runs of 13 or 44 tasks, a difference of one or two tasks is within run-to-run noise.
 
+### HASH · 2026-11-28 12:30 · The PocketIDE name: trademark notice and the owner's name; 1.5.221
+- **Why:** the code is public under MIT, which lets anyone reuse it, and nothing in the repository said that the licence does
+  not cover the name. The owner asked for the PocketIDE name to be marked as theirs wherever possible. A USPTO search on
+  2026-11-28 found no mark for "Pocketide".
+- **Change:** no change to behaviour. A new `TRADEMARK.md` says PocketIDE™ and its icon are trademarks of Daniel Joseph Ball,
+  what others may do with the name, and that a published fork needs a different name and icon. The README title carries ™ and
+  its Licence section points to that file, the website (pocketide.app) and the contact address. `LICENSE` and `NOTICE.md` name
+  the copyright holder as Daniel Joseph Ball (dbal2969-ai); the licence terms are unchanged (MIT). The About line in Settings
+  reads "PocketIDE™ <version> · © 2026 Daniel Joseph Ball · pocketide.app".
+- **Files:** `TRADEMARK.md` (new), `README.md`, `LICENSE`, `NOTICE.md`, `MainActivity.kt`, `app/build.gradle.kts`.
+- **Tests:** none added; 1,413 unit tests, 0 failures.
+- **Evidence:** none (not from a benchmark run).
+
 ## Outside the code
 
 Changes and decisions that are not in a commit, kept here so the record is complete.
