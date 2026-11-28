@@ -1483,6 +1483,15 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** README.md, docs/APP-GUIDE.md, HACKATHON.md. No app code; the APKs are unchanged (1.5.217).
 - **Tests:** DemoScriptTest (reads HACKATHON.md) passes.
 
+### HASH · 2026-11-27 21:20 · The Remote Config template is accepted by the console's "Publish from a file"
+- **Why:** the owner's console showed no published Remote Config, and "Publish from a file" answered "Invalid JSON file" for
+  `remoteconfig.template.json`. One key's description (`hybrid_python_fix_cloud`) was 263 characters; the limit is 256. The
+  file also had only `parameters`, without the `conditions` and `parameterGroups` sections a console download has.
+- **Change:** that description is 254 characters, and the template has empty `conditions` and `parameterGroups`. No value changed.
+- **Files:** remoteconfig.template.json, RemoteTuningTest.kt. No app code; the APKs are unchanged (1.5.217).
+- **Tests:** RemoteTuningTest also checks every description is 256 characters or fewer.
+- **Evidence:** the owner's screenshot of the console, 2026-11-27 21:12. Not yet confirmed that the console accepts the new file.
+
 ## Outside the code
 
 Changes and decisions that are not in a commit, kept here so the record is complete.

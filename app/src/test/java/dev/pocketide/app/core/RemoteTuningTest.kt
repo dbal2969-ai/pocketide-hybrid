@@ -38,6 +38,8 @@ class RemoteTuningTest {
         val keys = listOf(HybridCloud.KEY_MODEL, HybridCloud.KEY_LIMIT, HybridCloud.KEY_MODE, HybridCloud.KEY_CLOUD_ON, HybridCloud.KEY_LIMITED_TOKENS,
             HybridCloud.KEY_NANO_NOTE, HybridCloud.KEY_PY_NOTE, HybridCloud.KEY_PY_EXAMPLES, HybridCloud.KEY_PY_DEFAULT, HybridCloud.KEY_PY_LINES) + Tuning.DEFAULTS.keys
         assertEquals(keys.toSet(), params.keys.map { it.toString() }.toSet())
+        // the console and the API refuse a template whose key description is over 256 characters ("Invalid JSON file")
+        for ((k, v) in params) assertTrue(k.toString(), ((v as Map<*, *>)["description"]?.toString() ?: "").length <= 256)
         fun dv(k: String) = ((params[k] as Map<*, *>)["defaultValue"] as Map<*, *>)["value"].toString()
         assertEquals(HybridSettings.DEFAULT_ON_DEVICE_CHARS.toString(), dv(HybridCloud.KEY_LIMIT))
         assertEquals(PyHelper.LONG.toString(), dv(HybridCloud.KEY_PY_LINES))
