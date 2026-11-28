@@ -1629,7 +1629,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **How to compare:** run a suite with no switch ticked, then again with one ticked; the Python suite for coverage, the
   JavaScript tasks for the other two. With runs of 13 or 44 tasks, a difference of one or two tasks is within run-to-run noise.
 
-### HASH · 2026-11-28 12:30 · The PocketIDE name: trademark notice and the owner's name; 1.5.221
+### 05ef05b · 2026-11-28 12:30 · The PocketIDE name: trademark notice and the owner's name; 1.5.221
 - **Why:** the code is public under MIT, which lets anyone reuse it, and nothing in the repository said that the licence does
   not cover the name. The owner asked for the PocketIDE name to be marked as theirs wherever possible. A USPTO search on
   2026-11-28 found no mark for "Pocketide".
