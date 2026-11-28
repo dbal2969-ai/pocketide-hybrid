@@ -1474,6 +1474,15 @@ the files after the run, `transcript.txt` and `check.txt`.
 
 ---
 
+### HASH · 2026-11-27 21:00 · The README tells the hackathon story; the old README is the app guide (documents only)
+- **Why:** judges may score from the repository page, the description and the video without installing the app. The README opened
+  with the pre-hackathon app (bring-your-own API keys) across 2,335 lines, and nothing said who the app is for.
+- **Change:** `README.md` is now a short page: who it is for, what it does, the measured results, the routing diagram and three
+  steps to try it. The old README is `docs/APP-GUIDE.md`, unchanged apart from its title. `HACKATHON.md` gains "Who it is for",
+  and its "Try it" steps start at the welcome screen's Hybrid AI choice (1.5.209) with a first request to make.
+- **Files:** README.md, docs/APP-GUIDE.md, HACKATHON.md. No app code; the APKs are unchanged (1.5.217).
+- **Tests:** DemoScriptTest (reads HACKATHON.md) passes.
+
 ## Outside the code
 
 Changes and decisions that are not in a commit, kept here so the record is complete.

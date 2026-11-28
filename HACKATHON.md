@@ -6,16 +6,23 @@ This repository is the MIT edition of PocketIDE with **hybrid AI** added for the
 Gemini Nano** through **Firebase AI Logic**, and falls back to a **cloud Gemini model** when Nano is missing,
 the request is too long for it, or the person prefers the cloud.
 
+## Who it is for
+
+For many people learning to code, a phone is the only computer they have. AI coding help usually asks for three things they may
+not have: a subscription or an API key, a steady connection, and a willingness to send their code to a server. PocketIDE Hybrid
+asks for none of them. Gemini Nano answers on the phone, free, offline and in private; the cloud is used only for what the phone
+cannot do, and every reply says which one answered.
+
 ## Try it
 
 1. Install the APK from this repository's **Releases** page (the "judges' build"). It needs Android 8 or later; it is a debug
    build, so allow installing from your browser or file manager.
-2. Open **Models → Hybrid AI**. The first time, "How hybrid AI works" explains the routing. Gemini Nano runs on phones that
-   support it through Android AICore (for example recent Pixel and Samsung Galaxy S phones; tested on a Galaxy S24+); every
-   other phone uses the cloud model automatically, and the screen says which.
-3. Ask something in **Try it**. The reply says where it ran: `⚡ Ran on this phone (Gemini Nano)` or `☁ Ran in the cloud`.
-4. To use it everywhere in PocketIDE, choose **Hybrid AI (Gemini Nano + cloud)** as the AI provider (Settings), then open a
-   project and use the AI tab: chat, or the agent, which edits files, runs commands and checks its work.
+2. On the welcome screen choose **Hybrid AI: Gemini Nano + cloud (recommended)**. No account or key is needed. Gemini Nano runs
+   on phones that support it through Android AICore (for example recent Pixel and Samsung Galaxy S phones; tested on a Galaxy
+   S24+); every other phone uses the cloud model automatically, and the app says which.
+3. Ask for something in the chat, for example "Make a snake game in one HTML file", then open **Preview** to play it. Each reply
+   says where it ran: `⚡ Ran on this phone (Gemini Nano)` or `☁ Ran in the cloud`.
+4. **⋮ → Models → Hybrid AI** has the routing modes, Gemini Nano's status, "Your hybrid usage" and the in-app benchmark.
 5. Things to try: turn on airplane mode and ask again (Nano still answers); turn on **Private** (nothing leaves the phone); ask
    for research ("research meal-planning apps on GitHub"): Nano says it is passing the request to the cloud, and why.
 
@@ -79,7 +86,7 @@ Every change, with its reason, files, tests and the benchmark run behind it, is 
 | Judges' build: one App Check debug token for every phone, given at build time and never in git | `app/build.gradle.kts` |
 | In-app benchmark (Models → Hybrid AI): suites for Gemini Nano alone, cloud only, both, Python only and Python with the cloud, run unattended on the phone and checked by tests and hidden checks; results saved as a zip, interrupted runs resumable, a total run of every suite; fixes from each run are in the change record | `HybridBench.kt`, `core/HybridBenchTasks.kt`, `core/ReliableBench.kt`, `bench/hybrid/` |
 | **Apps built in PocketIDE use Firebase AI Logic too**: a "Hybrid AI web app" starter whose `ask(prompt)` uses the Firebase AI Logic web SDK in `PREFER_ON_DEVICE` mode (Gemini Nano in desktop Chrome 139+ with the Prompt API, the cloud elsewhere; the app's own Firebase project and App Check) and, inside PocketIDE's Preview, the **PocketIDEAI bridge**: PocketIDE answers through its own Firebase AI Logic, Gemini Nano on the phone first. Only the project's own pages may ask; the cloud answers at most `hybrid_preview_cloud_per_hour` (Remote Config, 20 by default) of them an hour, then Nano only | `core/AiWebTemplate.kt`, `core/PreviewAi.kt`, `PreviewPane.kt` |
-| One-tap demo recording (⋮ → AI → Record a demo video): the welcome screen, Try it, offline, the agent building a game, a real Python fix and a cloud handoff, each with live answers, and a scene log of what ran where | `DemoRun.kt`, `core/DemoScript.kt` |
+| One-tap demo recording (⋮ → AI → Record a demo video): the welcome screen, Try it, offline, the agent building a game, a real Python fix, an app that uses Hybrid AI itself and a cloud handoff, each with live answers, and a scene log of what ran where | `DemoRun.kt`, `core/DemoScript.kt` |
 | The model's thinking in the agent's work log: cloud thought summaries (tiers that think) and Gemini Nano's reasoning, like an API model's thinking | `HybridAgent.kt`, `HybridAi.kt` |
 | Build: Firebase is applied only when `app/google-services.json` exists; CI writes it from the `GOOGLE_SERVICES_JSON` secret, so the config is not in git and the app still builds without it | `build.gradle.kts`, `app/build.gradle.kts`, `.github/workflows/build-apk.yml`, `.gitignore` |
 
@@ -129,7 +136,7 @@ Galaxy S flagships). Other phones use the cloud model automatically.
 
 ## Testing
 
-`./gradlew testDebugUnitTest` runs about 1,380 JVM tests. The hybrid ones run PocketIDE's real agent loop headless (Robolectric) with
+`./gradlew testDebugUnitTest` runs about 1,400 JVM tests. The hybrid ones run PocketIDE's real agent loop headless (Robolectric) with
 scripted stand-ins for Gemini Nano and the cloud model (`app/src/test/.../bench/HybridAgentLoopTest.kt`): Nano doing a whole fix
 on the phone; prose code, a refusal, a claimed edit that never happened and a web request each passed on with the handoff line;
 two failed steps in a row; an edit that deletes a definition still in use; and the cloud-first mode. Real Gemini Nano was tested
