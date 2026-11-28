@@ -511,9 +511,10 @@ class NativeAgent(
         val t0 = System.currentTimeMillis()
         Thread {
             fun onMain(f: () -> Unit) { val l = java.util.concurrent.CountDownLatch(1); pyMain.post { try { f() } finally { l.countDown() } }; l.await() }
-            fun test(): Pair<Int, String> {
+            fun test(other: (() -> String)? = null): Pair<Int, String> {
+                val run = other?.invoke() ?: cmd
                 var r = -1 to "the test did not finish"; val l = java.util.concurrent.CountDownLatch(1)
-                pyMain.post { try { exec(cmd) { c, o -> r = c to o; l.countDown() } } catch (e: Exception) { r = -1 to (e.message ?: "could not run"); l.countDown() } }
+                pyMain.post { try { exec(run) { c, o -> r = c to o; l.countDown() } } catch (e: Exception) { r = -1 to (e.message ?: "could not run"); l.countDown() } }
                 l.await(10, java.util.concurrent.TimeUnit.MINUTES); return r
             }
             fun put(text: String) = onMain { write(FileEdit(p, text)) }
@@ -539,7 +540,19 @@ class NativeAgent(
             val pick = nano(Fix.pickPrompt(p, orig, us, request, out0), base, "pick")
             val picks = pick?.let { Fix.picked(it, us) }.orEmpty()
             val guesses = Fix.guesses(p, orig, us, request, out0)
-            val targets = Fix.narrow(orig, us, (picks.filter { it in guesses } + guesses.take(1) + picks + guesses).distinct(), request + "\n" + out0)
+            var order = (picks.filter { it in guesses } + guesses.take(1) + picks + guesses).distinct()
+            // 1.5.220 (experiment, off unless ticked): one more run of the test, under a profiler, to see which functions it runs
+            if (dev.pocketide.app.core.Experiments.coverage) Fix.covCommand(cmd, p)?.let { cov ->
+                status("seeing which functions the test runs")
+                val ran = Fix.ran(test { cov }.second)
+                val with = Fix.withCoverage(order, us, ran)
+                HybridBench.event("coverage for ${p.substringAfterLast('/')}: ${ran.count { it.failed > 0 }} functions run by the failing test; order " +
+                    (if (with == order) "unchanged: " else order.take(3).joinToString(", ") + " → ") + with.take(3).joinToString(", "))
+                try { HybridAgent.recorder?.invoke(dev.pocketide.app.core.MiniJson.write(mapOf("seconds" to "0", "prompt_chars" to 0, "previous_result" to "", "prompt" to "",
+                    "reply" to "before: " + order.joinToString(", ") + "\nafter: " + with.joinToString(", "), "tool" to "python_fix", "args" to "coverage", "unusable" to ""))) } catch (e: Exception) { }
+                order = with
+            }
+            val targets = Fix.narrow(orig, us, order, request + "\n" + out0)
                 .mapNotNull { Fix.unitNamed(us, it) }.filter { it.end - it.start <= 220 }.distinctBy { it.qual }.take(3)
             val seen = HashSet<String>(); var tries = 0; var rewrites = 0; var last = out0
             /** Tests one answer (slips put back, all real changes, then each alone); true once one passed and was kept. */

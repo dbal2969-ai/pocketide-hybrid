@@ -145,7 +145,7 @@ object HybridAgent {
             return Phone(null, "the conversation is longer than my on-phone limit ($limit characters)")
         }
         val t0 = System.nanoTime()
-        val reply = try { testPhone?.invoke(prompt) ?: HybridAi.onDeviceText(ctx, prompt) } catch (e: Exception) {
+        val reply = try { testPhone?.invoke(prompt) ?: HybridAi.onDeviceStep(ctx, prompt) } catch (e: Exception) {
             // 1.5.184 (run 3, task 08): Android does not let Gemini Nano run while the app is in the background. Private mode waits for
             // PocketIDE to be on screen again and tries once more; the other modes say why and pass the step on.
             val away = testPhone == null && !foreground(ctx)
@@ -555,7 +555,8 @@ object HybridAgent {
                     "YOU: {\"tool\": \"answer\", \"tool_args\": {\"text\": ${MiniJson.write(clip(text, 1500))}}}\n" else ""
                 (said + acts).ifEmpty { null }
             }
-            "tool" -> "RESULT: ${clip(text, room)}\n"
+            // 1.5.220 (experiment, off unless ticked): the result's first word says whether the step worked
+            "tool" -> "RESULT: ${clip(if (dev.pocketide.app.core.Experiments.okError) dev.pocketide.app.core.ResultMark.mark(text) else text, room)}\n"
             else -> null   // the system prompt is replaced by small local model mode's own
         }
     }

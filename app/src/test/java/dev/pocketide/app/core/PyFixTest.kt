@@ -177,4 +177,56 @@ class PyFixTest {
         assertEquals(1, PyFix.samples(1, 1))
         assertEquals(3, PyFix.samples(1, 6, spare = -2))
     }
+
+    /** 1.5.220 (experiment): the functions the failing test runs come first. As measured on rich_3718 and rich_3006. */
+    @Test fun blocksTheFailingTestNeverRunsAreTriedLast() {
+        val src = "class Panel:\n" +
+            "    def __init__(self):\n        self.a = 1\n" +                        // lines 2-3
+            "    @classmethod\n    def fit(cls):\n        return cls()\n" +          // lines 4-6
+            "    def render(self):\n        def align(t):\n            return t\n        return align(self.a)\n"   // lines 7-10
+        val us = PyFix.units(src)
+        // the failing test ran __init__ (as did 5 passing tests) and render with its inner align (3 passing tests); never fit
+        val ran = listOf(PyFix.Ran(2, 1, 5), PyFix.Ran(7, 1, 3), PyFix.Ran(8, 1, 3))
+        val order = PyFix.withCoverage(listOf("Panel.fit", "Panel.render.align"), us, ran)
+        assertEquals("Panel.render.align", order.first())
+        assertEquals("Panel.fit", order.last())
+        assertTrue(order.toString(), order.indexOf("Panel.render") < order.indexOf("Panel.__init__"))
+        // nothing known about the failing test: the order stays
+        assertEquals(listOf("Panel.fit"), PyFix.withCoverage(listOf("Panel.fit"), us, emptyList()))
+        assertEquals(listOf("Panel.fit"), PyFix.withCoverage(listOf("Panel.fit"), us, listOf(PyFix.Ran(2, 0, 9))))
+        // a class in the list is not a function and keeps its place
+        assertEquals("Panel", PyFix.withCoverage(listOf("Panel", "Panel.fit"), us, ran).first())
+    }
+
+    @Test fun theTestCommandBecomesACoverageRun() {
+        val c = PyFix.covCommand("python3 -B -m pytest -q -p no:cacheprovider tests/test_panel.py", "rich/panel.py")!!
+        assertTrue(c, c.startsWith("python3 -B -c 'import json, os, sys, threading\n"))
+        assertTrue(c, c.endsWith("' 'rich/panel.py' -q -p no:cacheprovider tests/test_panel.py"))
+        assertEquals(2, c.count { it == '\'' } - 2)   // the program itself has no single quote: only the two pairs around it and the path
+        assertNull(PyFix.covCommand("node test.js", "a.py"))
+        assertNull(PyFix.covCommand("python3 -m pytest tests/a.py && echo done", "a.py"))
+        val out = "F.                 [100%]\n1 failed, 1 passed in 0.2s\n\n" + PyFix.COV_MARK + "[[2, 1, 5], [7, 1, 3]]" + PyFix.COV_MARK + "\n"
+        assertEquals(listOf(PyFix.Ran(2, 1, 5), PyFix.Ran(7, 1, 3)), PyFix.ran(out))
+        assertEquals(emptyList<PyFix.Ran>(), PyFix.ran("1 failed in 0.2s"))
+        assertEquals(emptyList<PyFix.Ran>(), PyFix.ran(PyFix.COV_MARK + "[]" + PyFix.COV_MARK))
+    }
+
+    /** The program is valid Python and reports what the tests ran (python3 with pytest, when installed). */
+    @Test fun theCoverageProgramRuns() {
+        val ok = try { ProcessBuilder("python3", "-c", "import pytest").start().waitFor() == 0 } catch (e: Exception) { false }
+        assumeTrue(ok)
+        val dir = File.createTempFile("cov", ""); dir.delete(); dir.mkdirs()
+        try {
+            File(dir, "m.py").writeText("def good(x):\n    return x + 1\n\ndef bad(x):\n    return x - 1\n\ndef unused(x):\n    return x\n")
+            File(dir, "test_m.py").writeText("from m import good, bad\n\ndef test_good():\n    assert good(1) == 2\n\ndef test_bad():\n    assert good(1) == 2 and bad(1) == 2\n")
+            val cmd = PyFix.covCommand("python3 -B -m pytest -q -p no:cacheprovider test_m.py", "m.py")!!
+            val p = ProcessBuilder("sh", "-c", cmd).directory(dir).redirectErrorStream(true).start()
+            val out = p.inputStream.readBytes().toString(Charsets.UTF_8)
+            assertEquals(out, 1, p.waitFor())
+            assertEquals(out, listOf(PyFix.Ran(1, 1, 1), PyFix.Ran(4, 1, 0)), PyFix.ran(out))
+            val us = PyFix.units(File(dir, "m.py").readText())
+            // the app's own choice that the failing test ran stays first; then the rest by coverage; the one never run last
+            assertEquals(listOf("good", "bad", "unused"), PyFix.withCoverage(listOf("unused", "good"), us, PyFix.ran(out)))
+        } finally { dir.deleteRecursively() }
+    }
 }

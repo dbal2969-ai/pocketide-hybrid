@@ -224,6 +224,14 @@ object HybridScreen {
             setTextColor(Ui.TEXT)
         }
         benchCard.addView(helpBox)
+        // 1.5.220: changes to try in a benchmark (core/Experiments); the report's first line says which were on
+        benchCard.addView(Ui.text(ctx, "Experiments (off for normal use; tick one, run a benchmark, compare with a run without it):", 13f, Ui.MUTED))
+        for (id in dev.pocketide.app.core.Experiments.ALL) benchCard.addView(android.widget.CheckBox(ctx).apply {
+            text = dev.pocketide.app.core.Experiments.title(id)
+            isChecked = dev.pocketide.app.core.Experiments.isOn(id)
+            setTextColor(Ui.TEXT)
+            setOnCheckedChangeListener { _, on -> HybridAi.setExperiment(ctx, id, on) }
+        })
         // 1.5.188: while a run goes on, a benchmark button offers to stop it (the finished tasks are zipped); an interrupted run of
         // the same suite is offered for resuming before a new one starts
         fun offerStop() {

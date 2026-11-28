@@ -1606,6 +1606,29 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Limits of the measurement:** the tracer ran on Python 3.13 in a workspace, not on the phone (3.14); the app's guesses
   were taken without Gemini Nano's pick; 13 tasks.
 
+### HASH · 2026-11-28 09:30 · Three experiments as switches for benchmarking on the phone; 1.5.220
+- **Why:** the owner asked to benchmark the three research recommendations with a switch in the app. The entry before this
+  measured them in a workspace instead; that was not what was asked. They are now switches, off by default, under
+  Models → Hybrid AI → Benchmarks → Experiments, and a benchmark report's first line says which were on.
+- **Coverage (Python fix path).** With the switch on, the app runs the test once more under a profiler (`PyFix.COV_SCRIPT`,
+  passed to `python3 -c`; nothing is written into the project) and reorders the blocks to try (`PyFix.withCoverage`): the
+  app's own order without the functions no failing test ran, then the functions the failing test ran (those run by fewer
+  passing tests first), then the rest. The order before and after is written to the task's `nano.jsonl` and to `events.txt`.
+- **Structured output.** With the switch on, Gemini Nano's step is asked for as a typed object: Firebase AI Logic's
+  `generateObject` with the schema of `NanoAction`, generated at build time by `firebase-ai-ksp-processor` (the build gains
+  the KSP and Kotlin serialization plugins). The object is written back as the JSON the agent already reads. If the call
+  fails the step is asked for as text as before; after three failures with no success it is not tried again. The report says
+  how many steps were typed and how many fell back, with the first failure.
+- **OK/ERROR.** With the switch on, every tool result shown to Gemini Nano starts with "OK." or "ERROR." (`ResultMark`).
+- **Files:** core/Experiments.kt (new, with ResultMark), NanoAction.kt (new), core/PyFix.kt, NativeAgent.kt, HybridAgent.kt,
+  HybridAi.kt, HybridBench.kt, HybridScreen.kt, MainActivity.kt, build.gradle.kts, app/build.gradle.kts (versionCode 268),
+  ExperimentsTest.kt (new), PyFixTest.kt.
+- **Tests:** 1,413 unit tests, 0 failures; one runs the profiler program with a real `python3` and `pytest`. Both APKs built fresh.
+- **Not verified on a phone:** all three. Structured output is the least certain: no phone with AICore was available, and the
+  schema is flat while the prompt still describes `tool_args`. Its fallback and counters are there so a run shows what happened.
+- **How to compare:** run a suite with no switch ticked, then again with one ticked; the Python suite for coverage, the
+  JavaScript tasks for the other two. With runs of 13 or 44 tasks, a difference of one or two tasks is within run-to-run noise.
+
 ## Outside the code
 
 Changes and decisions that are not in a commit, kept here so the record is complete.

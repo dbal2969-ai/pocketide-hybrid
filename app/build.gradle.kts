@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 // #BuildHybridAI: Firebase is configured only when app/google-services.json exists (kept out of git; CI writes it from a
 // secret). Without it the app builds and runs as before, with hybrid AI switched off.
@@ -20,8 +22,8 @@ android {
         // The name on the home screen and in Android's installer; the app code is shared, so each edition sets its own (1.5.131).
         resValue("string", "app_name", "PocketIDE")
         targetSdk = 35
-        versionCode = 267
-        versionName = "1.5.219-hybrid"
+        versionCode = 268
+        versionName = "1.5.220-hybrid"
     }
 
     // A fixed debug key, so every build is signed the same way and a new APK
@@ -98,6 +100,8 @@ dependencies {
     // #BuildHybridAI: Firebase AI Logic hybrid inference (Gemini Nano on the phone, Gemini in the cloud) and App Check
     implementation("com.google.firebase:firebase-ai:18.2.0")
     implementation("com.google.firebase:firebase-ai-ondevice:16.0.0-beta08")
+    // 1.5.220: generates the schema of NanoAction for on-device structured output (an experiment, off unless ticked)
+    ksp("com.google.firebase:firebase-ai-ksp-processor:17.0.0")
     implementation("com.google.firebase:firebase-appcheck-playintegrity:20.1.0")
     debugImplementation("com.google.firebase:firebase-appcheck-debug:20.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")

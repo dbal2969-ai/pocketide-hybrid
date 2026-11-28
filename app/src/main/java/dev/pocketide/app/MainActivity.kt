@@ -81,6 +81,7 @@ class MainActivity : Activity() {
         ExitLog.note(this)
         dev.pocketide.app.core.TreeSitter.load()
         settings = AppSettings(this)
+        try { HybridAi.loadExperiments(this) } catch (e: Exception) { }
         // the light theme is read before any view is made (Ui colours), and the system dialogs follow it
         Ui.light = settings.appLight
         if (Ui.light) {

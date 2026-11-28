@@ -167,6 +167,34 @@ object HybridAi {
         return patient { HybridCloud.traced("hybrid_phone") { runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateContent(prompt) } } }.text?.trim().orEmpty()
     }
 
+    // ---- 1.5.220 (experiment "structured output", core/Experiments) ----
+    /** Steps answered as a typed object, steps where that failed, and the first failure, since the app started or a benchmark began. */
+    @Volatile var structuredUsed = 0
+    @Volatile var structuredFailed = 0
+    @Volatile var structuredError = ""
+    fun structuredNote(): String = if (!dev.pocketide.app.core.Experiments.structured) "" else
+        "structured output: $structuredUsed steps as a typed object, $structuredFailed fell back to text" + (if (structuredError.isNotBlank()) " (first failure: ${structuredError.take(160)})" else "")
+
+    /**
+     * One agent step from Gemini Nano as a typed object (Firebase AI Logic generateObject with NanoAction's generated schema),
+     * returned as the JSON the agent reads. When it cannot be had (the phone's model does not offer it, or the call fails), the
+     * step is asked for as text as before; after three failures with no success it is not tried again until the app restarts.
+     */
+    fun onDeviceStep(ctx: Context, prompt: String): String {
+        if (dev.pocketide.app.core.Experiments.structured && !(structuredUsed == 0 && structuredFailed >= 3)) try {
+            probe(ctx)
+            val r = patient { HybridCloud.traced("hybrid_phone") { runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateObject(NanoAction.firebaseAISchema(), prompt) } } }
+            val a = r.getObject() ?: throw IllegalStateException("the reply held no object")
+            structuredUsed++
+            return a.json()
+        } catch (e: Exception) {
+            structuredFailed++
+            val msg = generateSequence(e as Throwable?) { it.cause }.take(3).joinToString(" | ") { (it.message ?: it.javaClass.simpleName) }
+            if (structuredError.isBlank()) { structuredError = msg; HybridBench.event("structured output failed, asking as text: " + msg.take(200)) }
+        }
+        return onDeviceText(ctx, prompt)
+    }
+
     /**
      * 1.5.219: AICore limits how many requests an app may make in a short time and answers BUSY past it (ML Kit GenAI: "consider
      * using exponential backoff"). A busy answer is waited out, 1, 2 and 4 seconds, before the step counts as failed. Every
@@ -279,6 +307,16 @@ object HybridAi {
     /** Drops the cached models, so the next request uses new settings or a new cloud model from Remote Config. */
     @Synchronized
     fun reset() { models.clear(); samplers.clear() }
+
+    /** 1.5.220: the benchmark experiments (core/Experiments), kept between starts of the app. */
+    fun loadExperiments(ctx: Context) {
+        val p = ctx.getSharedPreferences(PREFS, 0)
+        for (id in dev.pocketide.app.core.Experiments.ALL) dev.pocketide.app.core.Experiments.set(id, p.getBoolean("experiment.$id", false))
+    }
+    fun setExperiment(ctx: Context, id: String, on: Boolean) {
+        ctx.getSharedPreferences(PREFS, 0).edit().putBoolean("experiment.$id", on).apply()
+        dev.pocketide.app.core.Experiments.set(id, on)
+    }
 
     /** After the person changes Fast/Full: ask AICore again which release to use. */
     fun forgetRelease() { optionId = null; probed = false }

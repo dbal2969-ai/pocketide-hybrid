@@ -296,6 +296,96 @@ object PyFix {
     fun replaced(text: String, u: Unit, block: String): String =
         text.split("\n").subList(if (block.trimStart().startsWith("@")) u.start else u.head, u.end).joinToString("\n")
 
+    // ---- 1.5.220 (experiment): which functions the failing test runs ----
+
+    /** One function of the file as the test run saw it: its first line (1-based) and how many failing and passing tests ran it. */
+    data class Ran(val line: Int, val failed: Int, val passed: Int)
+
+    const val COV_MARK = "@@POCKETIDE_COV@@"
+
+    /**
+     * A Python program (double quotes only, so it can sit in a single-quoted shell argument) that runs pytest in its own process
+     * with a profiler and prints, after the tests' own output, which functions of one file each test ran. Arguments: the file,
+     * then pytest's arguments.
+     */
+    val COV_SCRIPT = """
+import json, os, sys, threading
+target = os.path.realpath(sys.argv[1]); args = sys.argv[2:]
+names = {}; current = [None]; by_test = {}; outcome = {}
+def prof(frame, event, arg):
+    if event != "call": return
+    co = frame.f_code
+    fn = names.get(co.co_filename)
+    if fn is None:
+        try: fn = os.path.realpath(co.co_filename)
+        except Exception: fn = co.co_filename
+        names[co.co_filename] = fn
+    if fn != target: return
+    t = current[0]
+    if t is not None: by_test.setdefault(t, set()).add(co.co_firstlineno)
+class Plugin:
+    def pytest_runtest_logstart(self, nodeid, location): current[0] = nodeid
+    def pytest_runtest_logfinish(self, nodeid, location): current[0] = None
+    def pytest_runtest_logreport(self, report):
+        if report.failed: outcome[report.nodeid] = "failed"
+        elif report.when == "call" and report.passed: outcome.setdefault(report.nodeid, "passed")
+code = 1
+try:
+    import pytest
+    threading.setprofile(prof); sys.setprofile(prof)
+    code = pytest.main(args, plugins=[Plugin()])
+finally:
+    sys.setprofile(None)
+    fns = {}
+    for t, lines in by_test.items():
+        o = outcome.get(t)
+        if o is None: continue
+        for ln in lines:
+            e = fns.setdefault(ln, [0, 0])
+            e[0 if o == "failed" else 1] += 1
+    print("\n$COV_MARK" + json.dumps([[ln, v[0], v[1]] for ln, v in sorted(fns.items())]) + "$COV_MARK")
+sys.exit(int(code))
+""".trimIndent().trim()
+
+    /**
+     * The test command [cmd] ("python3 -B -m pytest -q tests/test_x.py") as a run of [COV_SCRIPT] on [path]; null when the command
+     * is not a plain pytest run.
+     */
+    fun covCommand(cmd: String, path: String): String? {
+        val m = Regex("""^\s*(python[\d.]*)((?:\s+-[A-Za-z]+)*)\s+-m\s+pytest\b(.*)$""").find(cmd.trim()) ?: return null
+        if (Regex("""[;&|<>`$]""").containsMatchIn(m.groupValues[3])) return null
+        return m.groupValues[1] + " -B -c '" + COV_SCRIPT + "' '" + path.replace("'", "") + "'" + m.groupValues[3]
+    }
+
+    /** What [COV_SCRIPT] printed, from the command's output; empty when it is not there. */
+    fun ran(output: String): List<Ran> {
+        val json = output.substringAfterLast(COV_MARK + "[", "").substringBefore("]" + COV_MARK, "").takeIf { COV_MARK in output } ?: return emptyList()
+        return Regex("""\[(\d+),\s*(\d+),\s*(\d+)\]""").findAll("[$json]").map { Ran(it.groupValues[1].toInt(), it.groupValues[2].toInt(), it.groupValues[3].toInt()) }.toList()
+    }
+
+    /**
+     * The order to try blocks in, given which functions the tests ran. Measured on the 13 Python tasks (HYBRID-CHANGELOG 1257dd0):
+     * the app's own order has the right block first in 8; ranking by coverage alone in 4; this, in 9. So: the app's order with the
+     * functions no failing test ran taken out; then the functions the failing tests ran, those run by fewer passing tests first
+     * (Ochiai), smaller first on a tie; then the ones taken out. Classes and constants are never run as such and stay where they
+     * were. [names] unchanged when no failing test ran anything in the file.
+     */
+    fun withCoverage(names: List<String>, us: List<Unit>, ran: List<Ran>): List<String> {
+        val hit = ran.filter { it.failed > 0 }
+        if (hit.isEmpty()) return names
+        val failedTests = hit.maxOf { it.failed }
+        fun inside(u: Unit, r: Ran) = r.line - 1 in u.start until u.end
+        val keep = names.filter { q -> val u = unitNamed(us, q); u == null || u.kind != "def" || hit.any { inside(u, it) } }
+        val scored = HashMap<String, Double>()
+        for (r in hit) {
+            val u = us.filter { it.kind == "def" && inside(it, r) }.minByOrNull { it.end - it.start } ?: continue
+            val score = r.failed / Math.sqrt(failedTests.toDouble() * (r.failed + r.passed))
+            scored[u.qual] = maxOf(scored[u.qual] ?: 0.0, score)
+        }
+        val byScore = scored.keys.sortedWith(compareBy({ -(scored[it] ?: 0.0) }, { q -> unitNamed(us, q)?.let { it.end - it.start } ?: 0 }, { it }))
+        return (keep + byScore + names).distinct()
+    }
+
     /**
      * How many rewrites block [n] (0-based) may get: [base] for the first and half for the others, plus the tries [spare] an earlier
      * block left unused because its rewrites brought nothing new (1.5.218), never more than [base].

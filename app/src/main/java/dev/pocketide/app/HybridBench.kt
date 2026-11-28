@@ -356,7 +356,7 @@ object HybridBench {
                    dir: File? = null, pyHelper: Boolean = false): String {
         val strong = if (helping) helperStrong(AppSettings(ctx)) else null
         val hs = HybridAi.settings(ctx)
-        val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model Gemini Nano ${HybridAi.nanoLabel(ctx)} · " +
+        val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model Gemini Nano ${HybridAi.nanoLabel(ctx)} · experiments: ${dev.pocketide.app.core.Experiments.label()}${HybridAi.structuredNote().let { if (it.isEmpty()) "" else " ($it)" }} · " +
             "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
             (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(ctx).let { it.label + " (" + it.about + ")" }}"
         // 1.5.190 (runs 1126-0628 and 0731): the setting said Auto (Balanced) while every cloud step ran on Flash-Lite, Balanced being out
@@ -602,6 +602,8 @@ object HybridBench {
             watchPhone(act, out)
             awake(act, true)
             event(if (resume == null) "run started ($suite $stamp)" else "run resumed ($suite $stamp)")
+            event("experiments on: " + dev.pocketide.app.core.Experiments.label())
+            HybridAi.structuredUsed = 0; HybridAi.structuredFailed = 0; HybridAi.structuredError = ""
             // 1.5.188: a task the run was interrupted during LIMIT times is recorded as failed, so a run can never get stuck on it
             if (resume != null) for (id in BenchResume.givenUp(resume)) byId[id]?.let { t ->
                 if (results.none { it.task.id == id }) {
