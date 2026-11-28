@@ -84,3 +84,6 @@ MIT licence.
 
 PocketIDE™ and the PocketIDE icon are trademarks of Daniel Joseph Ball. The Apache licence covers the code, not the name or
 icon; see [TRADEMARK.md](TRADEMARK.md). Website: [pocketide.app](https://pocketide.app) · Contact: help@pocketide.app
+
+PocketIDE is free. If it is useful to you, you can support its development through the Sponsor button on this repository
+or at [pocketide.app/#support](https://pocketide.app/#support).

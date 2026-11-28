@@ -1654,6 +1654,16 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** none added; 1,413 unit tests, 0 failures.
 - **Evidence:** none (not from a benchmark run).
 
+### HASH · 2026-11-28 15:40 · A Sponsor button for the repository (documents only)
+- **Why:** the owner asked for a way for people who use PocketIDE to support it. GitHub pays nothing for usage; support comes
+  only through links the project sets up.
+- **Change:** no change to the app, so no new build (still 1.5.222). `.github/FUNDING.yml` names the owner's GitHub Sponsors
+  page and the Support section of pocketide.app; the README's Licence section says how to support the project. The GitHub link
+  works once the owner's Sponsors profile is approved, and the button shows once "Sponsorships" is ticked in the repository's settings.
+- **Files:** `.github/FUNDING.yml` (new), `README.md`.
+- **Tests:** none (no code changed).
+- **Evidence:** none.
+
 ## Outside the code
 
 Changes and decisions that are not in a commit, kept here so the record is complete.
