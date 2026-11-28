@@ -172,7 +172,7 @@ class PyFixTest {
     @Test fun unusedTriesGoToTheNextBlock() {
         assertEquals(6, PyFix.samples(0, 6))
         assertEquals(3, PyFix.samples(1, 6))
-        assertEquals(6, PyFix.samples(1, 6, spare = 4))   // rich_3518: add_column left after two identical rewrites
+        assertEquals(6, PyFix.samples(1, 6, spare = 4))   // rich_3518: a block left after two identical rewrites
         assertEquals(5, PyFix.samples(2, 6, spare = 2))
         assertEquals(1, PyFix.samples(1, 1))
         assertEquals(3, PyFix.samples(1, 6, spare = -2))

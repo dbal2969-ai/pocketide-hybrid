@@ -32,7 +32,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 
 | Run | Build | Passed | Steps on phone | What it found | Fixed in |
 | --- | --- | --- | --- | --- | --- |
-| reliable 1127-2155 (full, 3 runs, Python track and helper on; stopped by the owner at 51 of 171) | `2ae6e41` (1.5.217) | **39 of 51** (JavaScript 39 of 44 = 88%; Python 0 of 7: requests 0 of 3, rich 0 of 4). Not comparable with earlier runs: "Run commands without asking" was off, so 52 check commands were skipped | 295 of 295 on the phone (Private) | The screen went off twice, each time after about 27 minutes of work (21:55 to 22:21, then 01:06 to about 01:34), with the keep-on flag set; the run kept no record of why. 52 commands skipped for want of an OK in 40 of the 51 tasks (the app's own check after a change in all 40, and 12 of Nano's pytest runs in 5 of the 7 Python tasks). edit_lines' message was read as a failure in 7 tasks; l12 inserted one listener 8 times. Python fix path: the first block was the wrong one in 4 of 7 tasks, and Nano repeated the same rewrite (rich_3518: 6 identical). Model errors the app cannot fix: r07, r13, r23 | 1.5.218 |
+| reliable 1127-2155 (full, 3 runs, Python track and helper on; stopped by the owner at 51 of 171) | `2ae6e41` (1.5.217) | **39 of 51** (JavaScript 39 of 44 = 88%; Python 0 of 7: requests 0 of 3, rich 0 of 4). Not comparable with earlier runs: "Run commands without asking" was off, so 52 check commands were skipped | 295 of 295 on the phone (Private) | The screen went off twice, each time after about 27 minutes of work (21:55 to 22:21, then 01:06 to about 01:34), with the keep-on flag set; the run kept no record of why. 52 commands skipped for want of an OK in 40 of the 51 tasks (the app's own check after a change in all 40, and 12 of Nano's pytest runs in 5 of the 7 Python tasks). edit_lines' message was read as a failure in 7 tasks; l12 inserted one listener 8 times. Python fix path: the first block was the right one in 5 of 7 tasks (wrong in rich_3006 and rich_3718), and all of Nano's rewrites failed; it repeated the same rewrite (rich_3518: 6 identical). Model errors the app cannot fix: r07, r13, r23 | 1.5.218 |
 | mp123 (manual, meal planner) | 1.5.183 at `cfd47de` | n/a (a free-form test project) | most | Nano deleted `let selectedRecipeIds = []` and failed for six rounds; Single model mode kept switching to the strong model | `efbd51c` |
 | 1124-1947 (run 1) | `0cc393d` | 6 of 8 | not recorded | 04 rename: same failing edit three times, no replace-all; 06 research: empty-search loop, DATES.md never written; an unwanted "Carry on" escalation to another provider in Single model mode | `ed08bdb` |
 | 1124-2004 (run 2) | `ed08bdb` | 8 of 8 | 29 of 54 | 05 and 06 passed their checks but ended "stopped or failed": a leftover "Placeholder" comment; plan steps of a notes-only task held open for a check | `affd564` |
@@ -1510,11 +1510,11 @@ the files after the run, `transcript.txt` and `check.txt`.
   - **edit_lines' message.** After an insert the app said "Edited lines 2-1 of controls.js. Line numbers after line 1 have
     shifted; read again before another edit_lines." Nano's next thought blamed "line number shifting" in 7 of the 14 tasks that
     used edit_lines. In l12 it inserted the same listener eight times, and the test saw eight taps for one touch.
-  - **Python fix path (0 of 7).** The cloud is not used in this suite (Private). In 4 of the 7 tasks the first block the app
-    chose was not the one the fix belongs in (requests_7427: `get_encodings_from_content`, though Nano had picked
-    `should_bypass_proxies`; rich_3518: `add_column`; rich_3006: `Foo`; rich_3718: `Panel.__init__`). The first block gets six
-    rewrites and the others three, and Nano answered the wrong block with the same text each time (rich_3518: six identical
-    rewrites, 110 s). In requests_6644 and 7315 the block was right and all of Nano's rewrites were wrong.
+  - **Python fix path (0 of 7).** The cloud is not used in this suite (Private). The first block the app chose was the right
+    one in 5 of the 7 tasks and wrong in 2 (rich_3006: `Foo`; rich_3718: `Panel.fit`). In the 5, all of Nano's rewrites were
+    wrong, and it often gave the same text each time (rich_3518: six identical rewrites of `Table.add_row`, 110 s).
+    *Corrected 2026-11-28:* this entry first said the first block was wrong in 4 of 7 tasks. That came from reading a list of
+    blocks sorted by name as the order they were tried in.
   - **Model errors the app cannot fix:** r07 (kept `level + 1` for text), r13 (`n <= 0` returned "negative" for zero), r23
     (changed `helper4` for a bug in `helper40`).
 - **Changes:**
@@ -1539,9 +1539,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** 1,404 unit tests, 0 failures. Both APKs built fresh (owner's and judges').
 - **Not verified on the phone:** all of it. The screen wake lock and the cool-down wait are answers to suspects, not to a
   known cause; the next run's `events.txt` will show which, if either, it was.
-- **Not done, from the same review:** the Python fix path's choice of block (ask Nano's pick first when the app's guess is not
-  named in the test output, or in Hybrid mode ask the cloud only which function to change); showing Nano its failed rewrite, not
-  only the test output, before the next try.
+- **Not done, from the same review:** showing Nano its failed rewrite, not only the test output, before the next try.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1127-2155-partial-51of171.
 
 ### 08f432e · 2026-11-28 08:10 · Any Gemini Nano release, rewrites that differ, heat headroom; 1.5.219
@@ -1569,10 +1567,44 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** 1,407 unit tests, 0 failures. Both APKs built fresh.
 - **Not verified on a phone:** all of it. In particular the stable release has never been run with this app: no phone with
   only the stable model was available, so its answers to the agent's one-action format are unmeasured.
-- **Found by the research, not done:** choosing the function to fix from the failing test's coverage and traceback (the
-  largest expected gain on Python); on-device structured output and function calling, which this SDK version exposes
+- **Found by the research, not done:** choosing the function to fix from the failing test's coverage and traceback; on-device
+  structured output and function calling, which this SDK version exposes
   (`generateObject`) and which would end "not one JSON action" hand-offs; starting every tool result with OK or ERROR; a
   state block in place of the transcript.
+
+### HASH · 2026-11-28 09:25 · Three research recommendations measured before building them; a correction (documents only)
+- **Why:** the owner asked to benchmark the three recommendations left over from the research. Each was measured first on
+  data already in hand (run 1127-2155's 298 agent steps, and the 13 Python tasks run in a workspace), to see what a phone run
+  could gain.
+- **1. Choose the function from the failing test's coverage.** Each task's visible test file was run under a tracer
+  (`docs/studies/pocketide_cov.py`: which functions of the target file each test executes) and the functions ranked by how
+  much more the failing test runs them than the passing ones (Ochiai). The reference fix's function came:
+
+  | Way of choosing | First | In the first three |
+  | --- | --- | --- |
+  | The app as it is (its own guesses, no pick from Nano) | 8 of 13 | 11 of 13 |
+  | Coverage ranking alone | 4 of 13 | 5 of 13 |
+  | The app's guesses, dropping functions the failing test never runs, then the coverage ranking | 9 of 13 | 11 of 13 |
+
+  Coverage alone is worse: five fixes are in code no test function executes (class attributes, module constants, a new
+  method), and with no passing tests every executed function ties (requests_6644, 7315). As a filter it moves one task
+  (rich_3718) to first place and one (rich_3006) from third to second. Not built: it changes the first choice in one task of 13, and Nano
+  alone passes about a third of these tasks at best (13 of 39 in run 1126-2203).
+- **2. On-device structured output.** In run 1127-2155 Gemini Nano's reply was a usable action in 297 of 298 agent steps;
+  the one that was not was an answer with no action, not broken JSON. There is nothing for a schema to gain on this suite.
+  The on-device side of `generateObject` also takes a compile-time class, which needs a code generator added to the build.
+  Not built.
+- **3. Start every tool result with OK or ERROR.** After a result that was a success, Nano repeated the same action in 8 of
+  160 steps. Four of the 8 followed "The user declined to run this command" (gone since 1.5.218 runs commands) and one the
+  old edit_lines message (reworded in 1.5.218). Three remain, 2%. Not built.
+- **A correction.** The 1.5.218 entry said the Python fix path's first block was the wrong one in 4 of 7 tasks. It was wrong
+  in 2 of 7; the list had been sorted by name. That entry, its row in the history table and a code comment are corrected. The
+  finding that stands: with the right function in hand, all of Nano's rewrites failed, often as the same text. 1.5.219's
+  seeds address the repeats; the next run will show whether they do.
+- **Files:** HYBRID-CHANGELOG.md, docs/studies/pocketide_cov.py (new), comments in NativeAgent.kt and PyFixTest.kt. No app
+  behaviour changed; the APKs are unchanged (1.5.219).
+- **Limits of the measurement:** the tracer ran on Python 3.13 in a workspace, not on the phone (3.14); the app's guesses
+  were taken without Gemini Nano's pick; 13 tasks.
 
 ## Outside the code
 

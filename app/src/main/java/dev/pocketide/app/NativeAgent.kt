@@ -570,10 +570,10 @@ class NativeAgent(
             fun failedNote() = "\nAn earlier rewrite of it did not pass; the test then said:\n" + dev.pocketide.app.core.Verify.trim(last, 500) + "\n"
             fun stopped(): Boolean { if (!stopRequested()) return false; put(orig); finish("Skipped: the user pressed Stop. $p is unchanged.", "Python fix (stopped)"); return true }
             // 1. Gemini Nano's rewrites
-            // 1.5.218 (reliability run 1127-2155, Python 0 of 7): in 4 of the 7 tasks the first block was not the one the fix belongs in,
-            // and Gemini Nano answered with the same rewrite again and again (rich_3518: six identical rewrites of add_column, 110 s),
-            // while the right block, second or third, got half as many tries. A block whose rewrites bring nothing new to test twice
-            // running is left, and the tries it did not use go to the next block (PyFix.samples).
+            // 1.5.218 (reliability run 1127-2155, Python 0 of 7): Gemini Nano answered with the same rewrite again and again
+            // (rich_3518: six identical rewrites of Table.add_row, 110 s). A block whose rewrites bring nothing new to test twice
+            // running is left, and the tries it did not use go to the next block (PyFix.samples). (The first block was the right
+            // one in 5 of the 7 tasks; an earlier note here said 4 of 7 were wrong, from a list read in the wrong order.)
             var spare = 0
             for ((n, u) in targets.withIndex()) {
                 val samples = Fix.samples(n, dev.pocketide.app.core.Tuning.pyFixSamples, spare)
