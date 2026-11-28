@@ -296,6 +296,12 @@ object PyFix {
     fun replaced(text: String, u: Unit, block: String): String =
         text.split("\n").subList(if (block.trimStart().startsWith("@")) u.start else u.head, u.end).joinToString("\n")
 
+    /**
+     * How many rewrites block [n] (0-based) may get: [base] for the first and half for the others, plus the tries [spare] an earlier
+     * block left unused because its rewrites brought nothing new (1.5.218), never more than [base].
+     */
+    fun samples(n: Int, base: Int, spare: Int = 0): Int = minOf(maxOf(1, base), (if (n == 0) base else maxOf(1, base / 2)) + maxOf(0, spare))
+
     /** The temperature of try [k] (0-based): the person's first, then higher so the answers differ. */
     fun temperature(k: Int, base: Float): Float = if (k == 0) base else maxOf(base, Tuning.pyFixTemperature)
 

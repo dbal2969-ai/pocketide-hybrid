@@ -167,4 +167,14 @@ class PyFixTest {
         val us = PyFix.units("def a():\n    pass\n\ndef b_c():\n    pass\n")
         assertEquals(listOf("b_c", "a"), PyFix.picked("The bug is in `b_c`, maybe a.", us))
     }
+
+    /** 1.5.218 (run 1127-2155): a block left early gives its unused tries to the next one, up to the first block's number. */
+    @Test fun unusedTriesGoToTheNextBlock() {
+        assertEquals(6, PyFix.samples(0, 6))
+        assertEquals(3, PyFix.samples(1, 6))
+        assertEquals(6, PyFix.samples(1, 6, spare = 4))   // rich_3518: add_column left after two identical rewrites
+        assertEquals(5, PyFix.samples(2, 6, spare = 2))
+        assertEquals(1, PyFix.samples(1, 1))
+        assertEquals(3, PyFix.samples(1, 6, spare = -2))
+    }
 }

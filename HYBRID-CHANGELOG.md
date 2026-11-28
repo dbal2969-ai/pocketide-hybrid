@@ -32,6 +32,7 @@ cloud model `gemini-3.1-flash-lite`). Runs from 1124-1947 on use the one-tap run
 
 | Run | Build | Passed | Steps on phone | What it found | Fixed in |
 | --- | --- | --- | --- | --- | --- |
+| reliable 1127-2155 (full, 3 runs, Python track and helper on; stopped by the owner at 51 of 171) | `2ae6e41` (1.5.217) | **39 of 51** (JavaScript 39 of 44 = 88%; Python 0 of 7: requests 0 of 3, rich 0 of 4). Not comparable with earlier runs: "Run commands without asking" was off, so 52 check commands were skipped | 295 of 295 on the phone (Private) | The screen went off twice, each time after about 27 minutes of work (21:55 to 22:21, then 01:06 to about 01:34), with the keep-on flag set; the run kept no record of why. 52 commands skipped for want of an OK in 40 of the 51 tasks (the app's own check after a change in all 40, and 12 of Nano's pytest runs in 5 of the 7 Python tasks). edit_lines' message was read as a failure in 7 tasks; l12 inserted one listener 8 times. Python fix path: the first block was the wrong one in 4 of 7 tasks, and Nano repeated the same rewrite (rich_3518: 6 identical). Model errors the app cannot fix: r07, r13, r23 | 1.5.218 |
 | mp123 (manual, meal planner) | 1.5.183 at `cfd47de` | n/a (a free-form test project) | most | Nano deleted `let selectedRecipeIds = []` and failed for six rounds; Single model mode kept switching to the strong model | `efbd51c` |
 | 1124-1947 (run 1) | `0cc393d` | 6 of 8 | not recorded | 04 rename: same failing edit three times, no replace-all; 06 research: empty-search loop, DATES.md never written; an unwanted "Carry on" escalation to another provider in Single model mode | `ed08bdb` |
 | 1124-2004 (run 2) | `ed08bdb` | 8 of 8 | 29 of 54 | 05 and 06 passed their checks but ended "stopped or failed": a leftover "Placeholder" comment; plan steps of a notes-only task held open for a check | `affd564` |
@@ -1491,6 +1492,57 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Files:** remoteconfig.template.json, RemoteTuningTest.kt. No app code; the APKs are unchanged (1.5.217).
 - **Tests:** RemoteTuningTest also checks every description is 256 characters or fewer.
 - **Evidence:** the owner's screenshot of the console, 2026-11-27 21:12. Not yet confirmed that the console accepts the new file.
+
+### HASH · 2026-11-28 03:25 · Run 1127-2155: the benchmark runs its checks, records the screen, and two agent fixes; 1.5.218
+- **Why:** reliability run 1127-2155 (1.5.217, stopped by the owner at 51 of 171, 39 passed). The owner reported that the screen
+  again did not stay on. Every task, its transcript and Gemini Nano's exchanges were read.
+- **What the run showed:**
+  - **The screen.** No task ran from 22:21 to 01:06 or after about 01:34. Both stops came after 26 to 28 minutes of work. The
+    keep-screen-on flag was set (1.5.205) and nothing in the app clears it or covers the window during a run, so the cause is
+    not known. Two suspects remain: the window flag not counting at that moment, and the phone turning its screen off when hot
+    (both stops followed about 27 minutes of continuous on-device inference from a cool start). The run recorded nothing about
+    the screen, the battery or heat, so neither can be shown.
+  - **Checks skipped.** "Run commands from the assistant without asking" was off on the phone. The benchmark never set it, so
+    every command that needed an OK was skipped: 52 in 40 of the 51 tasks. The app's own check after a change (`node --check`,
+    `pytest`) was skipped in all 40, and 12 of Gemini Nano's own `pytest` runs in 5 of the 7 Python tasks. Five runs ended "done"
+    with a failing check.
+    Earlier runs had the setting on, so this run's numbers cannot be compared with theirs.
+  - **edit_lines' message.** After an insert the app said "Edited lines 2-1 of controls.js. Line numbers after line 1 have
+    shifted; read again before another edit_lines." Nano's next thought blamed "line number shifting" in 7 of the 14 tasks that
+    used edit_lines. In l12 it inserted the same listener eight times, and the test saw eight taps for one touch.
+  - **Python fix path (0 of 7).** The cloud is not used in this suite (Private). In 4 of the 7 tasks the first block the app
+    chose was not the one the fix belongs in (requests_7427: `get_encodings_from_content`, though Nano had picked
+    `should_bypass_proxies`; rich_3518: `add_column`; rich_3006: `Foo`; rich_3718: `Panel.__init__`). The first block gets six
+    rewrites and the others three, and Nano answered the wrong block with the same text each time (rich_3518: six identical
+    rewrites, 110 s). In requests_6644 and 7315 the block was right and all of Nano's rewrites were wrong.
+  - **Model errors the app cannot fix:** r07 (kept `level + 1` for text), r13 (`n <= 0` returned "negative" for zero), r23
+    (changed `helper4` for a bug in `helper40`).
+- **Changes:**
+  - The benchmark turns "Run commands without asking" on for the run and puts the person's choice back afterwards (also for a
+    run saved by an older version). Commands that always need an OK (network, deleting, outside the project) are still skipped.
+  - Keeping the screen on: besides the window flag, the run holds a screen wake lock of its own, and sets both again at every
+    task and every 5-second watch step.
+  - A record of events, `events.txt` in the run's folder and zip (core/BenchEvents): the screen turning off and on, PocketIDE
+    leaving and coming back, window focus, power saving, the phone's heat status, each task's start; each line with the battery
+    level and temperature, heat status, whether the flag and the wake lock are held, and the time since the last touch. The
+    report lists every span of a minute or more off screen with the state when it began and what came just before.
+  - A notification when the run pauses because PocketIDE is off screen.
+  - Between tasks the run waits (15 minutes at most) while the phone reports severe heat or the battery is at 46°C or more,
+    until it is below 43°C. These limits are guesses until a record shows the real ones.
+  - edit_lines says what it did in plain words ("Inserted 1 line into controls.js after line 1: it is now line 2. It is saved,
+    so do not insert it again."), and shows the lines around the change with their new numbers (core/LineEdits). The same
+    insert is refused when its lines are still in the file from the earlier insert.
+  - Python fix path: a block whose rewrites bring nothing new to test twice running is left, and its unused tries go to the
+    next block, up to the first block's number (PyFix.samples).
+- **Files:** HybridBench.kt, MainActivity.kt, NativeAgent.kt, core/BenchEvents.kt (new), core/LineEdits.kt (new), core/PyFix.kt,
+  BenchEventsTest.kt (new), LineEditsTest.kt (new), PyFixTest.kt, app/build.gradle.kts (versionCode 266, 1.5.218-hybrid).
+- **Tests:** 1,404 unit tests, 0 failures. Both APKs built fresh (owner's and judges').
+- **Not verified on the phone:** all of it. The screen wake lock and the cool-down wait are answers to suspects, not to a
+  known cause; the next run's `events.txt` will show which, if either, it was.
+- **Not done, from the same review:** the Python fix path's choice of block (ask Nano's pick first when the app's guess is not
+  named in the test output, or in Hybrid mode ask the cloud only which function to change); showing Nano its failed rewrite, not
+  only the test output, before the next try.
+- **Evidence:** pocketide-hybrid-reliable-benchmark-1127-2155-partial-51of171.
 
 ## Outside the code
 

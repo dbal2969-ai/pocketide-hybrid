@@ -460,6 +460,8 @@ class NativeAgent(
     private val smallMissed = HashMap<String, String>()
     /** 1.5.208: edits applied in this request (path, search, replacement), so the same edit is not applied twice (run 1126-2203, r23). */
     private val appliedEdits = HashSet<String>()
+    /** 1.5.218: the inserts edit_lines made in this request (LineEdits.insertKey), so the same lines are not inserted twice. */
+    private val appliedInserts = HashSet<String>()
     private val smallReshown = HashMap<String, Int>()
 
     /** Long Python files already answered with an outline: a second whole read shows code (1.5.195). */
@@ -568,14 +570,23 @@ class NativeAgent(
             fun failedNote() = "\nAn earlier rewrite of it did not pass; the test then said:\n" + dev.pocketide.app.core.Verify.trim(last, 500) + "\n"
             fun stopped(): Boolean { if (!stopRequested()) return false; put(orig); finish("Skipped: the user pressed Stop. $p is unchanged.", "Python fix (stopped)"); return true }
             // 1. Gemini Nano's rewrites
+            // 1.5.218 (reliability run 1127-2155, Python 0 of 7): in 4 of the 7 tasks the first block was not the one the fix belongs in,
+            // and Gemini Nano answered with the same rewrite again and again (rich_3518: six identical rewrites of add_column, 110 s),
+            // while the right block, second or third, got half as many tries. A block whose rewrites bring nothing new to test twice
+            // running is left, and the tries it did not use go to the next block (PyFix.samples).
+            var spare = 0
             for ((n, u) in targets.withIndex()) {
-                val samples = if (n == 0) dev.pocketide.app.core.Tuning.pyFixSamples else maxOf(1, dev.pocketide.app.core.Tuning.pyFixSamples / 2)
+                val samples = Fix.samples(n, dev.pocketide.app.core.Tuning.pyFixSamples, spare)
+                spare = 0
                 var tried = ""
+                var nothingNew = 0
                 for (k in 0 until samples) {
                     if (stopped()) return@Thread
                     status("rewriting ${u.qual} (${k + 1} of $samples)")
                     val ans = nano(Fix.fixPrompt(p, orig, u, request, out0, tried), Fix.temperature(k, base), u.qual) ?: continue
+                    val before = tries
                     if (attempt(ans, u, "Gemini Nano on this phone")) return@Thread
+                    if (tries == before) { if (++nothingNew >= 2) { spare = samples - k - 1; break } } else nothingNew = 0
                     tried = failedNote()
                 }
             }
@@ -2852,12 +2863,15 @@ class NativeAgent(
                 }
                 val newText = res.text
                 if (newText == null) { reply("Edit not applied to $p: ${res.error}.", "$label (failed)"); return }
+                // 1.5.218 (run 1127-2155, l12): the same insert was applied eight times; see LineEdits
+                dev.pocketide.app.core.LineEdits.repeatedInsert(p, st, en, linesText, cur, appliedInserts)?.let { reply(it, "$label (already inserted)"); return }
                 testGate(p, cur, newText, job)?.let { if (askTestNow(p, newText, label) { r, s -> reply(r, s) }) return; reply(it, "$label (refused)"); return }
                 readFiles.remove(p)
+                if (en < st) appliedInserts.add(dev.pocketide.app.core.LineEdits.insertKey(p, linesText))
                 if (agent) {
                     val gate = planGate(p, newText)
                     if (gate != null) { if (write(FileEdit(p, gate.first))) { changed.add(p); reply("Edited lines $st-$en of $p.${gate.second}", label) } else reply("Could not write $p.") }
-                    else if (write(FileEdit(p, newText))) { changed.add(p); writeMark = round; afterWrite(p, newText, "Edited lines $st-$en of $p. Line numbers after line $en have shifted; read again before another edit_lines.", label, cur) { r, l -> reply(r, l) } } else reply("Could not write $p.")
+                    else if (write(FileEdit(p, newText))) { changed.add(p); writeMark = round; afterWrite(p, newText, dev.pocketide.app.core.LineEdits.done(p, st, en, linesText, newText), label, cur) { r, l -> reply(r, l) } } else reply("Could not write $p.")
                 } else { staged[p] = newText; reply("Staged the edit to $p for the user's review; treat it as applied.") }
             }
             "run_command" -> {

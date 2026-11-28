@@ -93,7 +93,99 @@ object HybridBench {
 
     fun screen(act: MainActivity, on: Boolean) {
         onScreen = on
-        if (on) { live = act; if (running) awake(act, true); current?.backOnScreen() }
+        if (on) live = act
+        if (running) event(if (on) dev.pocketide.app.core.BenchEvents.BACK else dev.pocketide.app.core.BenchEvents.LEFT)
+        if (on) { if (running) awake(act, true); current?.backOnScreen() }
+    }
+
+    /** When the person last touched PocketIDE, and whether its window has the focus (MainActivity), for the record of events. */
+    @Volatile private var lastTouch = 0L
+    @Volatile private var focus: Boolean? = null
+    fun touched() { lastTouch = System.currentTimeMillis() }
+    fun focusChanged(has: Boolean) {
+        if (focus == has) return
+        focus = has
+        if (running) event(if (has) "PocketIDE's window has the focus" else "PocketIDE's window lost the focus (a dialog or another window is in front)")
+    }
+
+    /** The run's record of events (BenchEvents), in its folder; null when no run is going on. */
+    @Volatile private var eventsFile: File? = null
+    @Volatile private var appCtx: android.content.Context? = null
+    private var screenLock: android.os.PowerManager.WakeLock? = null
+    private var receiver: android.content.BroadcastReceiver? = null
+    private var thermalListener: Any? = null
+
+    private fun snap(ctx: android.content.Context): dev.pocketide.app.core.BenchEvents.Snap? = try {
+        val pm = ctx.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        val b = ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+        val level = b?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = b?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100)?.takeIf { it > 0 } ?: 100
+        val a = usable(live)
+        dev.pocketide.app.core.BenchEvents.Snap(
+            interactive = pm.isInteractive,
+            thermal = if (Build.VERSION.SDK_INT >= 29) pm.currentThermalStatus else -1,
+            batteryPct = if (level < 0) -1 else level * 100 / scale,
+            tempC = (b?.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0) / 10.0,
+            charging = (b?.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0,
+            powerSave = pm.isPowerSaveMode,
+            keepOnFlag = a?.let { (it.window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0 },
+            screenLock = screenLock?.isHeld == true,
+            focus = focus,
+            sinceTouchS = if (lastTouch == 0L) -1 else (System.currentTimeMillis() - lastTouch) / 1000)
+    } catch (e: Exception) { null }
+
+    /** Adds a line to the run's record of events, with the phone's state beside it. Never throws. */
+    fun event(what: String) {
+        val f = eventsFile ?: return
+        try {
+            val ctx = appCtx ?: return
+            val clock = SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(Date())
+            synchronized(this) { f.appendText(dev.pocketide.app.core.BenchEvents.line(clock, what, snap(ctx)) + "\n") }
+        } catch (e: Exception) { }
+    }
+
+    /** Starts the record for a run in [out] and listens for the screen, power saving and heat. */
+    private fun watchPhone(act: MainActivity, out: File) {
+        eventsFile = File(out, dev.pocketide.app.core.BenchEvents.FILE)
+        val ctx = act.applicationContext
+        appCtx = ctx
+        try {
+            if (receiver == null) {
+                val r = object : android.content.BroadcastReceiver() {
+                    override fun onReceive(c: android.content.Context?, i: android.content.Intent?) {
+                        event(when (i?.action) {
+                            android.content.Intent.ACTION_SCREEN_OFF -> "the screen turned off"
+                            android.content.Intent.ACTION_SCREEN_ON -> "the screen turned on"
+                            android.content.Intent.ACTION_USER_PRESENT -> "the phone was unlocked"
+                            android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> "power saving changed"
+                            else -> return
+                        })
+                    }
+                }
+                val f = android.content.IntentFilter().apply {
+                    addAction(android.content.Intent.ACTION_SCREEN_OFF); addAction(android.content.Intent.ACTION_SCREEN_ON)
+                    addAction(android.content.Intent.ACTION_USER_PRESENT); addAction(android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+                }
+                if (Build.VERSION.SDK_INT >= 33) ctx.registerReceiver(r, f, android.content.Context.RECEIVER_NOT_EXPORTED) else ctx.registerReceiver(r, f)
+                receiver = r
+            }
+            if (Build.VERSION.SDK_INT >= 29 && thermalListener == null) {
+                val l = android.os.PowerManager.OnThermalStatusChangedListener { st -> event("the phone's heat status changed to " + dev.pocketide.app.core.BenchEvents.thermalName(st)) }
+                (ctx.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).addThermalStatusListener(l)
+                thermalListener = l
+            }
+        } catch (e: Exception) { }
+    }
+
+    private fun unwatchPhone(ctx: android.content.Context) {
+        try { receiver?.let { ctx.applicationContext.unregisterReceiver(it) } } catch (e: Exception) { }
+        receiver = null
+        try {
+            if (Build.VERSION.SDK_INT >= 29) (thermalListener as? android.os.PowerManager.OnThermalStatusChangedListener)?.let {
+                (ctx.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).removeThermalStatusListener(it) }
+        } catch (e: Exception) { }
+        thermalListener = null
+        eventsFile = null
     }
 
     /**
@@ -101,10 +193,27 @@ object HybridBench {
      * so when Android rebuilt PocketIDE's screen overnight (the owner's full run on 1.5.203) the new screen let the phone sleep, and
      * Gemini Nano, which only runs on screen, stopped. Now every screen that shows during a run gets it, and ending a run clears it on
      * all of them.
+     *
+     * 1.5.218 (reliability run 1127-2155, 1.5.217): the screen still went off twice, after 26 and 28 minutes of work, with the flag
+     * set. A window flag only counts while that window is in front and uncovered, so the run now also holds a screen wake lock of
+     * its own, which does not depend on which window is in front, and sets both again at every task and every watch step.
      */
     fun awake(act: MainActivity?, on: Boolean) {
         for (a in setOfNotNull(act, live)) try {
             if (on) a.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else a.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } catch (e: Exception) { }
+        try {
+            if (on) {
+                val ctx = (act ?: live ?: return).applicationContext
+                @Suppress("DEPRECATION")
+                val w = screenLock ?: (ctx.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager)
+                    .newWakeLock(android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or android.os.PowerManager.ON_AFTER_RELEASE, "pocketide:benchmark")
+                    .also { it.setReferenceCounted(false); screenLock = it }
+                if (!w.isHeld) w.acquire(12 * 60 * 60_000L)
+            } else {
+                screenLock?.takeIf { it.isHeld }?.release()
+                screenLock = null
+            }
         } catch (e: Exception) { }
     }
 
@@ -198,7 +307,7 @@ object HybridBench {
     fun beforeNow(act: MainActivity): Map<String, String> = AppSettings(act).let { s ->
         mapOf("provider" to s.provider, "workflow" to s.workflow, "agent" to s.agent.toString(), "mode" to s.mode,
             "draft" to s.savedSlot(true), "strong" to s.savedSlot(false), "hybridMode" to HybridScreen.mode(act).name, "project" to Projects.key(act),
-            "pythonHelper" to (s.pythonHelperChoice?.toString() ?: "default"))
+            "pythonHelper" to (s.pythonHelperChoice?.toString() ?: "default"), "autorun" to s.autorun.toString())
     }
 
     fun restore(act: MainActivity, b: Map<String, String>) {
@@ -206,6 +315,7 @@ object HybridBench {
         val s = AppSettings(act)
         b["provider"]?.let { s.provider = it }; b["workflow"]?.let { s.workflow = it }; b["agent"]?.let { s.agent = it == "true" }
         b["mode"]?.let { s.mode = it }; b["pythonHelper"]?.let { s.pythonHelperChoice = if (it == "default") null else it == "true" }; b["draft"]?.let { s.restoreSlot(true, it) }; b["strong"]?.let { s.restoreSlot(false, it) }
+        b["autorun"]?.let { s.autorun = it == "true" }
         b["hybridMode"]?.let { m -> HybridAi.Mode.values().firstOrNull { it.name == m }?.let { HybridScreen.setMode(act, it) } }
         b["project"]?.let { try { act.benchSwitch(it) } catch (e: Exception) { } }
     }
@@ -247,7 +357,8 @@ object HybridBench {
                 (if (runs > 1) "\nRuns per task: $runs.\n" else "") + (if (pythonNote.isNotEmpty()) "\n$pythonNote\n" else "") +
                 (if (deselect.isEmpty()) "" else "\nHidden tests left out because they fail on this phone even with the reference fix:\n" + deselect.entries.joinToString("\n") { "- ${it.key}: ${it.value.joinToString()}" } + "\n") +
                 (if (unsound.isEmpty()) "" else "\nLeft out (the reference fix does not pass on this phone):\n" + unsound.entries.joinToString("\n") { "- ${it.key}: ${it.value}" } + "\n")) +
-            (if (notes.isEmpty()) "" else "\n$notes\n")
+            (if (notes.isEmpty()) "" else "\n$notes\n") +
+            (try { dir?.let { File(it, dev.pocketide.app.core.BenchEvents.FILE) }?.takeIf { it.isFile }?.let { dev.pocketide.app.core.BenchEvents.section(it.readText()) } } catch (e: Exception) { null } ?: "")
     }
 
     /** Zips the tasks an interrupted run finished (report-partial.md says so), and says where the zip went. */
@@ -406,7 +517,8 @@ object HybridBench {
         val main = Handler(Looper.getMainLooper())
         val settings = AppSettings(startAct)
         /** The person's settings and project to put back; on resume, the ones saved before the run first started. */
-        val before: Map<String, String> = resume?.before ?: beforeNow(act)
+        // 1.5.218: a run saved by an older version has no "autorun" entry; the setting as it is now is the one to put back
+        val before: Map<String, String> = (resume?.before ?: beforeNow(act)).let { if ("autorun" in it) it else it + ("autorun" to settings.autorun.toString()) }
         val strong = if (helping) helperStrong(settings) else null
         val stamp: String = resume?.stamp ?: total?.state?.stamp ?: SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
         val suite = kind.id
@@ -423,7 +535,7 @@ object HybridBench {
         val checked = HashSet<String>(unsound.keys + deselect.keys)
         var pythonNote = resume?.pythonNote ?: ""
         /** The run's progress, saved after every task (1.5.188). */
-        var state = resume?.copy(active = true, current = null) ?: BenchResume.State(suite, stamp, helping, runs, python, all.map { it.id }, before = before, pyHelper = pyHelper)
+        var state = resume?.copy(active = true, current = null, before = before) ?: BenchResume.State(suite, stamp, helping, runs, python, all.map { it.id }, before = before, pyHelper = pyHelper)
         /** Set by [stop]: late callbacks from the task that was running record nothing. */
         @Volatile var stopped = false
         /** PocketIDE left the screen during the task: it is run again, not scored (1.5.188). [offSince]: when it left. */
@@ -442,6 +554,8 @@ object HybridBench {
         fun onceOnScreen(then: () -> Unit) {
             if (onScreen) { main.postDelayed({ if (!stopped) then() }, 3000); return }
             whenBack = then
+            event("the run is waiting for PocketIDE to be back on screen")
+            Notifier.assistant(act.applicationContext, "Benchmark paused: PocketIDE is not on screen, and Gemini Nano only runs while it is shown. Open PocketIDE to carry on.")
             act.window.decorView.post { toast("Benchmark paused: PocketIDE left the screen, and Gemini Nano only runs while it is shown. It carries on when you come back.") }
         }
 
@@ -452,6 +566,8 @@ object HybridBench {
             if (offSince == 0L) offSince = now
             if (now - offSince < 15_000) return false
             redo = true
+            event("the task was stopped to be run again: PocketIDE has been off screen for 15 s")
+            Notifier.assistant(act.applicationContext, "Benchmark paused: the screen went off or PocketIDE left it. Open PocketIDE to carry on.")
             chat.stopNow()
             main.postDelayed({ done("PocketIDE left the screen") }, 3000)
             return true
@@ -468,7 +584,9 @@ object HybridBench {
         fun toast(s: String) = try { Toast.makeText(act.applicationContext, s, Toast.LENGTH_LONG).show() } catch (e: Exception) { }
 
         fun begin() {
+            watchPhone(act, out)
             awake(act, true)
+            event(if (resume == null) "run started ($suite $stamp)" else "run resumed ($suite $stamp)")
             // 1.5.188: a task the run was interrupted during LIMIT times is recorded as failed, so a run can never get stuck on it
             if (resume != null) for (id in BenchResume.givenUp(resume)) byId[id]?.let { t ->
                 if (results.none { it.task.id == id }) {
@@ -488,6 +606,12 @@ object HybridBench {
                 settings.setSlot(false, strong!!)
             }
             settings.agent = true
+            // 1.5.218 (reliability run 1127-2155): with "Run commands from the assistant without asking" off (the default, and the
+            // owner's setting in that run), every check command needed an OK that an unattended run cannot give: 52 commands were
+            // skipped in 40 of 51 tasks, among them the app's own check after each change (node --check, pytest) and 12 of Gemini
+            // Nano's pytest runs. The run turns the setting on and puts the person's choice back afterwards. Commands that always need an OK
+            // (the network, deleting, outside the project) are still skipped.
+            settings.autorun = true
             settings.pythonHelper = pyHelper   // 1.5.194: on only when the run asks for it; the person's own setting is put back after
             settings.mode = "agent"   // Agent mode: the chat box's mode and the agent switch, as the Agent chip sets them
             if (kind == Suite.APP) { next(); return }   // questions about the app run no commands
@@ -574,10 +698,27 @@ object HybridBench {
         fun settingsNow(): Map<String, String?> = dev.pocketide.app.core.AppSettingsTool.known.associate { it.setting!! to AppSettingsBridge.value(act, settings, it.setting) }
         var settingsBefore: Map<String, String?> = emptyMap()
 
+        /** When the run began waiting for the phone to cool, or 0. */
+        var coolSince = 0L
+
         fun next() {
             if (stopped) return
             if (i >= tasks.size) { finish(null); return }
             val t = tasks[i]
+            awake(act, true)
+            // 1.5.218: both stops in run 1127-2155 came after about 27 minutes of Gemini Nano working without a break, which is how a
+            // phone that turns its screen off when it gets hot would behave. Not proven: until a record shows it, the run waits between
+            // tasks while the phone reports severe heat or a hot battery (BenchEvents.tooHot), for 15 minutes at most.
+            val eb = dev.pocketide.app.core.BenchEvents
+            val sn = snap(act.applicationContext)
+            if (sn != null && (if (coolSince == 0L) eb.tooHot(sn.thermal, sn.tempC) else !eb.cooled(sn.thermal, sn.tempC)) &&
+                (coolSince == 0L || System.currentTimeMillis() - coolSince < eb.MAX_COOL_WAIT_MS)) {
+                if (coolSince == 0L) { coolSince = System.currentTimeMillis(); event("waiting for the phone to cool before ${t.id}"); toast("Benchmark: the phone is hot, waiting for it to cool…") }
+                main.postDelayed({ next() }, 30_000)
+                return
+            }
+            if (coolSince != 0L) { event("carrying on after ${eb.span((System.currentTimeMillis() - coolSince) / 1000)} of cooling"); coolSince = 0L }
+            event("task ${results.size + 1} of ${state.order.size}: ${t.id}")
             save(t.id)
             toast("Hybrid benchmark ${results.size + 1} of ${state.order.size}: ${t.title}")
             if (t.entry == HybridBenchTasks.Entry.CHAT) { fromChat(t); return }
@@ -621,6 +762,7 @@ object HybridBench {
             fun watch() {
                 if (finished) return
                 if (leftScreen(chat) { done(it) }) return
+                awake(act, true)
                 val spent = System.currentTimeMillis() - t0
                 when {
                     spent > TASK_LIMIT_MS -> { chat.stopNow(); main.postDelayed({ done("timed out after ${TASK_LIMIT_MS / 60_000} min") }, 6000) }
@@ -665,6 +807,7 @@ object HybridBench {
             fun watch() {
                 if (finished) return
                 if (leftScreen(chat) { done(it) }) return
+                awake(act, true)
                 val spent = System.currentTimeMillis() - t0
                 when {
                     spent > TASK_LIMIT_MS * 2 -> { chat.stopNow(); main.postDelayed({ done("timed out after ${TASK_LIMIT_MS * 2 / 60_000} min") }, 6000) }
@@ -757,6 +900,8 @@ object HybridBench {
             HybridAgent.recorder = null
             restore(act, before)
             awake(act, false)
+            event(if (problem == null) "run finished" else "run ended early: " + problem.take(120))
+            unwatchPhone(act)
             state = state.copy(active = false, finished = true); save(null)
             val report = reportText(act, kind, helping, stamp, results, problem, state.order.size, runs, pythonNote, deselect, unsound,
                 if (reruns.isEmpty()) "" else "Run again because PocketIDE left the screen during them (Gemini Nano only runs while it is shown; not scored): " +
@@ -787,6 +932,8 @@ object HybridBench {
             state = BenchResume.interrupt(state); save(out, state)
             restore(act, before)
             awake(act, false)
+            event("run stopped ($how)")
+            unwatchPhone(act)
             running = false; current = null
             if (total != null) { savePartial(act, out, kind, state, how, zip = false); total.stopped(how); return }
             val where = savePartial(act, out, kind, state, how)

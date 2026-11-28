@@ -424,6 +424,10 @@ class MainActivity : Activity() {
         if (newLayout && !viewingFile && current == 0) repoHome.refresh()
     }
 
+    // 1.5.218: the benchmark's record of events notes the last touch and whether this window has the focus
+    override fun onUserInteraction() { super.onUserInteraction(); HybridBench.touched() }
+    override fun onWindowFocusChanged(hasFocus: Boolean) { super.onWindowFocusChanged(hasFocus); HybridBench.focusChanged(hasFocus) }
+
     override fun onStart() {
         super.onStart()
         HybridBench.screen(this, true)   // 1.5.188: a benchmark paused while PocketIDE was off screen carries on
