@@ -1493,7 +1493,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 - **Tests:** RemoteTuningTest also checks every description is 256 characters or fewer.
 - **Evidence:** the owner's screenshot of the console, 2026-11-27 21:12. Not yet confirmed that the console accepts the new file.
 
-### HASH · 2026-11-28 03:25 · Run 1127-2155: the benchmark runs its checks, records the screen, and two agent fixes; 1.5.218
+### de9c80f · 2026-11-28 03:25 · Run 1127-2155: the benchmark runs its checks, records the screen, and two agent fixes; 1.5.218
 - **Why:** reliability run 1127-2155 (1.5.217, stopped by the owner at 51 of 171, 39 passed). The owner reported that the screen
   again did not stay on. Every task, its transcript and Gemini Nano's exchanges were read.
 - **What the run showed:**
