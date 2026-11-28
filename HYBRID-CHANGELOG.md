@@ -1572,7 +1572,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   (`generateObject`) and which would end "not one JSON action" hand-offs; starting every tool result with OK or ERROR; a
   state block in place of the transcript.
 
-### HASH · 2026-11-28 09:25 · Three research recommendations measured before building them; a correction (documents only)
+### 19898cd · 2026-11-28 09:25 · Three research recommendations measured before building them; a correction (documents only)
 - **Why:** the owner asked to benchmark the three recommendations left over from the research. Each was measured first on
   data already in hand (run 1127-2155's 298 agent steps, and the 13 Python tasks run in a workspace), to see what a phone run
   could gain.
