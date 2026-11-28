@@ -131,8 +131,23 @@ object HybridBench {
             keepOnFlag = a?.let { (it.window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0 },
             screenLock = screenLock?.isHeld == true,
             focus = focus,
-            sinceTouchS = if (lastTouch == 0L) -1 else (System.currentTimeMillis() - lastTouch) / 1000)
+            sinceTouchS = if (lastTouch == 0L) -1 else (System.currentTimeMillis() - lastTouch) / 1000,
+            headroom = headroom(pm))
     } catch (e: Exception) { null }
+
+    /** Thermal headroom, asked at most every 10 seconds as Android requires (it answers NaN when asked more often). */
+    @Volatile private var headroomAt = 0L
+    @Volatile private var headroomWas = -1.0
+    private fun headroom(pm: android.os.PowerManager): Double {
+        if (Build.VERSION.SDK_INT < 30) return -1.0
+        val now = System.currentTimeMillis()
+        if (now - headroomAt >= 10_000L) {
+            headroomAt = now
+            val h = try { pm.getThermalHeadroom(10) } catch (e: Exception) { Float.NaN }
+            if (!h.isNaN()) headroomWas = h.toDouble()
+        }
+        return headroomWas
+    }
 
     /** Adds a line to the run's record of events, with the phone's state beside it. Never throws. */
     fun event(what: String) {
@@ -341,7 +356,7 @@ object HybridBench {
                    dir: File? = null, pyHelper: Boolean = false): String {
         val strong = if (helping) helperStrong(AppSettings(ctx)) else null
         val hs = HybridAi.settings(ctx)
-        val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
+        val about = "${dev.pocketide.app.core.BuildTag.userAgent} · run $stamp · on-phone model Gemini Nano ${HybridAi.nanoLabel(ctx)} · " +
             "on-phone limit ${hs.onDeviceMaxChars} characters · temperature ${hs.temperature} · top-K ${hs.topK} · max output ${hs.maxOutputTokens} tokens · " +
             (if (strong != null) "Cascade: Hybrid AI helps the strong model ${strong.provider}/${strong.model.ifBlank { dev.pocketide.app.core.Providers.byId(strong.provider).model }}, which takes Gemini Nano's handoffs and reviews the work · " else "") + "cloud ${HybridCloud.pinnedModel()?.let { "model $it (pinned by Remote Config)" } ?: "models: " + HybridAi.cloudChoice(ctx).let { it.label + " (" + it.about + ")" }}"
         // 1.5.190 (runs 1126-0628 and 0731): the setting said Auto (Balanced) while every cloud step ran on Flash-Lite, Balanced being out
@@ -458,7 +473,7 @@ object HybridBench {
                 when { st.finished && rs.size < st.order.size && !kind.reliable -> "stopped early (see its report)"; !st.finished -> "stopped after ${st.done.size} of ${st.order.size} tasks"; else -> "" })
         }
         val hs = HybridAi.settings(ctx)
-        return "# Total benchmark (every suite)\n\n${dev.pocketide.app.core.BuildTag.userAgent} · run ${s.stamp} · on-phone model ${if (hs.fullModel) "Full (E4B)" else "Fast (E2B)"} · " +
+        return "# Total benchmark (every suite)\n\n${dev.pocketide.app.core.BuildTag.userAgent} · run ${s.stamp} · on-phone model Gemini Nano ${HybridAi.nanoLabel(ctx)} · " +
             "cloud models: ${HybridAi.cloudChoice(ctx).label} · reliability runs per task: ${s.runs} · Python track: ${if (s.python) "included" else "left out"}\n\n" +
             (note?.let { "**$it**\n\n" } ?: "") + BenchTotal.table(rows) +
             "\nEach suite's folder has its own report.md (with every task's result and why) and a folder per task (files/, transcript.txt, check.txt).\n"
@@ -711,7 +726,7 @@ object HybridBench {
             // tasks while the phone reports severe heat or a hot battery (BenchEvents.tooHot), for 15 minutes at most.
             val eb = dev.pocketide.app.core.BenchEvents
             val sn = snap(act.applicationContext)
-            if (sn != null && (if (coolSince == 0L) eb.tooHot(sn.thermal, sn.tempC) else !eb.cooled(sn.thermal, sn.tempC)) &&
+            if (sn != null && (if (coolSince == 0L) eb.tooHot(sn.thermal, sn.tempC, sn.headroom) else !eb.cooled(sn.thermal, sn.tempC, sn.headroom)) &&
                 (coolSince == 0L || System.currentTimeMillis() - coolSince < eb.MAX_COOL_WAIT_MS)) {
                 if (coolSince == 0L) { coolSince = System.currentTimeMillis(); event("waiting for the phone to cool before ${t.id}"); toast("Benchmark: the phone is hot, waiting for it to cool…") }
                 main.postDelayed({ next() }, 30_000)

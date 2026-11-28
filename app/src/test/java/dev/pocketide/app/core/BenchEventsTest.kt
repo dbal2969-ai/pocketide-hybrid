@@ -50,5 +50,11 @@ class BenchEventsTest {
         assertTrue(BenchEvents.cooled(1, 41.0))
         assertFalse(BenchEvents.cooled(3, 30.0))
         assertFalse(BenchEvents.cooled(0, 44.0))
+        // 1.5.219: thermal headroom moves before the status does
+        assertTrue(BenchEvents.tooHot(1, 38.0, headroom = 0.96))
+        assertFalse(BenchEvents.tooHot(1, 38.0, headroom = 0.90))
+        assertFalse(BenchEvents.cooled(1, 38.0, headroom = 0.85))
+        assertTrue(BenchEvents.cooled(1, 38.0, headroom = 0.70))
+        assertTrue(BenchEvents.snapText(snap.copy(headroom = 0.8234)).contains("heat severe (headroom 0.82), battery 31%"))
     }
 }

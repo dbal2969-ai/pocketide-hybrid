@@ -1544,6 +1544,36 @@ the files after the run, `transcript.txt` and `check.txt`.
   only the test output, before the next try.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1127-2155-partial-51of171.
 
+### HASH · 2026-11-28 08:10 · Any Gemini Nano release, rewrites that differ, heat headroom; 1.5.219
+- **Why:** the owner asked whether Hybrid mode works with every Gemini Nano release in AICore, and for the improvements a
+  research pass found (ML Kit GenAI and Firebase AI Logic documentation, Android's thermal guidance, and work on repair with
+  small models). The owner's AICore lists one model, "Gemini Nano 4 Fast [Preview, NPU]" (Gemma 4 E2B).
+- **What was wrong:** the app asked Firebase AI Logic only for a preview model (`OnDeviceModelOption.PREVIEW_FAST`, or
+  `PREVIEW` with "Full" ticked), because that is what the owner's phone has. A phone with only the stable Gemini Nano (not
+  enrolled in the AICore preview) was told "not available": everything went to the cloud, and Private mode could not answer.
+- **Changes:**
+  - **Any release (core/NanoPick, HybridAi.probe).** Once per start, off the main thread, the app asks AICore for the status
+    of the fast preview, the preview and the stable model, in the order of the person's Fast/Full choice, and uses the first
+    that is ready (else the first that can be downloaded). The choice is remembered. The Hybrid AI screen says which release
+    is in use, AICore's name for it and what AICore said about each; the benchmark report's first line names it too.
+  - **Rewrites that differ.** In run 1127-2155 Gemini Nano gave the same rewrite up to six times at temperature 0.7. Each
+    Python rewrite after the first now carries its own seed (`OnDeviceConfig.seed`). Whether the repeats came from a fixed
+    default seed is not known; the next run will show.
+  - **Busy answers.** AICore limits an app's requests and answers BUSY past the limit. A busy answer is waited out (1, 2,
+    4 seconds) before the step counts as failed. Every on-device failure is written to a benchmark's `events.txt`.
+  - **Warm-up.** With Hybrid AI chosen, the model is loaded when PocketIDE comes on screen (`warmUp()`), not at the first request.
+  - **Heat.** `events.txt` records thermal headroom (`PowerManager.getThermalHeadroom`, asked at most every 10 seconds). The
+    run waits between tasks from headroom 0.95 and carries on below 0.80, besides the status and battery limits of 1.5.218.
+- **Files:** HybridAi.kt, HybridBench.kt, HybridScreen.kt, MainActivity.kt, NativeAgent.kt, core/NanoPick.kt (new),
+  core/BenchEvents.kt, NanoPickTest.kt (new), BenchEventsTest.kt, HACKATHON.md, app/build.gradle.kts (versionCode 267).
+- **Tests:** 1,407 unit tests, 0 failures. Both APKs built fresh.
+- **Not verified on a phone:** all of it. In particular the stable release has never been run with this app: no phone with
+  only the stable model was available, so its answers to the agent's one-action format are unmeasured.
+- **Found by the research, not done:** choosing the function to fix from the failing test's coverage and traceback (the
+  largest expected gain on Python); on-device structured output and function calling, which this SDK version exposes
+  (`generateObject`) and which would end "not one JSON action" hand-offs; starting every tool result with OK or ERROR; a
+  state block in place of the transcript.
+
 ## Outside the code
 
 Changes and decisions that are not in a commit, kept here so the record is complete.

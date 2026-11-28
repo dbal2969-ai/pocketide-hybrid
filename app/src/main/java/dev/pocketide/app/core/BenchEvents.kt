@@ -12,14 +12,17 @@ object BenchEvents {
 
     /** The phone's state at an event. [thermal]: PowerManager's status (0 none … 6 shutdown), -1 when the phone does not say. */
     data class Snap(val interactive: Boolean?, val thermal: Int, val batteryPct: Int, val tempC: Double, val charging: Boolean, val powerSave: Boolean,
-                    val keepOnFlag: Boolean?, val screenLock: Boolean, val focus: Boolean?, val sinceTouchS: Long)
+                    val keepOnFlag: Boolean?, val screenLock: Boolean, val focus: Boolean?, val sinceTouchS: Long,
+                    /** PowerManager.getThermalHeadroom(10): 1.0 is the point of severe throttling; negative when the phone does not say. */
+                    val headroom: Double = -1.0)
 
     private val THERMAL = listOf("none", "light", "moderate", "severe", "critical", "emergency", "shutdown")
     fun thermalName(s: Int): String = if (s < 0) "unknown" else THERMAL.getOrElse(s) { "status $s" }
 
     private fun yn(b: Boolean?) = when (b) { true -> "yes"; false -> "no"; null -> "?" }
 
-    fun snapText(s: Snap): String = "screen on ${yn(s.interactive)}, heat ${thermalName(s.thermal)}, battery ${s.batteryPct}% " +
+    fun snapText(s: Snap): String = "screen on ${yn(s.interactive)}, heat ${thermalName(s.thermal)}" +
+        (if (s.headroom >= 0) " (headroom %.2f)".format(java.util.Locale.US, s.headroom) else "") + ", battery ${s.batteryPct}% " +
         "%.1f°C".format(java.util.Locale.US, s.tempC) + (if (s.charging) " charging" else "") + (if (s.powerSave) ", power saving on" else "") +
         ", keep-on flag ${yn(s.keepOnFlag)}, screen lock held ${yn(s.screenLock)}, window focus ${yn(s.focus)}" +
         (if (s.sinceTouchS >= 0) ", last touch ${span(s.sinceTouchS)} ago" else "")
@@ -39,8 +42,15 @@ object BenchEvents {
     const val THERMAL_SEVERE = 3
     const val MAX_COOL_WAIT_MS = 15 * 60_000L
 
-    fun tooHot(thermal: Int, tempC: Double): Boolean = thermal >= THERMAL_SEVERE || tempC >= HOT_C
-    fun cooled(thermal: Int, tempC: Double): Boolean = thermal < THERMAL_SEVERE && tempC < COOL_C
+    /**
+     * 1.5.219: Android's guidance is to go by thermal headroom, which moves before the status does: about 0.85 is light throttling,
+     * 0.95 moderate ("reduce workload immediately"), 1.0 severe. The run waits from 0.95 and carries on below 0.80.
+     */
+    const val HOT_HEADROOM = 0.95
+    const val COOL_HEADROOM = 0.80
+
+    fun tooHot(thermal: Int, tempC: Double, headroom: Double = -1.0): Boolean = thermal >= THERMAL_SEVERE || tempC >= HOT_C || headroom >= HOT_HEADROOM
+    fun cooled(thermal: Int, tempC: Double, headroom: Double = -1.0): Boolean = thermal < THERMAL_SEVERE && tempC < COOL_C && headroom < COOL_HEADROOM
 
     const val LEFT = "PocketIDE left the screen"
     const val BACK = "PocketIDE is back on screen"

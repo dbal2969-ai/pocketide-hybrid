@@ -113,8 +113,7 @@ object HybridAi {
             ai()
                 .generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s, tierOf(HybridCloud.cloudModel())),
                     onDeviceConfig = OnDeviceConfig(mode = mode.inference, maxOutputTokens = s.maxOutputTokens,
-                        temperature = s.temperature, topK = s.topK,
-                        modelOption = if (s.fullModel) OnDeviceModelOption.PREVIEW else OnDeviceModelOption.PREVIEW_FAST))
+                        temperature = s.temperature, topK = s.topK, modelOption = optionOf(ctx, s)))
         }
     }
 
@@ -140,30 +139,129 @@ object HybridAi {
         }
     }.build()
 
-    private val samplers = HashMap<Float, GenerativeModel>()
+    private val samplers = HashMap<Pair<Float, Int?>, GenerativeModel>()
 
     /**
      * 1.5.201: one request on Gemini Nano at [temperature] (the Python fix path's rewrites after the first, so they differ). Blocking;
-     * throws when Nano cannot run it.
+     * throws when Nano cannot run it. 1.5.219 (run 1127-2155: six identical rewrites at 0.7): with a [seed], so that two requests
+     * with the same prompt and temperature do not come back the same.
      */
-    fun onDeviceSample(ctx: Context, prompt: String, temperature: Float): String {
+    fun onDeviceSample(ctx: Context, prompt: String, temperature: Float, seed: Int? = null): String {
+        probe(ctx)
         val m = synchronized(this) {
             check(configured(ctx)) { "This build has no Firebase config, so hybrid AI is off. See HACKATHON.md." }
             if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true }
             val s = settings(ctx)
-            if (temperature == s.temperature) model(ctx, Mode.ONLY_ON_DEVICE) else samplers.getOrPut(temperature) {
+            if (temperature == s.temperature && seed == null) model(ctx, Mode.ONLY_ON_DEVICE) else samplers.getOrPut(temperature to seed) {
                 ai().generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s, tierOf(HybridCloud.cloudModel())),
                     onDeviceConfig = OnDeviceConfig(mode = Mode.ONLY_ON_DEVICE.inference, maxOutputTokens = s.maxOutputTokens,
-                        temperature = temperature, topK = s.topK,
-                        modelOption = if (s.fullModel) OnDeviceModelOption.PREVIEW else OnDeviceModelOption.PREVIEW_FAST))
+                        temperature = temperature, topK = s.topK, seed = seed, modelOption = optionOf(ctx, s)))
             }
         }
-        return HybridCloud.traced("hybrid_phone") { runBlocking { m.generateContent(prompt) } }.text?.trim().orEmpty()
+        return patient { HybridCloud.traced("hybrid_phone") { runBlocking { m.generateContent(prompt) } } }.text?.trim().orEmpty()
     }
 
     /** One request on Gemini Nano only, never the cloud (the agent's phone path). Blocking; throws when Nano cannot run it. */
-    fun onDeviceText(ctx: Context, prompt: String): String =
-        HybridCloud.traced("hybrid_phone") { runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateContent(prompt) } }.text?.trim().orEmpty()
+    fun onDeviceText(ctx: Context, prompt: String): String {
+        probe(ctx)
+        return patient { HybridCloud.traced("hybrid_phone") { runBlocking { model(ctx, Mode.ONLY_ON_DEVICE).generateContent(prompt) } } }.text?.trim().orEmpty()
+    }
+
+    /**
+     * 1.5.219: AICore limits how many requests an app may make in a short time and answers BUSY past it (ML Kit GenAI: "consider
+     * using exponential backoff"). A busy answer is waited out, 1, 2 and 4 seconds, before the step counts as failed. Every
+     * on-device failure is also written to a running benchmark's record of events.
+     */
+    private fun <T> patient(f: () -> T): T {
+        var wait = 1000L
+        while (true) {
+            try { return f() } catch (e: Exception) {
+                val msg = generateSequence(e as Throwable?) { it.cause }.take(4).joinToString(" | ") { (it.message ?: it.javaClass.simpleName) }
+                val busy = dev.pocketide.app.core.NanoPick.busy(msg) && wait <= 4000L
+                HybridBench.event((if (busy) "Gemini Nano was busy, trying again in ${wait / 1000} s: " else "Gemini Nano did not run: ") + msg.take(200))
+                if (!busy) throw e
+                Thread.sleep(wait); wait *= 2
+            }
+        }
+    }
+
+    // ---- which Gemini Nano release this phone has (core/NanoPick) ----
+    @Volatile private var optionId: String? = null
+    @Volatile private var probed = false
+    @Volatile private var warmed = false
+    private val probeLock = Any()
+    /** AICore's name for the model in use, and what it said about each release; empty until asked. */
+    @Volatile var nanoModelName: String = ""
+    @Volatile var nanoProbe: String = ""
+
+    private fun sdkOption(id: String): OnDeviceModelOption = when (id) {
+        dev.pocketide.app.core.NanoPick.PREVIEW -> OnDeviceModelOption.PREVIEW
+        dev.pocketide.app.core.NanoPick.STABLE -> OnDeviceModelOption.STABLE
+        else -> OnDeviceModelOption.PREVIEW_FAST
+    }
+    private fun optionKey(s: HybridSettings) = if (s.fullModel) "nanoOption.full" else "nanoOption.fast"
+    private fun optionIdOf(ctx: Context, s: HybridSettings): String =
+        optionId ?: ctx.getSharedPreferences(PREFS, 0).getString(optionKey(s), null) ?: dev.pocketide.app.core.NanoPick.order(s.fullModel).first()
+    private fun optionOf(ctx: Context, s: HybridSettings): OnDeviceModelOption = sdkOption(optionIdOf(ctx, s))
+
+    /** The release in use, in words: "preview, fast (model name)". */
+    fun nanoLabel(ctx: Context): String = dev.pocketide.app.core.NanoPick.label(optionIdOf(ctx, settings(ctx))) + (if (nanoModelName.isNotBlank()) " ($nanoModelName)" else "")
+
+    /**
+     * Asks AICore for the status of each Gemini Nano release, once per start of the app (or again with [force]), and uses the first
+     * that is ready. Blocking, so it does nothing on the main thread; a request made there uses the release found last time.
+     */
+    fun probe(ctx: Context, force: Boolean = false) {
+        if ((probed && !force) || android.os.Looper.myLooper() == android.os.Looper.getMainLooper() || !configured(ctx)) return
+        synchronized(probeLock) {
+            if (probed && !force) return
+            try {
+                synchronized(this) { if (!appCheckDone) { AppCheckSetup.install(FirebaseApp.getInstance()); appCheckDone = true } }
+                val s = settings(ctx)
+                val order = dev.pocketide.app.core.NanoPick.order(s.fullModel)
+                val status = LinkedHashMap<String, String>()
+                val exts = HashMap<String, com.google.firebase.ai.OnDeviceExtension?>()
+                for (id in order) status[id] = try {
+                    val ext = ai().generativeModel(modelName = HybridCloud.cloudModel(), generationConfig = gen(s, tierOf(HybridCloud.cloudModel())),
+                        onDeviceConfig = OnDeviceConfig(mode = Mode.ONLY_ON_DEVICE.inference, modelOption = sdkOption(id))).onDeviceExtension
+                    exts[id] = ext
+                    when (runBlocking { kotlinx.coroutines.withTimeoutOrNull(8000L) { ext?.checkStatus() } }) {
+                        OnDeviceModelStatus.AVAILABLE -> "AVAILABLE"
+                        OnDeviceModelStatus.DOWNLOADABLE -> "DOWNLOADABLE"
+                        OnDeviceModelStatus.DOWNLOADING -> "DOWNLOADING"
+                        else -> "UNAVAILABLE"
+                    }
+                } catch (e: Exception) { "UNAVAILABLE" }
+                val pick = dev.pocketide.app.core.NanoPick.choose(order, status)
+                nanoProbe = dev.pocketide.app.core.NanoPick.describe(order, status)
+                val changed = pick != optionIdOf(ctx, s)
+                optionId = pick
+                ctx.getSharedPreferences(PREFS, 0).edit().putString(optionKey(s), pick).apply()
+                if (changed) reset()
+                if (status[pick] == "AVAILABLE") nanoModelName = try {
+                    runBlocking { kotlinx.coroutines.withTimeoutOrNull(5000L) { exts[pick]?.getModelName() } }.orEmpty()
+                } catch (e: Exception) { "" }
+                HybridBench.event("Gemini Nano releases on this phone: $nanoProbe; using ${nanoLabel(ctx)}")
+            } catch (e: Exception) { }
+            probed = true
+        }
+    }
+
+    /**
+     * Gets Gemini Nano ready before the first request: finds the release, then loads the model into memory (the first request after
+     * a start otherwise waits for that, up to a minute by Google's account). On its own thread; only while PocketIDE is on screen.
+     */
+    fun prepare(ctx: Context) {
+        if (warmed || !configured(ctx)) return
+        warmed = true
+        val app = ctx.applicationContext
+        Thread {
+            try {
+                probe(app)
+                if (HybridAgent.foreground(app)) runBlocking { kotlinx.coroutines.withTimeoutOrNull(90_000L) { model(app, Mode.ONLY_ON_DEVICE).onDeviceExtension?.warmUp() } }
+            } catch (e: Exception) { }
+        }.apply { isDaemon = true; name = "nano-prepare" }.start()
+    }
 
     /** The cloud model with PocketIDE's tools as functions (the agent's cloud path). Built per request, since the tools can change. */
     @Synchronized
@@ -181,6 +279,9 @@ object HybridAi {
     /** Drops the cached models, so the next request uses new settings or a new cloud model from Remote Config. */
     @Synchronized
     fun reset() { models.clear(); samplers.clear() }
+
+    /** After the person changes Fast/Full: ask AICore again which release to use. */
+    fun forgetRelease() { optionId = null; probed = false }
 
     /** The settings the person saved (Models → Hybrid AI), clamped to safe ranges. */
     fun settings(ctx: Context): HybridSettings {
@@ -204,7 +305,7 @@ object HybridAi {
             .putFloat("temperature", c.temperature).putInt("topK", c.topK)
             .putInt("maxOutputTokens", c.maxOutputTokens).putInt("onDeviceMaxChars", c.onDeviceMaxChars)
             .putBoolean("fullModel", c.fullModel).apply()
-        models.clear()
+        models.clear(); samplers.clear(); forgetRelease()
     }
 
     /** Where a request of this size will go in this mode (the routing rule shown to the person). */
@@ -260,6 +361,7 @@ object HybridAi {
 
     /** One single-turn request. Blocking. */
     fun ask(ctx: Context, prompt: String, mode: Mode): Reply {
+        probe(ctx)   // 1.5.219: use the Gemini Nano release this phone has
         var (use, note) = route(mode, prompt.length, settings(ctx).onDeviceMaxChars)
         if (!HybridCloud.cloudEnabled() && use != Mode.ONLY_ON_DEVICE) {
             use = Mode.ONLY_ON_DEVICE
@@ -292,6 +394,7 @@ object HybridAi {
 
     /** Gemini Nano on this phone: "AVAILABLE", "DOWNLOADABLE", "DOWNLOADING", "UNAVAILABLE" or an error. Blocking. */
     fun nanoStatus(ctx: Context): String = try {
+        probe(ctx, force = true)
         val st = runBlocking { model(ctx, Mode.PREFER_ON_DEVICE).onDeviceExtension?.checkStatus() }
         when (st) {
             OnDeviceModelStatus.AVAILABLE -> "AVAILABLE"

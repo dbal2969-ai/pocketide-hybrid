@@ -430,7 +430,9 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        HybridBench.screen(this, true)   // 1.5.188: a benchmark paused while PocketIDE was off screen carries on
+        HybridBench.screen(this, true)
+        // 1.5.219: with Hybrid AI chosen, find this phone's Gemini Nano release and load it before the first request
+        try { if (settings.provider == "hybrid") HybridAi.prepare(this) } catch (e: Exception) { }   // 1.5.188: a benchmark paused while PocketIDE was off screen carries on
     }
 
     override fun onStop() {

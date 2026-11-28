@@ -74,7 +74,8 @@ object HybridScreen {
                 main.post {
                     if (closed) return@post
                     nanoLine.text = when {
-                        s == "AVAILABLE" -> "Ready. Quick assist runs on this phone, even in airplane mode."
+                        s == "AVAILABLE" -> "Ready: Gemini Nano, ${HybridAi.nanoLabel(ctx)}. Quick assist runs on this phone, even in airplane mode." +
+                            (if (HybridAi.nanoProbe.isNotBlank()) "\nAndroid AICore on this phone: ${HybridAi.nanoProbe}." else "")
                         s == "DOWNLOADABLE" -> "This phone supports Gemini Nano. Download it once (through Android AICore) to work offline."
                         s == "DOWNLOADING" -> "Downloading through Android AICore…"
                         s.startsWith("UNAVAILABLE") -> "Gemini Nano is not available on this phone, so requests go to the cloud model.\n$s"

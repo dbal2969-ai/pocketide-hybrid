@@ -518,10 +518,10 @@ class NativeAgent(
             }
             fun put(text: String) = onMain { write(FileEdit(p, text)) }
             fun status(s: String) = pyMain.post { phase("Step $round · Python fix · $s") }
-            fun nano(prompt: String, temp: Float, what: String): String? {
+            fun nano(prompt: String, temp: Float, what: String, seed: Int? = null): String? {
                 if (prompt.length > limit) return null
                 val s0 = System.nanoTime()
-                fun call() = HybridAgent.testPhone?.invoke(prompt) ?: HybridAi.onDeviceSample(ctx, prompt, temp)
+                fun call() = HybridAgent.testPhone?.invoke(prompt) ?: HybridAi.onDeviceSample(ctx, prompt, temp, seed)
                 val out = try { call() } catch (e: Exception) {
                     // Android does not let Gemini Nano run in the background: wait for PocketIDE to be on screen, once
                     if (HybridAgent.testPhone == null && !HybridAgent.foreground(ctx) && HybridAgent.waitForeground(ctx, 10 * 60_000L)) try { call() } catch (e2: Exception) { null } else null
@@ -583,7 +583,8 @@ class NativeAgent(
                 for (k in 0 until samples) {
                     if (stopped()) return@Thread
                     status("rewriting ${u.qual} (${k + 1} of $samples)")
-                    val ans = nano(Fix.fixPrompt(p, orig, u, request, out0, tried), Fix.temperature(k, base), u.qual) ?: continue
+                    // 1.5.219: each rewrite after the first has its own seed, so the same prompt does not bring the same text back
+                    val ans = nano(Fix.fixPrompt(p, orig, u, request, out0, tried), Fix.temperature(k, base), u.qual, dev.pocketide.app.core.NanoPick.seed(n, k)) ?: continue
                     val before = tries
                     if (attempt(ans, u, "Gemini Nano on this phone")) return@Thread
                     if (tries == before) { if (++nothingNew >= 2) { spare = samples - k - 1; break } } else nothingNew = 0

@@ -18,8 +18,10 @@ cannot do, and every reply says which one answered.
 1. Install the APK from this repository's **Releases** page (the "judges' build"). It needs Android 8 or later; it is a debug
    build, so allow installing from your browser or file manager.
 2. On the welcome screen choose **Hybrid AI: Gemini Nano + cloud (recommended)**. No account or key is needed. Gemini Nano runs
-   on phones that support it through Android AICore (for example recent Pixel and Samsung Galaxy S phones; tested on a Galaxy
-   S24+); every other phone uses the cloud model automatically, and the app says which.
+   on phones that support it through Android AICore (for example recent Pixel and Samsung Galaxy S phones). The app asks
+   AICore which Gemini Nano release the phone has (stable, preview or fast preview) and uses the first that is ready. It was
+   tested on a Galaxy S24+ with "Gemini Nano 4 Fast [Preview, NPU]". Every other phone uses the cloud model automatically, and
+   the app says which.
 3. Ask for something in the chat, for example "Make a snake game in one HTML file", then open **Preview** to play it. Each reply
    says where it ran: `⚡ Ran on this phone (Gemini Nano)` or `☁ Ran in the cloud`.
 4. **⋮ → Models → Hybrid AI** has the routing modes, Gemini Nano's status, "Your hybrid usage" and the in-app benchmark.
