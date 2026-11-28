@@ -1474,7 +1474,7 @@ the files after the run, `transcript.txt` and `check.txt`.
 
 ---
 
-### HASH · 2026-11-27 21:00 · The README tells the hackathon story; the old README is the app guide (documents only)
+### d09a50a · 2026-11-27 21:00 · The README tells the hackathon story; the old README is the app guide (documents only)
 - **Why:** judges may score from the repository page, the description and the video without installing the app. The README opened
   with the pre-hackathon app (bring-your-own API keys) across 2,335 lines, and nothing said who the app is for.
 - **Change:** `README.md` is now a short page: who it is for, what it does, the measured results, the routing diagram and three
