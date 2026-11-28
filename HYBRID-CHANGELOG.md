@@ -1544,7 +1544,7 @@ the files after the run, `transcript.txt` and `check.txt`.
   only the test output, before the next try.
 - **Evidence:** pocketide-hybrid-reliable-benchmark-1127-2155-partial-51of171.
 
-### HASH · 2026-11-28 08:10 · Any Gemini Nano release, rewrites that differ, heat headroom; 1.5.219
+### 08f432e · 2026-11-28 08:10 · Any Gemini Nano release, rewrites that differ, heat headroom; 1.5.219
 - **Why:** the owner asked whether Hybrid mode works with every Gemini Nano release in AICore, and for the improvements a
   research pass found (ML Kit GenAI and Firebase AI Logic documentation, Android's thermal guidance, and work on repair with
   small models). The owner's AICore lists one model, "Gemini Nano 4 Fast [Preview, NPU]" (Gemma 4 E2B).
